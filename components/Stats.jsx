@@ -3,13 +3,13 @@ import { StyleSheet, Text, View } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
 
-const Stats = ({ playerAName, playerBName, playerAState, playerBState }) => {
+const Stats = ({ player1Name, player2Name, player1State, player2State }) => {
 
-  const playerABestLegAverage = playerAState.legsAverages.length > 0 ? Math.max(...playerAState.legsAverages) : playerAState.currentLegAverage;
-  const playerBBestLegAverage = playerBState.legsAverages.length > 0 ? Math.max(...playerBState.legsAverages) : playerBState.currentLegAverage;
+  const player1BestLegAverage = player1State.legsAverages.length > 0 ? Math.max(...player1State.legsAverages) : player1State.currentLegAverage;
+  const player2BestLegAverage = player2State.legsAverages.length > 0 ? Math.max(...player2State.legsAverages) : player2State.currentLegAverage;
 
-  const playerABestLegThrows = playerAState.dartsPerLeg.length > 0 ? Math.min(...playerAState.dartsPerLeg) : "-";
-  const playerBBestLegThrows = playerBState.dartsPerLeg.length > 0 ? Math.min(...playerBState.dartsPerLeg) : "-";
+  const player1BestLegThrows = player1State.dartsPerLeg.length > 0 ? Math.min(...player1State.dartsPerLeg) : "-";
+  const player2BestLegThrows = player2State.dartsPerLeg.length > 0 ? Math.min(...player2State.dartsPerLeg) : "-";
 
   const getThrowsBetween = (arrayOfArrays, min, max) => {
     return arrayOfArrays.reduce((accumulator, currentArray) => {
@@ -25,20 +25,20 @@ const Stats = ({ playerAName, playerBName, playerAState, playerBState }) => {
     }, 0);
   }
 
-  const playerAStats = {
-    plus60: getThrowsBetween([...playerAState.legByLegScores, playerAState.currentLegScores], 60, 80),
-    plus80: getThrowsBetween([...playerAState.legByLegScores, playerAState.currentLegScores], 80, 100),
-    plus100 : getThrowsBetween([...playerAState.legByLegScores, playerAState.currentLegScores], 100, 140),
-    plus140: getThrowsBetween([...playerAState.legByLegScores, playerAState.currentLegScores], 140, 180),
-    max: getMax([...playerAState.legByLegScores, playerAState.currentLegScores])
+  const player1Stats = {
+    plus60: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 60, 80),
+    plus80: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 80, 100),
+    plus100 : getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 100, 140),
+    plus140: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 140, 180),
+    max: getMax([...player1State.legByLegScores, player1State.currentLegScores])
   }
 
-  const playerBStats = {
-    plus60: getThrowsBetween([...playerBState.legByLegScores, playerBState.currentLegScores], 60, 80),
-    plus80: getThrowsBetween([...playerBState.legByLegScores, playerBState.currentLegScores], 80, 100),
-    plus100 : getThrowsBetween([...playerBState.legByLegScores, playerBState.currentLegScores], 100, 140),
-    plus140: getThrowsBetween([...playerBState.legByLegScores, playerBState.currentLegScores], 140, 180),
-    max: getMax([...playerBState.legByLegScores, playerBState.currentLegScores])
+  const player2Stats = {
+    plus60: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 60, 80),
+    plus80: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 80, 100),
+    plus100 : getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 100, 140),
+    plus140: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 140, 180),
+    max: getMax([...player2State.legByLegScores, player2State.currentLegScores])
   }
 
 
@@ -49,8 +49,8 @@ const Stats = ({ playerAName, playerBName, playerAState, playerBState }) => {
           <Text style={styles.headerText}></Text>
         </View>
         <View style={styles.rightRowSide}>
-          <Text style={styles.headerText}>{playerAName}</Text>
-          <Text style={styles.headerText}>{playerBName}</Text>
+          <Text style={styles.headerText}>{player1Name}</Text>
+          <Text style={styles.headerText}>{player2Name}</Text>
         </View>
       </View>
 
@@ -58,51 +58,51 @@ const Stats = ({ playerAName, playerBName, playerAState, playerBState }) => {
 
       <StatsRow 
         title="Cała gra"
-        playerAValue= {playerAState.matchAverage}
-        playerBValue= {playerBState.matchAverage}
+        player1Value= {player1State.matchAverage}
+        player2Value= {player2State.matchAverage}
       />
       <StatsRow 
         title="Najlepszy leg"
-        playerAValue= {playerABestLegAverage}
-        playerBValue= {playerBBestLegAverage}
+        player1Value= {player1BestLegAverage}
+        player2Value= {player2BestLegAverage}
       />
       <StatsRow 
         title="Aktualny leg"
-        playerAValue= {isNaN(playerAState.currentLegAverage) ? '-' : playerAState.currentLegAverage} 
-        playerBValue= {isNaN(playerBState.currentLegAverage) ? '-' : playerBState.currentLegAverage}
+        player1Value= {isNaN(player1State.currentLegAverage) ? '-' : player1State.currentLegAverage} 
+        player2Value= {isNaN(player2State.currentLegAverage) ? '-' : player2State.currentLegAverage}
       />
 
       <StatsTitleRow title="Osiągi"/>
 
       <StatsRow 
         title="Najlepszy leg"
-        playerAValue= {playerABestLegThrows}
-        playerBValue= {playerBBestLegThrows}
+        player1Value= {player1BestLegThrows}
+        player2Value= {player2BestLegThrows}
       />
       <StatsRow 
         title="60+"
-        playerAValue= {playerAStats.plus60}
-        playerBValue= {playerBStats.plus60}
+        player1Value= {player1Stats.plus60}
+        player2Value= {player2Stats.plus60}
       />
       <StatsRow 
         title="80+"
-        playerAValue= {playerAStats.plus80}
-        playerBValue= {playerBStats.plus80}
+        player1Value= {player1Stats.plus80}
+        player2Value= {player2Stats.plus80}
       />
       <StatsRow 
         title="100+"
-        playerAValue= {playerAStats.plus100}
-        playerBValue= {playerBStats.plus100}
+        player1Value= {player1Stats.plus100}
+        player2Value= {player2Stats.plus100}
       />
       <StatsRow 
         title="140+"
-        playerAValue= {playerAStats.plus140}
-        playerBValue= {playerBStats.plus140}
+        player1Value= {player1Stats.plus140}
+        player2Value= {player2Stats.plus140}
       />
       <StatsRow 
         title="180"
-        playerAValue= {playerAStats.max}
-        playerBValue= {playerBStats.max}
+        player1Value= {player1Stats.max}
+        player2Value= {player2Stats.max}
       />
     </View>
   )

@@ -8,22 +8,23 @@ const LogoutButton = () => {
   const { auth, setAuth } = useAuth();
 
   const logOut = async () => {    
-    try{      
-      const response = await fetch(LOGOUT_API_URL, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${auth?.accessToken}`
-        }
-      });
+    setAuth({});
+    // try{      
+    //   const response = await fetch(LOGOUT_API_URL, {
+    //     method: 'GET',
+    //     headers: {
+    //       'Authorization': `Bearer ${auth?.accessToken}`
+    //     }
+    //   });
 
-      if(response.ok){
-        setAuth({});
-      }else{
-        console.error('Blad podczas wylogowywania', response.statusText);
-      }
-    } catch (error) {
-      console.error('Blad podczas strzalu do API', error);
-    }
+    //   if(response.ok){
+    //     setAuth({});
+    //   }else{
+    //     console.error('Blad podczas wylogowywania', response.statusText);
+    //   }
+    // } catch (error) {
+    //   console.error('Blad podczas strzalu do API', error);
+    // }
   }
 
   const handleLogoutBtn = () => {

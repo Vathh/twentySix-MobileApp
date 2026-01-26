@@ -3,6 +3,7 @@ import useAuth from '../hooks/useAuth';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MatchList from '../components/MatchList';
 import Match from '../components/Match';
+import TournamentLogin from '../components/TournamentLogin';
 import Home from '../components/Home';
 import HeaderTitle from '../components/HeaderTitle';
 import LogoutButton from '../components/LogoutButton';
@@ -15,7 +16,7 @@ const Screens = () => {
 
   return (
     <Stack.Navigator>
-      {auth?.role ? (
+      {auth?.accessToken ? (
         <>
           <Stack.Screen name="MatchList" component={MatchList}
           options={{
@@ -50,6 +51,18 @@ const Screens = () => {
                 backgroundColor: '#363062',
               },
               headerTitle: (props) => <HeaderTitle {...props}/>
+            }}
+          />
+          <Stack.Screen name="TournamentLogin" component={TournamentLogin}
+            options={{
+              headerStyle: {
+                backgroundColor: '#363062'
+              },
+              headerTintColor: '#F99417',
+              headerTitle: (props) => <HeaderTitle {...props}/>,
+              headerRight: () => (
+                <LogoutButton />
+              )
             }}
           />
         </>

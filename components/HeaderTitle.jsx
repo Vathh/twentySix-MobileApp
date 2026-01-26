@@ -3,7 +3,7 @@ import { StyleSheet, Text } from 'react-native'
 
 const HeaderTitle = () => {
   return (
-    <Text style={styles.text}>Suwalska Liga Darta</Text>
+    <Text style={styles.text}>DartScore</Text>
   )
 }
 

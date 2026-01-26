@@ -1,43 +1,43 @@
 import React from 'react'
 import { StyleSheet, Text, View, Pressable } from 'react-native'
 
-const Counter = ({ playerA, playerB, playerAState, playerBState, currentPlayer, currentResult, handleNumberBtn, handleOkBtn, handleUndoBtn, handleClearBtn }) => {
+const Counter = ({ player1, player2, player1State, player2State, currentPlayer, currentResult, handleNumberBtn, handleOkBtn, handleUndoBtn, handleClearBtn }) => {
   return (
     <View style={styles.container}>
       <View style={styles.resultContainer}>
-        <View style={styles.playerAContainer}>
-          <Text style={styles.playerText}>{playerA.name} ({playerAState.dartsThrown})</Text>
+        <View style={styles.player1Container}>
+          <Text style={styles.playerText}>{player1.name} ({player1State.dartsThrown})</Text>
         </View>
         <View style={styles.legsContainer}>
-            <Text style={styles.legsResultText}>{playerAState.legsWon}</Text>
+            <Text style={styles.legsResultText}>{player1State.legsWon}</Text>
             <Text style={styles.legsText}>legi</Text>
-            <Text style={styles.legsResultText}>{playerBState.legsWon}</Text>
+            <Text style={styles.legsResultText}>{player2State.legsWon}</Text>
         </View>
-        <View style={styles.playerBContainer}>
-          <Text style={styles.playerText}>({playerBState.dartsThrown}) {playerB.name}</Text>
+        <View style={styles.player2Container}>
+          <Text style={styles.playerText}>({player2State.dartsThrown}) {player2.name}</Text>
         </View>
       </View>
 
       <View style={styles.countersContainer}>
         <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
-          <Text style={[styles.counterText, (currentPlayer === playerA) && styles.goldText]}>{playerAState.score}</Text>
+          <Text style={[styles.counterText, (currentPlayer === player1) && styles.goldText]}>{player1State.score}</Text>
           <View style={styles.averagesContainer}>
             <Text style={styles.averageText}>
-              ms: {playerAState.totalPointsEarned != 0 ? playerAState.matchAverage : '-'}
+              ms: {player1State.totalPointsEarned != 0 ? player1State.matchAverage : '-'}
             </Text>
             <Text style={styles.averageText}>
-              ls: {playerAState.score != 501 ? playerAState.currentLegAverage : '-'}
+              ls: {player1State.score != 501 ? player1State.currentLegAverage : '-'}
             </Text>
           </View>
         </View> 
         <View style={styles.counterContainer}>
-          <Text style={[styles.counterText, (currentPlayer === playerB) && styles.goldText]}>{playerBState.score}</Text>
+          <Text style={[styles.counterText, (currentPlayer === player2) && styles.goldText]}>{player2State.score}</Text>
           <View style={styles.averagesContainer}>
             <Text style={styles.averageText}>
-              ms: {playerBState.totalPointsEarned != 0 ? playerBState.matchAverage : '-'}
+              ms: {player2State.totalPointsEarned != 0 ? player2State.matchAverage : '-'}
             </Text>
             <Text style={styles.averageText}>
-              ls: {playerBState.score != 501 ? playerBState.currentLegAverage : '-'}
+              ls: {player2State.score != 501 ? player2State.currentLegAverage : '-'}
             </Text>
           </View>
         </View> 
@@ -116,11 +116,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: 'rgba(0,0,0,.3)',
   },
-  playerAContainer: {
+  player1Container: {
     flex: 1,
     paddingLeft: 10
   },
-  playerBContainer: {
+  player2Container: {
     flex: 1,
     paddingRight: 10,
     alignItems: 'flex-end'

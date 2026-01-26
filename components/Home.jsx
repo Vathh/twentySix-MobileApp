@@ -1,75 +1,20 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { AUTHENTICATE_API_URL } from '../helpers/apiConfig';
+import { AUTHENTICATE_API_URL, LOGIN_API_URL } from '../helpers/apiConfig';
 import useAuth from '../hooks/useAuth';
 
-const Home = () => {
+const Home = ({ navigation }) => {
 
-  const { setAuth } = useAuth();
-
-  const [userName, setUserName] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const userDTO = {
-        userName: userName,
-        password: password
-      }
-
-      const response = await fetch(AUTHENTICATE_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        withCredentials: true,
-        body: JSON.stringify(userDTO)
-      });
-      let data = await response.json();
-      
-      const accessToken = data?.accessToken;
-      const role = data?.role;
-
-      setAuth({ userName, role, accessToken });
-      setUserName('');
-      setPassword('');    
-    } catch (err) {
-      if(!err?.response){
-        setErrorMsg('Nazwa użytkownika lub hasło jest nieprawidłowe');
-      } else if(err.response?.status === 400){
-        setErrorMsg('Missing Username or Password');
-      } else if(err.response?.status === 401){
-        setErrorMsg('Unauthorized');
-      } else {
-        setErrorMsg('Login Failed');
-      }
-    } 
+  const tournamentModeHandler = () => {
+    navigation.navigate('TournamentLogin');
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Zaloguj się</Text>
+      <Text style={styles.title}>Wybierz tryb gry</Text>
       <View style={styles.form}>
-        <Text style={styles.errorMessage}>{errorMsg}</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder='Nazwa użytkownika' 
-          value={userName} 
-          onChangeText={text => setUserName(text)} 
-          autoCorrect={false} 
-          autoCapitalize='none'/>
-        <TextInput 
-          style={styles.input} 
-          placeholder='Hasło' 
-          value={password} 
-          onChangeText={text => setPassword(text)} 
-          autoCorrect={false} 
-          autoCapitalize='none'/>
-        <Pressable style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Zaloguj</Text>
+        <Pressable style={styles.button} onPress={tournamentModeHandler}>
+          <Text style={styles.buttonText}>Turniej</Text>
         </Pressable>
       </View>
     </View>

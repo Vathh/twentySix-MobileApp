@@ -1,4 +1,14 @@
-const API_BASE_URL = 'http://192.168.0.16:8190/dart_league';
+// const API_BASE_URL = 'http://192.168.0.16:8190/dart_league';
+// const API_BASE_URL = 'http://192.168.0.17:8000/api';
+// const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'http://10.0.2.2:8000/api';
+
+
+const GAME_ENDPOINT = '/game';
+const ACTIVE_ENDPOINT = '/active';
+const UPDATE_ENDPOINT = '/update';
+
+const LOGIN_ENDPOINT = '/login';
 
 const MATCH_ENDPOINT = '/match';
 const MATCH_ACTIVE_ENDPOINT = '/active';
@@ -15,3 +25,10 @@ export const MATCH_API_URL = API_BASE_URL + MATCH_ENDPOINT;
 export const AUTHENTICATE_API_URL = API_BASE_URL + AUTHORIZATION_ENDPOINT + AUTHORIZATION_AUTHENTICATE_ENDPOINT;
 
 export const LOGOUT_API_URL = API_BASE_URL + LOGOUT_ENDPOINT;
+
+export const LOGIN_API_URL = API_BASE_URL + LOGIN_ENDPOINT;
+
+export const ACTIVE_GAMES_API_URL = API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;
+
+export const UPDATE_GAME_API_URL = API_BASE_URL + GAME_ENDPOINT + UPDATE_ENDPOINT;
+

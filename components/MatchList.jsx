@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
-import { MATCH_ACTIVE_API_URL } from '../helpers/apiConfig'
+import { Modal, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native'
+import { ACTIVE_GAMES_API_URL, MATCH_ACTIVE_API_URL } from '../helpers/apiConfig'
 import useAuth from '../hooks/useAuth';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -11,11 +11,16 @@ const MatchList = ({ navigation }) => {
   const { auth } = useAuth();
 
   const [matches, setMatches] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
 
   const toggleModal = () => {
     setIsModalVisible(isModalVisible => !isModalVisible);
+  }
+
+  const handleGroupSelection = (group) => {
+    setSelectedGroup(group);
   }
 
   const handleMatchSelection = (match) => {
@@ -25,7 +30,9 @@ const MatchList = ({ navigation }) => {
 
   const fetchMatches = async () => {
     try{
-      const response = await fetch(MATCH_ACTIVE_API_URL, {
+      const url = `${ACTIVE_GAMES_API_URL}?tournamentId=${auth?.tournamentId}`;
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${auth?.accessToken}`
@@ -38,13 +45,25 @@ const MatchList = ({ navigation }) => {
     }
   }
 
+  const renderGroups = () => {
+    return matches.map(match => match.groupNumber).filter((value, index, self) => {
+              return self.indexOf(value) === index;
+            }).map(group => {
+              return <Pressable key={group} style={styles.matchContainer} onPress={() => handleGroupSelection(group)}>
+                      <View style={styles.match}>
+                        <Text style={styles.groupText}>Grupa {group}</Text>
+                      </View>
+                    </Pressable>
+            })
+  }
+
   const renderMatches = () => {
-    return matches.map(match => {
-      return <Pressable key={match.matchId} style={styles.matchContainer} onPress={() => handleMatchSelection(match)}>
+    return matches.filter(match => match.groupNumber == selectedGroup).map(match => {
+      return <Pressable key={match.id} style={styles.matchContainer} onPress={() => handleMatchSelection(match)}>
               <View style={styles.match}>
-                <Text style={styles.playerName}>{match.playerA.name}</Text>
+                <Text style={styles.playerName}>{match.player1.name}</Text>
                 <Text style={styles.vs}>VS</Text>
-                <Text style={styles.playerName}>{match.playerB.name}</Text>
+                <Text style={styles.playerName}>{match.player2.name}</Text>
               </View>
             </Pressable>
     })
@@ -78,9 +97,12 @@ const MatchList = ({ navigation }) => {
         <Text style={styles.refreshText}>Odśwież</Text>
       </Pressable>
       <Text style={styles.header}>Mecze do rozegrania</Text>
-      <View style={styles.matchesContainer}>
-        {matches.length ? renderMatches() : <Text style={styles.noMatchesText}>Brak aktywnych meczy</Text>}
-      </View>
+      {selectedGroup ?  <ScrollView contentContainerStyle={styles.matchesContainer}>
+                          {matches.length ? renderMatches() : <Text style={styles.noMatchesText}>Brak aktywnych meczy</Text>}
+                        </ScrollView> : 
+                        <ScrollView contentContainerStyle={styles.groupsContainer}>
+                          {matches.length ? renderGroups() : <Text style={styles.noMatchesText}>Brak aktywnych meczy</Text>}
+                        </ScrollView>}
 
       <Modal 
         visible={isModalVisible}
@@ -90,9 +112,9 @@ const MatchList = ({ navigation }) => {
           <View style={styles.modalContainer}>
             <Text style={styles.modalText}>Czy na pewno chcesz rozpocząć ten mecz?</Text>
             <View style={styles.modalPlayersContainer}>
-              <Text style={styles.modalPlayerName}>{selectedMatch.playerA.name}</Text>
+              <Text style={styles.modalPlayerName}>{selectedMatch.player1.name}</Text>
               <Text style={styles.modalVS}>VS</Text>
-              <Text style={styles.modalPlayerName}>{selectedMatch.playerB.name}</Text>
+              <Text style={styles.modalPlayerName}>{selectedMatch.player2.name}</Text>
             </View>
             <View style={styles.modalBtnsContainer}>
               <Pressable style={styles.modalBtn} onPress={toggleModal}>
@@ -147,13 +169,12 @@ const styles = StyleSheet.create({
     marginTop: 20
   },
   matchesContainer: {
-    flex: 7,
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginLeft: 15,
-    marginRight: 15
+    marginRight: 15,
+    paddingBottom: 20
   },
   matchContainer: {
     height: 70,
@@ -232,6 +253,6 @@ const styles = StyleSheet.create({
     paddingLeft: 15,
     paddingRight: 15,
     fontSize: 18
-  }
+  },
 });
 export default MatchList

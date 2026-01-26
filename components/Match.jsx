@@ -3,10 +3,10 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { playerResultReducer } from '../helpers/reducers/playerResultReducer';
 import { initialPlayerResultState, legLose, legWin, undo, updateStats } from '../helpers/reducers/playerResultActions';
 import { achievementsReducer } from '../helpers/reducers/achievementsReducer';
-import { initialAchievementsState, setHf, setMax, setOneSeventy, setQf } from '../helpers/reducers/achievementActions';
+import { addAchievement, initialAchievementsState } from '../helpers/reducers/achievementActions';
 import Counter from './Counter';
 import Stats from './Stats';
-import { MATCH_API_URL } from '../helpers/apiConfig';
+import { UPDATE_GAME_API_URL } from '../helpers/apiConfig';
 import useAuth from '../hooks/useAuth';
 
 const Match = ({ route, navigation }) => {
@@ -16,15 +16,15 @@ const Match = ({ route, navigation }) => {
   const [selectedComponent, setSelectedComponent] = useState('counter');
 
   const { match } = route.params;
-  const playerA = match.match.playerA;
-  const playerB = match.match.playerB;
+  const player1 = match.match.player1;
+  const player2 = match.match.player2;
   const [isModalVisible, setIsModalVisible] = useState(true);
   const [isQFModalVisible, setIsQFModalVisible] = useState(false);
   const [matchClosed, setMatchClosed] = useState(false);
 
-  const [playerAState, playerADispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player1State, player1Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
 
-  const [playerBState, playerBDispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player2State, player2Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
 
   const [achievementsState, achievementsDispatch] = useReducer(achievementsReducer, initialAchievementsState);
 
@@ -36,10 +36,10 @@ const Match = ({ route, navigation }) => {
   const renderContent = () => {
     if(selectedComponent === 'counter'){
       return <Counter 
-              playerA={playerA}
-              playerB={playerB}
-              playerAState={playerAState}
-              playerBState={playerBState}
+              player1={player1}
+              player2={player2}
+              player1State={player1State}
+              player2State={player2State}
               currentPlayer={currentPlayer}
               currentResult={currentResult}
               handleNumberBtn={handleNumberBtn}
@@ -49,21 +49,21 @@ const Match = ({ route, navigation }) => {
             />
     }else if(selectedComponent === 'stats'){
       return <Stats
-              playerAName={playerA.name}
-              playerBName={playerB.name}
-              playerAState={playerAState}
-              playerBState={playerBState}
+              player1Name={player1.name}
+              player2Name={player2.name}
+              player1State={player1State}
+              player2State={player2State}
             />
     }
   }
 
   const switchStartingPlayer = () => {
-    if(legStartingPlayer === playerA){
-      setLegStartingPlayer(playerB);
+    if(legStartingPlayer === player1){
+      setLegStartingPlayer(player2);
     }
     
-    if(legStartingPlayer === playerB){
-      setLegStartingPlayer(playerA);
+    if(legStartingPlayer === player2){
+      setLegStartingPlayer(player1);
     }
   };
 
@@ -102,18 +102,21 @@ const Match = ({ route, navigation }) => {
     if(currentResult == 180){
       const max = {
         playerId: currentPlayer.playerId,
-        tournamentId: match.match.tournamentId
+        tournamentId: match.match.tournamentId,
+        value: null,
+        type: 'max'
       }
-      achievementsDispatch(setMax(max));
+      achievementsDispatch(addAchievement(max));
     }
 
     if(currentResult >= 170 && currentResult < 180){
       const oneSeventy = {
         playerId: currentPlayer.playerId,
+        tournamentId: match.match.tournamentId,
         value: currentResult,
-        tournamentId: match.match.tournamentId
+        type: 'one_seventy'
       }
-      achievementsDispatch(setOneSeventy(oneSeventy));
+      achievementsDispatch(addAchievement(oneSeventy));
     }
   };
 
@@ -121,10 +124,11 @@ const Match = ({ route, navigation }) => {
     if(currentResult >= 100){
       const hf = {
         playerId: currentPlayer.playerId,
+        tournamentId: match.match.tournamentId,
         value: currentResult,
-        tournamentId: match.match.tournamentId
+        type: 'hf'
       }
-      achievementsDispatch(setHf(hf));
+      achievementsDispatch(addAchievement(hf));
     }
   };
 
@@ -132,10 +136,11 @@ const Match = ({ route, navigation }) => {
     if(dart < 20){
       const qf = {
         playerId: player.playerId,
+        tournamentId: match.match.tournamentId,
         value: dart,
-        tournamentId: match.match.tournamentId
+        type: 'qf'
       }
-      achievementsDispatch(setQf(qf));
+      achievementsDispatch(addAchievement(qf));
     }
   }
 
@@ -150,15 +155,15 @@ const Match = ({ route, navigation }) => {
 
     handleMaxAndOneSeventy();    
 
-    if(currentPlayer === playerA){
-      if(currentResult < playerAState.score - 1){
-        playerADispatch(updateStats(currentResult));
-        setCurrentPlayer(playerB);
+    if(currentPlayer === player1){
+      if(currentResult < player1State.score - 1){
+        player1Dispatch(updateStats(currentResult));
+        setCurrentPlayer(player2);
       }
-      if(currentResult == playerAState.score){
+      if(currentResult == player1State.score){
         Alert.alert(
           'UWAGA',
-          `Czy ${playerA.name} wygrał lega?`,
+          `Czy ${player1.name} wygrał lega?`,
           [
             { text: "NIE", style: 'cancel', onPress: () => {} },
             {
@@ -166,7 +171,7 @@ const Match = ({ route, navigation }) => {
               style: 'destructive',
               onPress: () => {
                 handleHf();
-                handleCheckout(playerA)
+                handleCheckout(player1)
               },
             },
           ]
@@ -174,15 +179,15 @@ const Match = ({ route, navigation }) => {
       }
     }
 
-    if(currentPlayer === playerB){
-      if(currentResult < playerBState.score - 1){
-        playerBDispatch(updateStats(currentResult));
-        setCurrentPlayer(playerA);
+    if(currentPlayer === player2){
+      if(currentResult < player2State.score - 1){
+        player2Dispatch(updateStats(currentResult));
+        setCurrentPlayer(player1);
       }
-      if(currentResult == playerBState.score){
+      if(currentResult == player2State.score){
         Alert.alert(
           'UWAGA',
-          `Czy ${playerB.name} wygrał lega?`,
+          `Czy ${player2.name} wygrał lega?`,
           [
             { text: "NIE", style: 'cancel', onPress: () => {} },
             {
@@ -190,7 +195,7 @@ const Match = ({ route, navigation }) => {
               style: 'destructive',
               onPress: () => {
                 handleHf();
-                handleCheckout(playerB)
+                handleCheckout(player2)
               },
             },
           ]
@@ -202,33 +207,33 @@ const Match = ({ route, navigation }) => {
 
   const handleCheckout = (player) => {
 
-    if(player === playerA){
-      if(playerAState.dartsThrown < 20){
+    if(player === player1){
+      if(player1State.dartsThrown < 20){
         toggleQFModal();
-        setQfHelperDart(playerAState.dartsThrown);
+        setQfHelperDart(player1State.dartsThrown);
         return;
       }else{
-        playerADispatch(legWin(3));
-        playerBDispatch(legLose());
+        player1Dispatch(legWin(3));
+        player2Dispatch(legLose());
       }
     }
     
-    if(player === playerB){
-      if(playerBState.dartsThrown < 20){
+    if(player === player2){
+      if(player2State.dartsThrown < 20){
         toggleQFModal();
-        setQfHelperDart(playerBState.dartsThrown);
+        setQfHelperDart(player2State.dartsThrown);
         return;
       }else{
-        playerBDispatch(legWin(3));
-        playerADispatch(legLose());
+        player2Dispatch(legWin(3));
+        player1Dispatch(legLose());
       }
     }    
   }
 
   const sendMatchResult = async (matchResultDTO) => {
     try{
-      const response = await fetch(MATCH_API_URL, {
-        method: 'PATCH',
+      const response = await fetch(UPDATE_GAME_API_URL, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${auth?.accessToken}`
@@ -248,17 +253,17 @@ const Match = ({ route, navigation }) => {
 
   const handleQFModalBtn = (dartNumber) => {    
     const dart = qfHelperDart + dartNumber;
-    if(currentPlayer === playerA){
-      handleQf(playerA, dart);
-      playerADispatch(legWin(dartNumber));
-      playerBDispatch(legLose());
+    if(currentPlayer === player1){
+      handleQf(player1, dart);
+      player1Dispatch(legWin(dartNumber));
+      player2Dispatch(legLose());
       switchStartingPlayer();
     }
     
-    if(currentPlayer === playerB){
-      handleQf(playerB, dart);
-      playerBDispatch(legWin(dartNumber));
-      playerADispatch(legLose());
+    if(currentPlayer === player2){
+      handleQf(player2, dart);
+      player2Dispatch(legWin(dartNumber));
+      player1Dispatch(legLose());
       switchStartingPlayer();
     }
 
@@ -270,45 +275,46 @@ const Match = ({ route, navigation }) => {
       return;
     }
 
-    if(playerAState.score == 501 && playerBState.score == 501){
+    if(player1State.score == 501 && player2State.score == 501){
       return
     }
-    if(currentPlayer === playerA){
-      setCurrentPlayer(playerB);
-      playerBDispatch(undo());
+    if(currentPlayer === player1){
+      setCurrentPlayer(player2);
+      player2Dispatch(undo());
     }
-    if(currentPlayer === playerB){
-      setCurrentPlayer(playerA);
-      playerADispatch(undo());
+    if(currentPlayer === player2){
+      setCurrentPlayer(player1);
+      player1Dispatch(undo());
     }
   }
 
   useEffect(() => {
-    if(playerAState.legsWon == 2 || playerBState.legsWon == 2){
+    if(player1State.legsWon == 2 || player2State.legsWon == 2){
       setMatchClosed(true);
       let winner;
       let loser;
 
-      if(playerAState.legsWon == 2){
-        winner = playerA;
-        loser = playerB;
-      }else if(playerBState.legsWon == 2){
-        winner = playerB;
-        loser = playerA;
+      if(player1State.legsWon == 2){
+        winner = player1;
+        loser = player2;
+      }else if(player2State.legsWon == 2){
+        winner = player2;
+        loser = player1;
       }
 
       const matchResultDTO = {
-        matchAchievementsDTO : achievementsState,
-        updateMatchDTO : {
+        game : {
+          id: match.match.id,
+          type: match.match.type,
+          player1Id: player1.id,
+          player2Id: player2.id,
+          player1Score: player1State.legsWon,
+          player2Score: player2State.legsWon,
+          winnerId: winner.id,
           tournamentId: match.match.tournamentId,
-          matchId: match.match.matchId,
-          winnerId: winner.playerId,
-          loserId: loser.playerId,
-          markup: match.match.markup,
-          winnerDestinationMarkup: match.match.winnerDestinationMarkup,
-          loserDestinationMarkup: match.match.loserDestinationMarkup,
-          points: match.match.points
-        }
+          groupNumber: match.match.groupNumber 
+        },
+        achievements : achievementsState
       };
 
       sendMatchResult(matchResultDTO);
@@ -327,7 +333,7 @@ const Match = ({ route, navigation }) => {
         ]
       );
     }
-  },[playerAState.legsWon, playerBState.legsWon]);
+  },[player1State.legsWon, player2State.legsWon]);
 
   useEffect(() => {
     setCurrentPlayer(legStartingPlayer);
@@ -364,15 +370,15 @@ const Match = ({ route, navigation }) => {
           <View style={styles.modalBtnsContainer}>
             <Pressable 
               style={styles.modalBtn} 
-              onPress={() => handleBullWinnerSelection(playerA)}
+              onPress={() => handleBullWinnerSelection(player1)}
             >
-              <Text style={styles.modalBtnText}>{playerA.name}</Text>
+              <Text style={styles.modalBtnText}>{player1.name}</Text>
             </Pressable>
             <Pressable 
               style={styles.modalBtn} 
-              onPress={() => handleBullWinnerSelection(playerB)}
+              onPress={() => handleBullWinnerSelection(player2)}
             >
-              <Text style={styles.modalBtnText}>{playerB.name}</Text>
+              <Text style={styles.modalBtnText}>{player2.name}</Text>
             </Pressable>
           </View>
         </View>
@@ -493,3 +499,19 @@ const styles = StyleSheet.create({
 });
 
 export default Match
+
+
+
+// const matchResultDTO = {
+//         achievements : achievementsState,
+//         game : {
+//           tournamentId: match.match.id,
+//           matchId: match.match.id,
+//           winnerId: winner.id,
+//           loserId: loser.id,
+//           markup: match.match.markup,
+//           winnerDestinationMarkup: match.match.winnerDestinationMarkup,
+//           loserDestinationMarkup: match.match.loserDestinationMarkup,
+//           points: match.match.points
+//         }
+//       };
