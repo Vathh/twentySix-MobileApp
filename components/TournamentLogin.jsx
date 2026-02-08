@@ -1,65 +1,65 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { AUTHENTICATE_API_URL, LOGIN_API_URL } from '../helpers/apiConfig';
+import { ACCOUNT_LOGIN_API_URL } from '../helpers/apiConfig';
 import useAuth from '../hooks/useAuth';
 
-const Home = () => {
+const TournamentLogin = () => {
 
   const { setAuth } = useAuth();
 
-  const [loginCode, setLoginCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
+    setErrorMsg('');
 
     try {
-      const payload = {
-        code: loginCode
-      }
-
-      const response = await fetch(LOGIN_API_URL, {
+      const response = await fetch(ACCOUNT_LOGIN_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        withCredentials: true,
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ email, password })
       });
-      let data = await response.json();
-      
-      const accessToken = data?.token;
-      const tournamentId = data?.tournamentId;
-      // const role = data?.role;
+      const data = await response.json();
 
-      setAuth({ accessToken, tournamentId });
-    } catch (err) {
-      if(!err?.response){
-        setErrorMsg('Nazwa użytkownika lub hasło jest nieprawidłowe');
-      } else if(err.response?.status === 400){
-        setErrorMsg('Missing Username or Password');
-      } else if(err.response?.status === 401){
-        setErrorMsg('Unauthorized');
-      } else {
-        setErrorMsg('Login Failed');
+      if (!response.ok) {
+        setErrorMsg(data?.message || 'Nieprawidłowy email lub hasło');
+        return;
       }
-    } 
+
+      const accessToken = data?.token;
+      setAuth({ accessToken, tournamentId: null });
+    } catch (err) {
+      setErrorMsg('Nieprawidłowy email lub hasło');
+    }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.mode}>Tryb turnieju</Text>
-      <Text style={styles.title}>Zaloguj się</Text>
+      <Text style={styles.title}>Zaloguj się na konto</Text>
       <View style={styles.form}>
         <Text style={styles.errorMessage}>{errorMsg}</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder='Kod logowania' 
-          value={loginCode} 
-          onChangeText={text => setLoginCode(text)} 
-          autoCorrect={false} 
-          autoCapitalize='none'/>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Hasło"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
         <Pressable style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Zaloguj</Text>
         </Pressable>
@@ -103,11 +103,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     fontSize: 16
-    },
+  },
   button: {
     alignItems: 'center',
     marginTop: 20,
-    // marginHorizontal: 'auto',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingVertical: 7,
@@ -120,4 +119,4 @@ const styles = StyleSheet.create({
   }
 })
 
-export default Home
+export default TournamentLogin

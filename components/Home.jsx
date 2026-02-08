@@ -1,12 +1,23 @@
-import React, { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { AUTHENTICATE_API_URL, LOGIN_API_URL } from '../helpers/apiConfig';
-import useAuth from '../hooks/useAuth';
+import React from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import useAuth from '../hooks/useAuth'
 
 const Home = ({ navigation }) => {
 
+  const { auth } = useAuth()
+
+  // Turniej: uwierzytelnienie kodem (bez konta) – sędziowanie meczów w turnieju
   const tournamentModeHandler = () => {
-    navigation.navigate('TournamentLogin');
+    navigation.navigate('TournamentCode')
+  }
+
+  // Szybki mecz: gdy zalogowany → lobby (tworzenie / zaproszenia); gdy nie – logowanie na konto
+  const quickGameHandler = () => {
+    if (auth?.accessToken) {
+      navigation.navigate('QuickGameLobby')
+    } else {
+      navigation.navigate('AccountLogin')
+    }
   }
 
   return (
@@ -15,6 +26,9 @@ const Home = ({ navigation }) => {
       <View style={styles.form}>
         <Pressable style={styles.button} onPress={tournamentModeHandler}>
           <Text style={styles.buttonText}>Turniej</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={quickGameHandler}>
+          <Text style={styles.buttonText}>Szybki mecz</Text>
         </Pressable>
       </View>
     </View>
@@ -50,11 +64,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     fontSize: 16
-    },
+  },
   button: {
     alignItems: 'center',
     marginTop: 20,
-    // marginHorizontal: 'auto',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingVertical: 7,

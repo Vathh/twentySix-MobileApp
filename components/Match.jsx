@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from 'react'
+import React, { useEffect, useReducer, useRef, useState } from 'react'
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { playerResultReducer } from '../helpers/reducers/playerResultReducer';
 import { initialPlayerResultState, legLose, legWin, undo, updateStats } from '../helpers/reducers/playerResultActions';
@@ -6,7 +6,7 @@ import { achievementsReducer } from '../helpers/reducers/achievementsReducer';
 import { addAchievement, initialAchievementsState } from '../helpers/reducers/achievementActions';
 import Counter from './Counter';
 import Stats from './Stats';
-import { UPDATE_GAME_API_URL } from '../helpers/apiConfig';
+import { UPDATE_GAME_API_URL, QUICK_GAME_UPDATE_API_URL } from '../helpers/apiConfig';
 import useAuth from '../hooks/useAuth';
 
 const Match = ({ route, navigation }) => {
@@ -15,56 +15,102 @@ const Match = ({ route, navigation }) => {
 
   const [selectedComponent, setSelectedComponent] = useState('counter');
 
-  const { match } = route.params;
-  const player1 = match.match.player1;
-  const player2 = match.match.player2;
+  const isQuickGame = !!route.params?.quickGame;
+  const quickGame = route.params?.quickGame;
+  const matchParam = route.params?.match;
+
+  const players = isQuickGame
+    ? (quickGame?.players ?? []).map((p) => ({ id: p.id, name: p.name ?? 'Gracz', playerId: p.playerId }))
+    : matchParam?.match
+      ? [matchParam.match.player1, matchParam.match.player2]
+      : [];
+  const N = Math.min(Math.max(players.length, 2), 6);
+  const player1 = players[0];
+  const player2 = players[1];
+  const match = isQuickGame ? { match: { id: null, type: 'quick_match', tournamentId: null, groupNumber: null } } : matchParam;
+
   const [isModalVisible, setIsModalVisible] = useState(true);
   const [isQFModalVisible, setIsQFModalVisible] = useState(false);
   const [matchClosed, setMatchClosed] = useState(false);
 
   const [player1State, player1Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
-
   const [player2State, player2Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player3State, player3Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player4State, player4Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player5State, player5Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+  const [player6State, player6Dispatch] = useReducer(playerResultReducer, initialPlayerResultState);
+
+  const allStates = [player1State, player2State, player3State, player4State, player5State, player6State];
+  const allDispatches = [player1Dispatch, player2Dispatch, player3Dispatch, player4Dispatch, player5Dispatch, player6Dispatch];
+  const playerStates = allStates.slice(0, N);
+  const playerDispatches = allDispatches.slice(0, N);
 
   const [achievementsState, achievementsDispatch] = useReducer(achievementsReducer, initialAchievementsState);
 
   const [legStartingPlayer, setLegStartingPlayer] = useState();
-  const [currentPlayer, setCurrentPlayer] = useState(null);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const currentPlayerIndexRef = useRef(0);
+  const okHandlingRef = useRef(false);
+  const currentPlayer = players[currentPlayerIndex] ?? null;
   const [currentResult, setCurrentResult] = useState(0);
   const [qfHelperDart, setQfHelperDart] = useState(0);
 
+  // Ref jest jedynym źródłem prawdy w handleOkBtn; state currentPlayerIndex służy tylko do wyświetlania.
+  // Nie synchronizujemy ref ze state w useEffect – po ustawieniu ref i state w handlerach ref nie może być nadpisany.
+
   const renderContent = () => {
-    if(selectedComponent === 'counter'){
-      return <Counter 
-              player1={player1}
-              player2={player2}
-              player1State={player1State}
-              player2State={player2State}
-              currentPlayer={currentPlayer}
-              currentResult={currentResult}
-              handleNumberBtn={handleNumberBtn}
-              handleOkBtn={handleOkBtn}
-              handleUndoBtn={handleUndoBtn}
-              handleClearBtn={handleClearBtn}
-            />
-    }else if(selectedComponent === 'stats'){
-      return <Stats
-              player1Name={player1.name}
-              player2Name={player2.name}
-              player1State={player1State}
-              player2State={player2State}
-            />
+    if (selectedComponent === 'counter') {
+      if (N > 2) {
+        return (
+          <Counter
+            players={players}
+            playerStates={playerStates}
+            currentPlayerIndex={currentPlayerIndex}
+            currentResult={currentResult}
+            handleNumberBtn={handleNumberBtn}
+            handleOkBtn={handleOkBtn}
+            handleUndoBtn={handleUndoBtn}
+            handleClearBtn={handleClearBtn}
+          />
+        );
+      }
+      return (
+        <Counter
+          player1={player1}
+          player2={player2}
+          player1State={player1State}
+          player2State={player2State}
+          currentPlayer={currentPlayer}
+          currentPlayerIndex={currentPlayerIndex}
+          currentResult={currentResult}
+          handleNumberBtn={handleNumberBtn}
+          handleOkBtn={handleOkBtn}
+          handleUndoBtn={handleUndoBtn}
+          handleClearBtn={handleClearBtn}
+        />
+      );
     }
-  }
+    if (selectedComponent === 'stats') {
+      return (
+        <Stats
+          player1Name={player1?.name}
+          player2Name={player2?.name}
+          player1State={player1State}
+          player2State={player2State}
+          players={N > 2 ? players : undefined}
+          playerStates={N > 2 ? playerStates : undefined}
+        />
+      );
+    }
+    return null;
+  };
 
   const switchStartingPlayer = () => {
-    if(legStartingPlayer === player1){
-      setLegStartingPlayer(player2);
+    if (N > 2) {
+      setCurrentPlayerIndex((prev) => (prev + 1) % N);
+      return;
     }
-    
-    if(legStartingPlayer === player2){
-      setLegStartingPlayer(player1);
-    }
+    setLegStartingPlayer(legStartingPlayer === player1 ? player2 : player1);
   };
 
   const toggleModal = () => {
@@ -76,32 +122,39 @@ const Match = ({ route, navigation }) => {
   }
 
   const handleBullWinnerSelection = (player) => {
-    setLegStartingPlayer(player);
-    setCurrentPlayer(player);
+    const idx = players.findIndex((p) => p === player || (p?.id === player?.id && p?.name === player?.name));
+    if (idx >= 0) {
+      currentPlayerIndexRef.current = idx;
+      setCurrentPlayerIndex(idx);
+      setLegStartingPlayer(players[idx]);
+    }
     toggleModal();
-  }
+  };
 
   const handleNumberBtn = (number) => {
     if(matchClosed){
       return;
     }
-
+    okHandlingRef.current = false;
     if(currentResult.toString().length < 3){
       setCurrentResult(result => parseInt(result.toString() + number, 10));
-    }    
+    }
   }
 
   const handleClearBtn = () => {
     if(matchClosed){
       return;
     }
+    okHandlingRef.current = false;
     setCurrentResult(0);
   };
 
-  const handleMaxAndOneSeventy = () => {
+  const handleMaxAndOneSeventy = (playerForAchievement) => {
+    const p = playerForAchievement ?? currentPlayer;
+    if (!p) return;
     if(currentResult == 180){
       const max = {
-        playerId: currentPlayer.playerId,
+        playerId: p.playerId,
         tournamentId: match.match.tournamentId,
         value: null,
         type: 'max'
@@ -111,7 +164,7 @@ const Match = ({ route, navigation }) => {
 
     if(currentResult >= 170 && currentResult < 180){
       const oneSeventy = {
-        playerId: currentPlayer.playerId,
+        playerId: p.playerId,
         tournamentId: match.match.tournamentId,
         value: currentResult,
         type: 'one_seventy'
@@ -145,90 +198,68 @@ const Match = ({ route, navigation }) => {
   }
 
   const handleOkBtn = () => {
-    if(matchClosed){
+    if (matchClosed) return;
+    if (currentResult > 180 || (typeof currentResult !== 'number') || currentResult <= 0) return;
+    if (okHandlingRef.current) return;
+
+    const idx = currentPlayerIndexRef.current;
+    const state = playerStates[idx];
+    const dispatch = playerDispatches[idx];
+    const player = players[idx];
+    const resultToApply = currentResult;
+
+    okHandlingRef.current = true;
+
+    handleMaxAndOneSeventy(player);
+
+    if (resultToApply < state.score - 1) {
+      dispatch(updateStats(resultToApply));
+      const nextIdx = (idx + 1) % N;
+      currentPlayerIndexRef.current = nextIdx;
+      setCurrentPlayerIndex(nextIdx);
+      setCurrentResult(0);
       return;
     }
 
-    if(currentResult > 180 || currentResult.length <= 0){
-      return
-    }
-
-    handleMaxAndOneSeventy();    
-
-    if(currentPlayer === player1){
-      if(currentResult < player1State.score - 1){
-        player1Dispatch(updateStats(currentResult));
-        setCurrentPlayer(player2);
-      }
-      if(currentResult == player1State.score){
-        Alert.alert(
-          'UWAGA',
-          `Czy ${player1.name} wygrał lega?`,
-          [
-            { text: "NIE", style: 'cancel', onPress: () => {} },
-            {
-              text: 'TAK',
-              style: 'destructive',
-              onPress: () => {
-                handleHf();
-                handleCheckout(player1)
-              },
+    if (resultToApply === state.score) {
+      Alert.alert(
+        'UWAGA',
+        `Czy ${player?.name ?? 'Gracz'} wygrał lega?`,
+        [
+          { text: 'NIE', style: 'cancel', onPress: () => { okHandlingRef.current = false; } },
+          {
+            text: 'TAK',
+            style: 'destructive',
+            onPress: () => {
+              okHandlingRef.current = false;
+              handleHf();
+              handleCheckout(idx);
             },
-          ]
-        );
-      }
+          },
+        ]
+      );
+      setCurrentResult(0);
+      return;
     }
-
-    if(currentPlayer === player2){
-      if(currentResult < player2State.score - 1){
-        player2Dispatch(updateStats(currentResult));
-        setCurrentPlayer(player1);
-      }
-      if(currentResult == player2State.score){
-        Alert.alert(
-          'UWAGA',
-          `Czy ${player2.name} wygrał lega?`,
-          [
-            { text: "NIE", style: 'cancel', onPress: () => {} },
-            {
-              text: 'TAK',
-              style: 'destructive',
-              onPress: () => {
-                handleHf();
-                handleCheckout(player2)
-              },
-            },
-          ]
-        );
-      }
-    }    
     setCurrentResult(0);
-  }
+    okHandlingRef.current = false;
+  };
 
-  const handleCheckout = (player) => {
-
-    if(player === player1){
-      if(player1State.dartsThrown < 20){
-        toggleQFModal();
-        setQfHelperDart(player1State.dartsThrown);
-        return;
-      }else{
-        player1Dispatch(legWin(3));
-        player2Dispatch(legLose());
-      }
+  const handleCheckout = (idx) => {
+    const state = playerStates[idx];
+    if (state.dartsThrown < 20) {
+      setQfHelperDart(state.dartsThrown);
+      toggleQFModal();
+      return;
     }
-    
-    if(player === player2){
-      if(player2State.dartsThrown < 20){
-        toggleQFModal();
-        setQfHelperDart(player2State.dartsThrown);
-        return;
-      }else{
-        player2Dispatch(legWin(3));
-        player1Dispatch(legLose());
-      }
-    }    
-  }
+    playerDispatches[idx](legWin(3));
+    for (let j = 0; j < N; j++) {
+      if (j !== idx) playerDispatches[j](legLose());
+    }
+    const nextIdx = (idx + 1) % N;
+    currentPlayerIndexRef.current = nextIdx;
+    setCurrentPlayerIndex(nextIdx);
+  };
 
   const sendMatchResult = async (matchResultDTO) => {
     try{
@@ -249,95 +280,124 @@ const Match = ({ route, navigation }) => {
     } catch (error) {
       console.error('Blad podczas strzalu do API przy aktualizowaniu meczu', error);
     }
-  }
+  };
 
-  const handleQFModalBtn = (dartNumber) => {    
+  const sendQuickGameResult = async (playersPayload, achievementsPayload, lobbyId) => {
+    try {
+      const body = {
+        players: playersPayload,
+        achievements: achievementsPayload || [],
+        lobbyId: lobbyId ?? undefined,
+      };
+      const response = await fetch(QUICK_GAME_UPDATE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(auth?.accessToken ? { Authorization: `Bearer ${auth.accessToken}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        console.log('Zaktualizowano wynik szybkiego meczu');
+      } else {
+        console.error('Blad podczas aktualizacji szybkiego meczu', await response.text());
+      }
+    } catch (error) {
+      console.error('Blad przy wysylaniu wyniku szybkiego meczu', error);
+    }
+  };
+
+  const handleQFModalBtn = (dartNumber) => {
     const dart = qfHelperDart + dartNumber;
-    if(currentPlayer === player1){
-      handleQf(player1, dart);
-      player1Dispatch(legWin(dartNumber));
-      player2Dispatch(legLose());
-      switchStartingPlayer();
+    const idx = currentPlayerIndexRef.current;
+    const player = players[idx];
+    if (player?.playerId) handleQf(player, dart);
+    playerDispatches[idx](legWin(dartNumber));
+    for (let j = 0; j < N; j++) {
+      if (j !== idx) playerDispatches[j](legLose());
     }
-    
-    if(currentPlayer === player2){
-      handleQf(player2, dart);
-      player2Dispatch(legWin(dartNumber));
-      player1Dispatch(legLose());
-      switchStartingPlayer();
-    }
-
+    const nextIdx = (idx + 1) % N;
+    currentPlayerIndexRef.current = nextIdx;
+    setCurrentPlayerIndex(nextIdx);
     toggleQFModal();
-  }
+  };
 
   const handleUndoBtn = () => {
-    if(matchClosed){
+    if (matchClosed) return;
+    const allAtStart = playerStates.every((s) => s.score === 501);
+    if (allAtStart) return;
+    const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
+    currentPlayerIndexRef.current = prevIdx;
+    setCurrentPlayerIndex(prevIdx);
+    playerDispatches[prevIdx](undo());
+  };
+
+  useEffect(() => {
+    const legsWonArr = playerStates.map((s) => s.legsWon);
+    const hasWinner = legsWonArr.some((l) => l >= 2);
+    if (!hasWinner) return;
+
+    setMatchClosed(true);
+    const winnerIdx = legsWonArr.findIndex((l) => l >= 2);
+    const winner = players[winnerIdx];
+    const loser = N === 2 ? players[1 - winnerIdx] : null;
+
+    if (isQuickGame) {
+      const withPlace = players
+        .map((p, i) => ({ player: p, state: playerStates[i], idx: i }))
+        .filter((x) => x.player?.playerId)
+        .sort((a, b) => (b.state.legsWon - a.state.legsWon));
+      if (withPlace.length >= 2) {
+        const playersPayload = withPlace.map((x, place) => ({
+          playerId: x.player.playerId,
+          score: x.state.legsWon,
+          place: place + 1,
+          average: parseFloat(x.state.matchAverage) || null,
+          dartsThrown: x.state.totalDartsThrown || null,
+          pointsEarned: x.state.totalPointsEarned || null,
+        }));
+        const achievementsPayload = (achievementsState?.achievements || []).map((a) => ({
+          playerId: a.playerId,
+          value: a.value ?? null,
+          type: a.type,
+        }));
+        sendQuickGameResult(playersPayload, achievementsPayload, quickGame?.lobbyId);
+      }
+      const msg = N === 2 && loser
+        ? `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`
+        : `${winner?.name ?? 'Zwycięzca'} wygrał mecz!`;
+      Alert.alert('MECZ ZAKOŃCZONY', msg, [{ text: 'OK', style: 'destructive', onPress: () => {} }]);
       return;
     }
 
-    if(player1State.score == 501 && player2State.score == 501){
-      return
-    }
-    if(currentPlayer === player1){
-      setCurrentPlayer(player2);
-      player2Dispatch(undo());
-    }
-    if(currentPlayer === player2){
-      setCurrentPlayer(player1);
-      player1Dispatch(undo());
-    }
-  }
+    const matchResultDTO = {
+      game: {
+        id: match.match.id,
+        type: match.match.type,
+        player1Id: player1.id,
+        player2Id: player2.id,
+        player1Score: player1State.legsWon,
+        player2Score: player2State.legsWon,
+        winnerId: winner.id,
+        tournamentId: match.match.tournamentId,
+        groupNumber: match.match.groupNumber,
+      },
+      achievements: achievementsState,
+    };
+    sendMatchResult(matchResultDTO);
+    Alert.alert(
+      'MECZ ZAKOŃCZONY',
+      `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`,
+      [{ text: 'OK', style: 'destructive', onPress: () => {} }]
+    );
+  }, [player1State.legsWon, player2State.legsWon, player3State?.legsWon, player4State?.legsWon, player5State?.legsWon, player6State?.legsWon]);
 
   useEffect(() => {
-    if(player1State.legsWon == 2 || player2State.legsWon == 2){
-      setMatchClosed(true);
-      let winner;
-      let loser;
-
-      if(player1State.legsWon == 2){
-        winner = player1;
-        loser = player2;
-      }else if(player2State.legsWon == 2){
-        winner = player2;
-        loser = player1;
-      }
-
-      const matchResultDTO = {
-        game : {
-          id: match.match.id,
-          type: match.match.type,
-          player1Id: player1.id,
-          player2Id: player2.id,
-          player1Score: player1State.legsWon,
-          player2Score: player2State.legsWon,
-          winnerId: winner.id,
-          tournamentId: match.match.tournamentId,
-          groupNumber: match.match.groupNumber 
-        },
-        achievements : achievementsState
-      };
-
-      sendMatchResult(matchResultDTO);
-
-      Alert.alert(
-        'MECZ ZAKOŃCZONY',
-        `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`,
-        [
-          {
-            text: 'OK',
-            style: 'destructive',
-            onPress: () => {
-
-            },
-          },
-        ]
-      );
+    if (legStartingPlayer != null) {
+      const idx = players.findIndex((p) => p === legStartingPlayer || (p?.id === legStartingPlayer?.id));
+      if (idx >= 0) setCurrentPlayerIndex(idx);
     }
-  },[player1State.legsWon, player2State.legsWon]);
-
-  useEffect(() => {
-    setCurrentPlayer(legStartingPlayer);
-  }, [legStartingPlayer])
+  }, [legStartingPlayer, players]);
 
   useEffect(
     () =>
@@ -367,19 +427,16 @@ const Match = ({ route, navigation }) => {
       <Modal visible={isModalVisible}>
         <View style={styles.modalContainer}>
           <Text style={styles.modalText}>Kto rzuca pierwszy?</Text>
-          <View style={styles.modalBtnsContainer}>
-            <Pressable 
-              style={styles.modalBtn} 
-              onPress={() => handleBullWinnerSelection(player1)}
-            >
-              <Text style={styles.modalBtnText}>{player1.name}</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.modalBtn} 
-              onPress={() => handleBullWinnerSelection(player2)}
-            >
-              <Text style={styles.modalBtnText}>{player2.name}</Text>
-            </Pressable>
+          <View style={[styles.modalBtnsContainer, N > 2 && styles.modalBtnsWrap]}>
+            {players.slice(0, N).map((p, i) => (
+              <Pressable
+                key={i}
+                style={styles.modalBtn}
+                onPress={() => handleBullWinnerSelection(p)}
+              >
+                <Text style={styles.modalBtnText} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
       </Modal>
@@ -454,6 +511,10 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingRight: 50,
     paddingLeft: 50,
+  },
+  modalBtnsWrap: {
+    flexWrap: 'wrap',
+    gap: 12,
   },
   qfModalBtnsContainer: {
     flexDirection: 'column'

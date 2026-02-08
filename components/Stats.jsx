@@ -1,15 +1,18 @@
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, ScrollView } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
 
-const Stats = ({ player1Name, player2Name, player1State, player2State }) => {
+const Stats = ({ player1Name, player2Name, player1State, player2State, players: playersProp, playerStates: playerStatesProp }) => {
+  const isMulti = Array.isArray(playersProp) && playersProp.length > 2;
+  const players = isMulti ? playersProp : [];
+  const playerStates = isMulti ? playerStatesProp : [];
 
-  const player1BestLegAverage = player1State.legsAverages.length > 0 ? Math.max(...player1State.legsAverages) : player1State.currentLegAverage;
-  const player2BestLegAverage = player2State.legsAverages.length > 0 ? Math.max(...player2State.legsAverages) : player2State.currentLegAverage;
+  const player1BestLegAverage = player1State?.legsAverages?.length > 0 ? Math.max(...player1State.legsAverages) : player1State?.currentLegAverage;
+  const player2BestLegAverage = player2State?.legsAverages?.length > 0 ? Math.max(...player2State.legsAverages) : player2State?.currentLegAverage;
 
-  const player1BestLegThrows = player1State.dartsPerLeg.length > 0 ? Math.min(...player1State.dartsPerLeg) : "-";
-  const player2BestLegThrows = player2State.dartsPerLeg.length > 0 ? Math.min(...player2State.dartsPerLeg) : "-";
+  const player1BestLegThrows = player1State?.dartsPerLeg?.length > 0 ? Math.min(...player1State.dartsPerLeg) : "-";
+  const player2BestLegThrows = player2State?.dartsPerLeg?.length > 0 ? Math.min(...player2State.dartsPerLeg) : "-";
 
   const getThrowsBetween = (arrayOfArrays, min, max) => {
     return arrayOfArrays.reduce((accumulator, currentArray) => {
@@ -41,6 +44,29 @@ const Stats = ({ player1Name, player2Name, player1State, player2State }) => {
     max: getMax([...player2State.legByLegScores, player2State.currentLegScores])
   }
 
+
+  if (isMulti && players.length > 0) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.multiScroll}>
+        <StatsTitleRow title="Średnie i legi" />
+        {players.map((p, i) => {
+          const s = playerStates[i];
+          if (!s) return null;
+          const bestLeg = s.legsAverages?.length > 0 ? Math.max(...s.legsAverages) : s.currentLegAverage;
+          return (
+            <View key={i} style={[styles.row, styles.darkRow, styles.multiRow]}>
+              <Text style={styles.multiName}>{p?.name ?? 'Gracz'}</Text>
+              <View style={styles.multiValues}>
+                <Text style={styles.multiValue}>ms: {s.totalPointsEarned ? s.matchAverage : '-'}</Text>
+                <Text style={styles.multiValue}>legi: {s.legsWon}</Text>
+                <Text style={styles.multiValue}>naj. leg: {bestLeg ?? '-'}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -140,6 +166,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#f5f5f5',
     fontSize: 16
+  },
+  multiScroll: {
+    paddingBottom: 24,
+  },
+  multiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  multiName: {
+    flex: 0.6,
+    color: '#f5f5f5',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  multiValues: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  multiValue: {
+    color: '#c5c5c5',
+    fontSize: 14,
   },
   title: {
     color: '#f5f5f5',

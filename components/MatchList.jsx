@@ -1,258 +1,228 @@
-import React, { useEffect, useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native'
-import { ACTIVE_GAMES_API_URL, MATCH_ACTIVE_API_URL } from '../helpers/apiConfig'
-import useAuth from '../hooks/useAuth';
+import React, { useCallback, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faSync } from '@fortawesome/free-solid-svg-icons'; 
+import { faSync } from '@fortawesome/free-solid-svg-icons';
+import useAuth from '../hooks/useAuth';
+import { ACTIVE_GAMES_API_URL } from '../helpers/apiConfig';
 
 const MatchList = ({ navigation }) => {
-
   const { auth } = useAuth();
-
   const [matches, setMatches] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
 
-  const toggleModal = () => {
-    setIsModalVisible(isModalVisible => !isModalVisible);
-  }
-
-  const handleGroupSelection = (group) => {
-    setSelectedGroup(group);
-  }
-
-  const handleMatchSelection = (match) => {
-    setSelectedMatch(match);
-    toggleModal();
-  }
-
-  const fetchMatches = async () => {
-    try{
-      const url = `${ACTIVE_GAMES_API_URL}?tournamentId=${auth?.tournamentId}`;
-
-      const response = await fetch(url, {
+  const fetchMatches = useCallback(async () => {
+    if (!auth?.accessToken || auth?.tournamentId == null) return;
+    try {
+      const url = `${ACTIVE_GAMES_API_URL}?tournamentId=${auth.tournamentId}`;
+      const res = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${auth?.accessToken}`
-        }
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
       });
-      const matches = await response.json();
-      setMatches(matches);
-    } catch (error) {
-      console.log(error.message);
+      if (res.ok) {
+        const data = await res.json();
+        setMatches(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.warn('fetchMatches', e);
     }
-  }
-
-  const renderGroups = () => {
-    return matches.map(match => match.groupNumber).filter((value, index, self) => {
-              return self.indexOf(value) === index;
-            }).map(group => {
-              return <Pressable key={group} style={styles.matchContainer} onPress={() => handleGroupSelection(group)}>
-                      <View style={styles.match}>
-                        <Text style={styles.groupText}>Grupa {group}</Text>
-                      </View>
-                    </Pressable>
-            })
-  }
-
-  const renderMatches = () => {
-    return matches.filter(match => match.groupNumber == selectedGroup).map(match => {
-      return <Pressable key={match.id} style={styles.matchContainer} onPress={() => handleMatchSelection(match)}>
-              <View style={styles.match}>
-                <Text style={styles.playerName}>{match.player1.name}</Text>
-                <Text style={styles.vs}>VS</Text>
-                <Text style={styles.playerName}>{match.player2.name}</Text>
-              </View>
-            </Pressable>
-    })
-  }
-
-  const matchPressHandler = (match) => {
-    toggleModal();
-    navigation.navigate('Match', {match: {match}});
-  };
-
-  useEffect(() => {
-    fetchMatches();
-  }, []);
+  }, [auth?.accessToken, auth?.tournamentId]);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       fetchMatches();
-
-      const refreshInterval = setInterval(() => {
-        fetchMatches();
-      }, 300000);
-
-      return () => clearInterval(refreshInterval);
-    }, [])
+      return () => {};
+    }, [fetchMatches])
   );
+
+  const groups = [...new Set(matches.map((m) => m.groupNumber).filter((n) => n != null))].sort((a, b) => a - b);
+
+  const toggleModal = () => {
+    setIsModalVisible((v) => !v);
+  };
+
+  const handleGroupPress = (group) => {
+    setSelectedGroup(group);
+    setSelectedMatch(null);
+    toggleModal();
+  };
+
+  const matchesInGroup = selectedGroup != null
+    ? matches.filter((m) => m.groupNumber === selectedGroup)
+    : [];
+
+  const handleMatchPress = (match) => {
+    setSelectedMatch(match);
+    toggleModal();
+    navigation.navigate('Match', {
+      match: {
+        match: {
+          id: match.id,
+          type: match.type || 'group',
+          tournamentId: match.tournamentId,
+          groupNumber: match.groupNumber,
+          player1: match.player1,
+          player2: match.player2,
+        },
+      },
+    });
+  };
+
+  if (auth?.tournamentId == null) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Lista meczów</Text>
+        <Text style={styles.hint}>Wpisz kod turnieju, aby zobaczyć mecze.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.refreshBtn} onPress={fetchMatches}>
-        <FontAwesomeIcon style={styles.refreshIcon} icon={faSync} size={26}/>
-        <Text style={styles.refreshText}>Odśwież</Text>
-      </Pressable>
-      <Text style={styles.header}>Mecze do rozegrania</Text>
-      {selectedGroup ?  <ScrollView contentContainerStyle={styles.matchesContainer}>
-                          {matches.length ? renderMatches() : <Text style={styles.noMatchesText}>Brak aktywnych meczy</Text>}
-                        </ScrollView> : 
-                        <ScrollView contentContainerStyle={styles.groupsContainer}>
-                          {matches.length ? renderGroups() : <Text style={styles.noMatchesText}>Brak aktywnych meczy</Text>}
-                        </ScrollView>}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Mecze turnieju</Text>
+        <Pressable onPress={fetchMatches} style={styles.refreshButton}>
+          <FontAwesomeIcon icon={faSync} size={22} color="#F99417" />
+        </Pressable>
+      </View>
 
-      <Modal 
+      {groups.length === 0 ? (
+        <Text style={styles.hint}>Brak aktywnych meczów.</Text>
+      ) : (
+        <ScrollView style={styles.scroll}>
+          {groups.map((group) => (
+            <Pressable
+              key={group}
+              style={styles.groupButton}
+              onPress={() => handleGroupPress(group)}
+            >
+              <Text style={styles.groupButtonText}>Grupa {group}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
+      <Modal
         visible={isModalVisible}
-        animationType='slide'
+        transparent
+        animationType="fade"
+        onRequestClose={toggleModal}
       >
-        {selectedMatch && 
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalText}>Czy na pewno chcesz rozpocząć ten mecz?</Text>
-            <View style={styles.modalPlayersContainer}>
-              <Text style={styles.modalPlayerName}>{selectedMatch.player1.name}</Text>
-              <Text style={styles.modalVS}>VS</Text>
-              <Text style={styles.modalPlayerName}>{selectedMatch.player2.name}</Text>
-            </View>
-            <View style={styles.modalBtnsContainer}>
-              <Pressable style={styles.modalBtn} onPress={toggleModal}>
-                <Text style={styles.modalBtnText}>Anuluj</Text>
+        <Pressable style={styles.modalOverlay} onPress={toggleModal}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>
+              {selectedGroup != null ? `Grupa ${selectedGroup}` : 'Wybierz mecz'}
+            </Text>
+            {matchesInGroup.map((match) => (
+              <Pressable
+                key={match.id}
+                style={styles.matchRow}
+                onPress={() => handleMatchPress(match)}
+              >
+                <Text style={styles.matchRowText}>
+                  {match.player1?.name ?? 'Gracz 1'} – {match.player2?.name ?? 'Gracz 2'}
+                </Text>
               </Pressable>
-              <Pressable style={styles.modalBtn} onPress={() => matchPressHandler(selectedMatch)}>
-                <Text style={styles.modalBtnText}>Tak</Text>
-              </Pressable>
-            </View>
-          </View>
-        }
+            ))}
+            <Pressable style={styles.closeButton} onPress={toggleModal}>
+              <Text style={styles.closeButtonText}>Zamknij</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#363062',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 24,
   },
-  headerContainer: {
-    flex: 1,
+  headerRow: {
     flexDirection: 'row',
-    backgroundColor: '#363062',
     alignItems: 'center',
-    justifyContent: 'center'
-  },
-  refreshBtn: {
-    position: 'absolute',
-    right: 30,
-    bottom: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#c5c5c5',
-    borderRadius: 5,
-    padding: 8
-  },
-  refreshIcon: {
-    color: '#c5c5c5'
-  },
-  refreshText: {
-    color: '#c5c5c5'
-  },
-  header: {
-    flex: 1,
-    color: '#f5f5f5',
-    fontSize: 22,
-    marginTop: 20
-  },
-  matchesContainer: {
     justifyContent: 'space-between',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginLeft: 15,
-    marginRight: 15,
-    paddingBottom: 20
+    marginBottom: 20,
   },
-  matchContainer: {
-    height: 70,
-    width: 100,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,.3)',
-    justifyContent: 'center',
-    alignItems: 'center',    
-    marginTop: 15,    
-  },
-  match: {    
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playerName: {
-    color: '#f5f5f5',
-  },
-  vs: {
-    color: '#F99417'
-  },
-  noMatchesText: {
-    color: '#c5c5c5',
-    fontSize: 26
-  },
-  modalContainer:{
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#363062',
-  },
-  modalText: {
-    color: '#c5c5c5',
-    marginRight: 50,
-    marginLeft: 50,
-    marginBottom: 30,
-    fontSize: 20,
-    textAlign: 'center'
-  },
-  modalPlayersContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 50
-  },
-  modalPlayerName: {
+  title: {
     fontSize: 22,
+    color: '#c5c5c5',
+    fontWeight: 'bold',
+  },
+  refreshButton: {
+    padding: 8,
+  },
+  hint: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    marginTop: 16,
+  },
+  scroll: {
     flex: 1,
-    textAlign: 'center',
-    color: '#c5c5c5',
-    fontWeight: 'bold'
   },
-  modalVS: {
-    fontSize: 20,
-    color: '#F99417'
+  groupButton: {
+    backgroundColor: '#4a4580',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 12,
   },
-  modalBtnsContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingRight: 50,
-    paddingLeft: 50,
+  groupButtonText: {
+    fontSize: 18,
+    color: '#F99417',
+    fontWeight: 'bold',
   },
-  modalBtn: {
-    width: 90,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,.3)',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: 24,
   },
-  modalBtnText: {
+  modalContent: {
+    backgroundColor: '#363062',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalTitle: {
+    fontSize: 20,
+    color: '#F99417',
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  matchRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#4a4580',
+  },
+  matchRowText: {
+    fontSize: 16,
     color: '#c5c5c5',
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 15,
-    paddingRight: 15,
-    fontSize: 18
+  },
+  closeButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: '#F99417',
+    fontWeight: 'bold',
   },
 });
-export default MatchList
+
+export default MatchList;
