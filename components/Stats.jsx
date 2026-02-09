@@ -3,136 +3,102 @@ import { StyleSheet, Text, View, ScrollView } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
 
-const Stats = ({ player1Name, player2Name, player1State, player2State, players: playersProp, playerStates: playerStatesProp }) => {
-  const isMulti = Array.isArray(playersProp) && playersProp.length > 2;
-  const players = isMulti ? playersProp : [];
-  const playerStates = isMulti ? playerStatesProp : [];
-
-  const player1BestLegAverage = player1State?.legsAverages?.length > 0 ? Math.max(...player1State.legsAverages) : player1State?.currentLegAverage;
-  const player2BestLegAverage = player2State?.legsAverages?.length > 0 ? Math.max(...player2State.legsAverages) : player2State?.currentLegAverage;
-
-  const player1BestLegThrows = player1State?.dartsPerLeg?.length > 0 ? Math.min(...player1State.dartsPerLeg) : "-";
-  const player2BestLegThrows = player2State?.dartsPerLeg?.length > 0 ? Math.min(...player2State.dartsPerLeg) : "-";
+const Stats = ({ players, playerStates }) => {
+  const N = players?.length ?? 0;
+  const isTwoPlayer = N === 2;
 
   const getThrowsBetween = (arrayOfArrays, min, max) => {
-    return arrayOfArrays.reduce((accumulator, currentArray) => {
-      const filteredCount = currentArray.filter(value => value >= min && value < max).length;
-      return accumulator + filteredCount;
+    return (arrayOfArrays || []).reduce((acc, arr) => {
+      const count = (arr || []).filter((v) => v >= min && v < max).length;
+      return acc + count;
     }, 0);
   };
 
   const getMax = (arrayOfArrays) => {
-    return arrayOfArrays.reduce((accumulator, currentArray) => {
-      const filteredCount = currentArray.filter(value => value == 180).length;
-      return accumulator + filteredCount;
+    return (arrayOfArrays || []).reduce((acc, arr) => {
+      const count = (arr || []).filter((v) => v === 180).length;
+      return acc + count;
     }, 0);
-  }
+  };
 
-  const player1Stats = {
-    plus60: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 60, 80),
-    plus80: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 80, 100),
-    plus100 : getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 100, 140),
-    plus140: getThrowsBetween([...player1State.legByLegScores, player1State.currentLegScores], 140, 180),
-    max: getMax([...player1State.legByLegScores, player1State.currentLegScores])
-  }
+  if (isTwoPlayer && N >= 2) {
+    const s0 = playerStates[0];
+    const s1 = playerStates[1];
+    const player1BestLegAverage = s0?.legsAverages?.length > 0 ? Math.max(...s0.legsAverages) : s0?.currentLegAverage;
+    const player2BestLegAverage = s1?.legsAverages?.length > 0 ? Math.max(...s1.legsAverages) : s1?.currentLegAverage;
+    const player1BestLegThrows = s0?.dartsPerLeg?.length > 0 ? Math.min(...s0.dartsPerLeg) : '-';
+    const player2BestLegThrows = s1?.dartsPerLeg?.length > 0 ? Math.min(...s1.dartsPerLeg) : '-';
 
-  const player2Stats = {
-    plus60: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 60, 80),
-    plus80: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 80, 100),
-    plus100 : getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 100, 140),
-    plus140: getThrowsBetween([...player2State.legByLegScores, player2State.currentLegScores], 140, 180),
-    max: getMax([...player2State.legByLegScores, player2State.currentLegScores])
-  }
+    const player1Stats = {
+      plus60: getThrowsBetween([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []], 60, 80),
+      plus80: getThrowsBetween([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []], 80, 100),
+      plus100: getThrowsBetween([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []], 100, 140),
+      plus140: getThrowsBetween([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []], 140, 180),
+      max: getMax([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []])
+    };
+    const player2Stats = {
+      plus60: getThrowsBetween([...(s1?.legByLegScores ?? []), s1?.currentLegScores ?? []], 60, 80),
+      plus80: getThrowsBetween([...(s1?.legByLegScores ?? []), s1?.currentLegScores ?? []], 80, 100),
+      plus100: getThrowsBetween([...(s1?.legByLegScores ?? []), s1?.currentLegScores ?? []], 100, 140),
+      plus140: getThrowsBetween([...(s1?.legByLegScores ?? []), s1?.currentLegScores ?? []], 140, 180),
+      max: getMax([...(s1?.legByLegScores ?? []), s1?.currentLegScores ?? []])
+    };
 
-
-  if (isMulti && players.length > 0) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.multiScroll}>
-        <StatsTitleRow title="Średnie i legi" />
-        {players.map((p, i) => {
-          const s = playerStates[i];
-          if (!s) return null;
-          const bestLeg = s.legsAverages?.length > 0 ? Math.max(...s.legsAverages) : s.currentLegAverage;
-          return (
-            <View key={i} style={[styles.row, styles.darkRow, styles.multiRow]}>
-              <Text style={styles.multiName}>{p?.name ?? 'Gracz'}</Text>
-              <View style={styles.multiValues}>
-                <Text style={styles.multiValue}>ms: {s.totalPointsEarned ? s.matchAverage : '-'}</Text>
-                <Text style={styles.multiValue}>legi: {s.legsWon}</Text>
-                <Text style={styles.multiValue}>naj. leg: {bestLeg ?? '-'}</Text>
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.container}>
+        <View style={[styles.row, styles.darkRow]}>
+          <View style={styles.leftRowSide}>
+            <Text style={styles.headerText}></Text>
+          </View>
+          <View style={styles.rightRowSide}>
+            <Text style={styles.headerText}>{players[0]?.name ?? 'Gracz'}</Text>
+            <Text style={styles.headerText}>{players[1]?.name ?? 'Gracz'}</Text>
+          </View>
+        </View>
+
+        <StatsTitleRow title="Średnia (3 lotki)" />
+
+        <StatsRow title="Cała gra" player1Value={s0?.matchAverage} player2Value={s1?.matchAverage} />
+        <StatsRow title="Najlepszy leg" player1Value={player1BestLegAverage} player2Value={player2BestLegAverage} />
+        <StatsRow
+          title="Aktualny leg"
+          player1Value={isNaN(s0?.currentLegAverage) ? '-' : s0?.currentLegAverage}
+          player2Value={isNaN(s1?.currentLegAverage) ? '-' : s1?.currentLegAverage}
+        />
+
+        <StatsTitleRow title="Osiągi" />
+
+        <StatsRow title="Najlepszy leg" player1Value={player1BestLegThrows} player2Value={player2BestLegThrows} />
+        <StatsRow title="60+" player1Value={player1Stats.plus60} player2Value={player2Stats.plus60} />
+        <StatsRow title="80+" player1Value={player1Stats.plus80} player2Value={player2Stats.plus80} />
+        <StatsRow title="100+" player1Value={player1Stats.plus100} player2Value={player2Stats.plus100} />
+        <StatsRow title="140+" player1Value={player1Stats.plus140} player2Value={player2Stats.plus140} />
+        <StatsRow title="180" player1Value={player1Stats.max} player2Value={player2Stats.max} />
+      </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.row, styles.darkRow]}>
-        <View style={styles.leftRowSide}>
-          <Text style={styles.headerText}></Text>
-        </View>
-        <View style={styles.rightRowSide}>
-          <Text style={styles.headerText}>{player1Name}</Text>
-          <Text style={styles.headerText}>{player2Name}</Text>
-        </View>
-      </View>
-
-      <StatsTitleRow title="Średnia (3 lotki)"/>
-
-      <StatsRow 
-        title="Cała gra"
-        player1Value= {player1State.matchAverage}
-        player2Value= {player2State.matchAverage}
-      />
-      <StatsRow 
-        title="Najlepszy leg"
-        player1Value= {player1BestLegAverage}
-        player2Value= {player2BestLegAverage}
-      />
-      <StatsRow 
-        title="Aktualny leg"
-        player1Value= {isNaN(player1State.currentLegAverage) ? '-' : player1State.currentLegAverage} 
-        player2Value= {isNaN(player2State.currentLegAverage) ? '-' : player2State.currentLegAverage}
-      />
-
-      <StatsTitleRow title="Osiągi"/>
-
-      <StatsRow 
-        title="Najlepszy leg"
-        player1Value= {player1BestLegThrows}
-        player2Value= {player2BestLegThrows}
-      />
-      <StatsRow 
-        title="60+"
-        player1Value= {player1Stats.plus60}
-        player2Value= {player2Stats.plus60}
-      />
-      <StatsRow 
-        title="80+"
-        player1Value= {player1Stats.plus80}
-        player2Value= {player2Stats.plus80}
-      />
-      <StatsRow 
-        title="100+"
-        player1Value= {player1Stats.plus100}
-        player2Value= {player2Stats.plus100}
-      />
-      <StatsRow 
-        title="140+"
-        player1Value= {player1Stats.plus140}
-        player2Value= {player2Stats.plus140}
-      />
-      <StatsRow 
-        title="180"
-        player1Value= {player1Stats.max}
-        player2Value= {player2Stats.max}
-      />
-    </View>
-  )
-}
+    <ScrollView style={styles.container} contentContainerStyle={styles.multiScroll}>
+      <StatsTitleRow title="Średnie i legi" />
+      {players?.map((p, i) => {
+        const s = playerStates?.[i];
+        if (!s) return null;
+        const bestLeg = s.legsAverages?.length > 0 ? Math.max(...s.legsAverages) : s.currentLegAverage;
+        return (
+          <View key={i} style={[styles.row, styles.darkRow, styles.multiRow]}>
+            <Text style={styles.multiName}>{p?.name ?? 'Gracz'}</Text>
+            <View style={styles.multiValues}>
+              <Text style={styles.multiValue}>ms: {s.totalPointsEarned ? s.matchAverage : '-'}</Text>
+              <Text style={styles.multiValue}>legi: {s.legsWon}</Text>
+              <Text style={styles.multiValue}>naj. leg: {bestLeg ?? '-'}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -148,11 +114,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,.3)',
     borderBottomWidth: 1,
     borderBottomColor: '#dc8418'
-  },
-  lightRow: {
-    backgroundColor: 'rgba(0,0,0,.2)',
-    borderBottomWidth: .5,
-    borderBottomColor: '#bd7013'
   },
   leftRowSide: {
     flex: 1
@@ -190,15 +151,6 @@ const styles = StyleSheet.create({
     color: '#c5c5c5',
     fontSize: 14,
   },
-  title: {
-    color: '#f5f5f5',
-    fontSize: 16
-  },
-  text: {
-    flex: 1,
-    textAlign: 'center',
-    color: '#f5f5f5'
-  }
 });
 
-export default Stats
+export default Stats;

@@ -1,7 +1,48 @@
-import { LEG_LOSE, LEG_WIN, UNDO, UPDATE_STATS } from "./playerResultActions";
+import { LEG_LOSE, LEG_WIN, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
+    case UPDATE_SINGLE_DART: {
+      const points = action.points;
+      const score = state.score - points;
+      const totalDartsThrown = state.totalDartsThrown + 1;
+      const totalPointsEarned = state.totalPointsEarned + points;
+      const matchAverage = totalDartsThrown > 0 ? ((totalPointsEarned / totalDartsThrown) * 3).toFixed(2) : 0;
+      const dartsThrown = state.dartsThrown + 1;
+      const currentLegScores = [...state.currentLegScores, points];
+      const currentLegAverage = dartsThrown > 0 ? (((501 - score) / dartsThrown) * 3).toFixed(2) : 0;
+      return {
+        ...state,
+        score,
+        totalDartsThrown,
+        totalPointsEarned,
+        matchAverage,
+        dartsThrown,
+        currentLegScores,
+        currentLegAverage
+      };
+    }
+    case UNDO_SINGLE_DART: {
+      const scores = [...state.currentLegScores];
+      if (scores.length === 0) return state;
+      const lastScore = scores.pop();
+      const score = state.score + lastScore;
+      const totalPointsEarned = state.totalPointsEarned - lastScore;
+      const dartsThrown = state.dartsThrown - 1;
+      const totalDartsThrown = state.totalDartsThrown - 1;
+      const matchAverage = totalDartsThrown > 0 ? (totalPointsEarned / totalDartsThrown * 3).toFixed(2) : 0;
+      const currentLegAverage = dartsThrown > 0 ? ((501 - score) / dartsThrown * 3).toFixed(2) : 0;
+      return {
+        ...state,
+        score,
+        totalPointsEarned,
+        totalDartsThrown,
+        matchAverage,
+        dartsThrown,
+        currentLegScores: scores,
+        currentLegAverage
+      };
+    }
     case UPDATE_STATS: {
       const score = state.score - action.points;
       const totalDartsThrown = state.totalDartsThrown + 3;

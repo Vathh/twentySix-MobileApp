@@ -32,8 +32,10 @@ const INVITATION_STATUS = {
 
 const QuickGameLobby = ({ navigation }) => {
   const { auth } = useAuth();
+  const GAME_TYPES = { X01: '501', CRICKET: 'cricket' };
   const [lobby, setLobby] = useState(null);
   const [legsCount, setLegsCount] = useState(3);
+  const [gameType, setGameType] = useState(GAME_TYPES.X01);
   const [invitations, setInvitations] = useState([]); // [{ id, name, status: 'sent'|'accepted'|'rejected' }]
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,8 +54,27 @@ const QuickGameLobby = ({ navigation }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setLobby((prev) => ({ ...data, legsCount: data.legsCount ?? prev?.legsCount ?? 3 }));
+        if (data.status === 'started' && data.players?.length >= 2) {
+          const players = (data.players || []).map((p) => ({
+            id: p.id,
+            name: p.name ?? p.tempName ?? 'Gracz',
+            playerId: p.playerId ?? p.player_id,
+          }));
+          const legsToWin = data.legsCount ?? data.legs_count ?? 3;
+          const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
+          setLobby(null);
+          navigation.navigate('Match', {
+            quickGame: { players, lobbyId: data.id ?? lobbyId, legsCount: legsToWin, gameType: gameTypeToUse },
+          });
+          return;
+        }
+        setLobby((prev) => ({
+          ...data,
+          legsCount: data.legsCount ?? prev?.legsCount ?? 3,
+          gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
+        }));
         if (data.legsCount != null) setLegsCount(data.legsCount);
+        if (data.gameType != null || data.game_type != null) setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         if (data.invitations && Array.isArray(data.invitations) && data.invitations.length > 0) {
           setInvitations((prev) => {
             const byId = new Map(prev.map((i) => [i.id, i]));
@@ -70,7 +91,7 @@ const QuickGameLobby = ({ navigation }) => {
     } catch (e) {
       console.warn('fetchLobbyById', e);
     }
-  }, [auth?.accessToken]);
+  }, [auth?.accessToken, navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,8 +123,9 @@ const QuickGameLobby = ({ navigation }) => {
       });
       const data = await res.json();
       if (res.ok && data?.id) {
-        setLobby({ ...data, legsCount: data.legsCount ?? 3 });
+        setLobby({ ...data, legsCount: data.legsCount ?? 3, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
         setLegsCount(data.legsCount ?? 3);
+        setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         setInvitations([]);
       } else {
         setError(data?.message || 'Nie udało się utworzyć lobby');
@@ -223,17 +245,47 @@ const QuickGameLobby = ({ navigation }) => {
     }
   };
 
+  const handleUpdateSettings = async (updates) => {
+    if (!lobby?.id || !auth?.accessToken || !lobby.youAreHost) return;
+    try {
+      const res = await fetch(getQuickGameLobbyUrl(lobby.id), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLobby((prev) => ({ ...prev, ...data }));
+      }
+    } catch (e) {
+      console.warn('handleUpdateSettings', e);
+    }
+  };
+
   const handleStart = async () => {
     if (!lobby?.id || !auth?.accessToken) return;
     try {
       const res = await fetch(getQuickGameLobbyStartUrl(lobby.id), {
         method: 'POST',
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({
+          legsCount: legsCount ?? lobby?.legsCount ?? 3,
+          gameType: gameType ?? lobby?.gameType ?? GAME_TYPES.X01,
+        }),
       });
       const data = await res.json();
       if (res.ok && data?.players) {
+        const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? 3;
+        const gameTypeToUse = data.gameType ?? gameType ?? lobby?.gameType ?? GAME_TYPES.X01;
+        setLobby(null);
         navigation.navigate('Match', {
-          quickGame: { players: data.players, lobbyId: lobby.id },
+          quickGame: { players: data.players, lobbyId: lobby.id, legsCount: legsToWin, gameType: gameTypeToUse },
         });
       } else {
         Alert.alert('Błąd', data?.message || 'Nie można rozpocząć meczu');
@@ -263,6 +315,37 @@ const QuickGameLobby = ({ navigation }) => {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.section}>
+          <Text style={styles.label}>Typ gry</Text>
+          <Text style={styles.hintSmall}>Wybierz tryb rozgrywki meczu (tylko host może zmieniać)</Text>
+          <View style={styles.gameTypeRow}>
+            <Pressable
+              style={[styles.gameTypeBtn, gameType === GAME_TYPES.X01 && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setGameType(GAME_TYPES.X01);
+                  handleUpdateSettings({ gameType: GAME_TYPES.X01 });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.X01 && styles.gameTypeBtnTextActive]}>501</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.gameTypeBtn, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setGameType(GAME_TYPES.CRICKET);
+                  handleUpdateSettings({ gameType: GAME_TYPES.CRICKET });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnTextActive]}>Cricket</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.label}>Ilość legów</Text>
           <TextInput
             style={styles.input}
@@ -272,10 +355,12 @@ const QuickGameLobby = ({ navigation }) => {
               if (!isNaN(n)) setLegsCount(Math.min(15, Math.max(1, n)));
               else if (t === '') setLegsCount(1);
             }}
+            onBlur={() => isHost && handleUpdateSettings({ legsCount })}
             keyboardType="number-pad"
             placeholder="3"
             maxLength={2}
             placeholderTextColor="#a0a0a0"
+            editable={isHost}
           />
           <Text style={styles.hintSmall}>Mecz rozgrywany do wygranej liczby legów (1–15). Domyślnie 3.</Text>
         </View>
@@ -621,6 +706,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#c5c5c5',
     fontWeight: '500',
+  },
+  gameTypeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  gameTypeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    alignItems: 'center',
+  },
+  gameTypeBtnActive: {
+    borderColor: '#F99417',
+    backgroundColor: 'rgba(249,148,23,0.2)',
+  },
+  gameTypeBtnText: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '600',
+  },
+  gameTypeBtnTextActive: {
+    color: '#F99417',
   },
 });
 

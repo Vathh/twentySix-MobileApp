@@ -64,8 +64,6 @@ export const getQuickGameLobbyReadyUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_
 export const getQuickGameLobbyStartUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_START;
 export const getQuickGameLobbyInviteUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_INVITE;
 const LOBBY_ADD_GUEST = '/add-guest';
-export const getQuickGameLobbyAddGuestUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;
-
-// Znajomi (wymaga auth)
+export const getQuickGameLobbyAddGuestUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;// Znajomi (wymaga auth)
 const FRIENDS_PREFIX = '/friends';
 export const FRIENDS_API_URL = API_BASE_URL + FRIENDS_PREFIX;

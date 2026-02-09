@@ -1,4 +1,6 @@
 export const UPDATE_STATS = 'UPDATE_STATS';
+export const UPDATE_SINGLE_DART = 'UPDATE_SINGLE_DART';
+export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
 export const UNDO = 'UNDO';
@@ -6,6 +8,15 @@ export const UNDO = 'UNDO';
 export const updateStats = (points) => ({
   type: UPDATE_STATS,
   points: points
+});
+
+export const updateSingleDart = (points) => ({
+  type: UPDATE_SINGLE_DART,
+  points
+});
+
+export const undoSingleDart = () => ({
+  type: UNDO_SINGLE_DART
 });
 
 export const legWin = (throws) => ({
