@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faPaperPlane, faCheck, faTimes, faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical } from '@fortawesome/free-solid-svg-icons';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import useAuth from '../hooks/useAuth';
 import {
   QUICK_GAME_LOBBY_CREATE_API_URL,
@@ -45,6 +47,7 @@ const QuickGameLobby = ({ navigation }) => {
   const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
   const [guestName, setGuestName] = useState('');
   const [guestAdding, setGuestAdding] = useState(false);
+  const [orderedPlayers, setOrderedPlayers] = useState([]);
 
   const fetchLobbyById = useCallback(async (lobbyId) => {
     if (!lobbyId || !auth?.accessToken) return;
@@ -74,6 +77,16 @@ const QuickGameLobby = ({ navigation }) => {
           gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
         }));
         if (data.legsCount != null) setLegsCount(data.legsCount);
+        const incoming = (data.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
+        setOrderedPlayers((prev) => {
+          const key = (p) => p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? '';
+          const incIds = new Set(incoming.map(key));
+          const prevIds = new Set(prev.map(key));
+          if (prev.length === 0 || incIds.size !== prevIds.size || [...incIds].some((id) => !prevIds.has(id))) {
+            return incoming;
+          }
+          return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
+        });
         if (data.gameType != null || data.game_type != null) setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         if (data.invitations && Array.isArray(data.invitations) && data.invitations.length > 0) {
           setInvitations((prev) => {
@@ -283,9 +296,14 @@ const QuickGameLobby = ({ navigation }) => {
       if (res.ok && data?.players) {
         const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? 3;
         const gameTypeToUse = data.gameType ?? gameType ?? lobby?.gameType ?? GAME_TYPES.X01;
+        const toPass = (orderedPlayers.length ? orderedPlayers : data.players).map((p) => ({
+          id: p.id,
+          name: p.name ?? p.tempName ?? 'Gracz',
+          playerId: p.playerId ?? p.player_id,
+        }));
         setLobby(null);
         navigation.navigate('Match', {
-          quickGame: { players: data.players, lobbyId: lobby.id, legsCount: legsToWin, gameType: gameTypeToUse },
+          quickGame: { players: toPass, lobbyId: lobby.id, legsCount: legsToWin, gameType: gameTypeToUse },
         });
       } else {
         Alert.alert('Błąd', data?.message || 'Nie można rozpocząć meczu');
@@ -304,13 +322,15 @@ const QuickGameLobby = ({ navigation }) => {
 
   if (lobby?.id) {
     const players = lobby.players || [];
+    const listData = orderedPlayers.length ? orderedPlayers : players;
     const isHost = lobby.youAreHost === true;
     // Gotowość tylko zarejestrowanych; host jest zawsze uznawany za gotowego, goście nie liczą się
     const allRegisteredReady =
       players.length >= 2 &&
       players.every((p) => !p.isRegistered || p.isHost || p.ready);
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.formContent}>
+
+    const listHeader = (
+      <>
         <Text style={styles.title}>Lobby: {lobby.code || lobby.id}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -423,12 +443,30 @@ const QuickGameLobby = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Gracze w lobby ({players.length}/6)</Text>
-          {players.map((p) => (
-            <Text key={p.id || p.playerId} style={styles.playerRow}>
-              {p.name || p.tempName || 'Gracz'} {p.ready ? '✓ Gotowy' : ''}
-            </Text>
-          ))}
+          <Text style={styles.label}>Gracze w lobby (kolejność rzucania od góry)</Text>
+          <Text style={styles.hintSmall}>Przytrzymaj uchwyt i przeciągnij, by zmienić kolejność (tylko host)</Text>
+          <View style={styles.dragListContainer}>
+            <GestureHandlerRootView style={styles.dragListWrap}>
+              <DraggableFlatList
+                data={listData}
+                keyExtractor={(p) => String(p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? Math.random())}
+                onDragEnd={({ data }) => setOrderedPlayers(data)}
+                style={styles.dragListInner}
+                renderItem={({ item, drag, isActive }) => (
+                  <View style={[styles.playerTile, isActive && styles.playerTileActive]}>
+                    <Text style={styles.playerTileName} numberOfLines={1}>
+                      {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                    </Text>
+                    {isHost && (
+                      <Pressable style={styles.dragHandle} onLongPress={drag} delayLongPress={200}>
+                        <FontAwesomeIcon icon={faGripVertical} size={20} color="#888" />
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              />
+            </GestureHandlerRootView>
+          </View>
         </View>
         {auth?.accessToken && (
           <>
@@ -460,7 +498,12 @@ const QuickGameLobby = ({ navigation }) => {
         <Pressable style={styles.buttonOutlined} onPress={backToChoice}>
           <Text style={styles.buttonOutlinedText}>Wróć</Text>
         </Pressable>
+      </>
+    );
 
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.formContent} nestedScrollEnabled>
+        {listHeader}
         <Modal
           visible={inviteModalVisible}
           transparent
@@ -571,6 +614,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#c5c5c5',
     marginVertical: 4,
+  },
+  dragListContainer: {
+    height: 220,
+    marginTop: 8,
+  },
+  dragListWrap: {
+    flex: 1,
+  },
+  dragListInner: {
+    flex: 1,
+  },
+  playerTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  playerTileActive: {
+    backgroundColor: '#5a5590',
+    opacity: 0.95,
+  },
+  playerTileName: {
+    flex: 1,
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '500',
+  },
+  dragHandle: {
+    padding: 8,
+    marginLeft: 8,
   },
   input: {
     marginBottom: 4,

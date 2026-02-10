@@ -45,52 +45,55 @@ const CricketCounter = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.resultContainer}>
-        <Text style={styles.legsLabel}>Legi</Text>
-      </View>
-
+      <View style={styles.tableWrapper}>
       <ScrollView style={styles.tableScroll} contentContainerStyle={styles.tableContent} horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.cell, styles.headerCell, styles.nameCol]}>Gracz</Text>
-            {CRICKET_SEGMENTS.map((s) => (
-              <Text key={s} style={[styles.cell, styles.headerCell]}>{s === 'bull' ? 'Bull' : s}</Text>
-            ))}
-            <Text style={[styles.cell, styles.headerCell, styles.ptsCol]}>Pkt</Text>
-          </View>
-          {players.slice(0, N).map((p, i) => {
-            const st = cricketStates[i];
-            const hits = st?.hits ?? {};
-            return (
-              <View key={i} style={[styles.tableRow, i === currentPlayerIndex && styles.tableRowActive]}>
-                <Text style={[styles.cell, styles.nameCol]} numberOfLines={1}>
-                  {p?.name ?? 'Gracz'} ({(st?.legsWon ?? 0)})
-                </Text>
-                {CRICKET_SEGMENTS.map((seg) => {
-                  const h = hits[seg] ?? 0;
+          <View style={styles.tableCols}>
+            <View style={[styles.col, styles.colName]}>
+              <View style={[styles.cell, styles.cellName, styles.cellHeader]}><Text style={styles.headerText}>Gracz</Text></View>
+              {players.slice(0, N).map((p, i) => (
+                <View key={i} style={[styles.cell, styles.cellName, i === currentPlayerIndex && styles.cellActive]}>
+                  <Text style={styles.cellText} numberOfLines={1} ellipsizeMode="tail">{p?.name ?? 'Gracz'}</Text>
+                </View>
+              ))}
+            </View>
+            {CRICKET_SEGMENTS.map((seg) => (
+              <View key={seg} style={[styles.col, seg === 'bull' ? styles.colBull : styles.colSegment]}>
+                <View style={[styles.cell, styles.cellCenter, styles.cellHeader]}><Text style={styles.headerText}>{seg === 'bull' ? 'Bull' : seg}</Text></View>
+                {players.slice(0, N).map((p, i) => {
+                  const h = (cricketStates[i]?.hits?.[seg] ?? 0);
                   const closed = h >= 3;
+                  const symbol = h === 0 ? '–' : h === 1 ? '\\' : h === 2 ? '×' : '●';
                   return (
-                    <View key={seg} style={[styles.cell, styles.hitCell]}>
-                      <Text style={[styles.hitText, closed && styles.hitTextClosed]}>{closed ? '✕' : h || '-'}</Text>
+                    <View key={i} style={[styles.cell, styles.cellCenter, i === currentPlayerIndex && styles.cellActive]}>
+                      <Text style={[styles.cellText, styles.hitSymbol, closed && styles.hitClosed]}>{symbol}</Text>
                     </View>
                   );
                 })}
-                <Text style={[styles.cell, styles.ptsCol]}>{st?.points ?? 0}</Text>
               </View>
-            );
-          })}
+            ))}
+            <View style={[styles.col, styles.colPts]}>
+              <View style={[styles.cell, styles.cellCenter, styles.cellHeader]}><Text style={styles.headerText}>Pkt</Text></View>
+              {players.slice(0, N).map((p, i) => (
+                <View key={i} style={[styles.cell, styles.cellCenter, i === currentPlayerIndex && styles.cellActive]}>
+                  <Text style={[styles.cellText, styles.ptsText]}>{cricketStates[i]?.points ?? 0}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
       </ScrollView>
-
-      <View style={styles.scoreSection}>
-        <Text style={styles.dartInfo}>Rzut {dartsInVisit + 1}/3 (wprowadzaj po jednym rzucie)</Text>
-        <Pressable style={styles.undoBtn} onPress={handleUndo}>
-          <Text style={styles.undoText}>Cofnij</Text>
-        </Pressable>
       </View>
 
-      <View style={styles.keyboard}>
-        <View style={styles.modRow}>
+      <View style={styles.bottomSection}>
+        <View style={styles.scoreSection}>
+          <Text style={styles.dartInfo}>Rzut {dartsInVisit + 1}/3 (wprowadzaj po jednym rzucie)</Text>
+          <Pressable style={styles.undoBtn} onPress={handleUndo}>
+            <Text style={styles.undoText}>Cofnij</Text>
+          </Pressable>
+        </View>
+        <View style={styles.keyboard}>
+          <View style={styles.modRow}>
           <Pressable
             style={[styles.modBtn, modifier === 'double' && styles.modBtnActive]}
             onPress={() => setModifier((m) => (m === 'double' ? null : 'double'))}
@@ -144,81 +147,102 @@ const CricketCounter = ({
             <Text style={styles.numText}>0</Text>
           </Pressable>
         </View>
+        </View>
       </View>
     </View>
   );
 };
 
+const COL_NAME = 90;
+const COL_SEGMENT = 34;
+const COL_BULL = 38;
+const COL_PTS = 42;
+const BORDER = 'rgba(255,255,255,0.22)';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'space-between',
   },
-  resultContainer: {
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0,0,0,.3)',
-  },
-  legsLabel: {
-    color: '#c5c5c5',
-    fontSize: 16,
-    textAlign: 'center',
+  tableWrapper: {
+    flex: 1,
+    marginBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    overflow: 'hidden',
   },
   tableScroll: {
     flex: 1,
-    maxHeight: 220,
   },
   tableContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingVertical: 12,
+    flexGrow: 1,
   },
   table: {
-    minWidth: 380,
+    flex: 1,
+    minWidth: COL_NAME + COL_SEGMENT * 6 + COL_BULL + COL_PTS,
   },
-  tableHeader: {
+  tableCols: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.3)',
-    paddingVertical: 6,
+    flex: 1,
   },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
+  col: {
+    flexDirection: 'column',
   },
-  tableRowActive: {
-    backgroundColor: 'rgba(249,148,23,0.2)',
-    borderLeftWidth: 4,
-    borderLeftColor: '#F99417',
+  colName: {
+    flex: 1,
+    minWidth: COL_NAME,
+    backgroundColor: 'transparent',
   },
+  colSegment: { width: COL_SEGMENT, flex: 0 },
+  colBull: { width: COL_BULL, flex: 0 },
+  colPts: { width: COL_PTS, flex: 0 },
   cell: {
-    minWidth: 36,
-    alignItems: 'center',
+    minHeight: 28,
     justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: BORDER,
   },
-  headerCell: {
-    color: '#888',
-    fontSize: 13,
+  cellName: {
+    alignItems: 'flex-start',
+    paddingLeft: 6,
+    overflow: 'hidden',
+  },
+  cellCenter: {
+    alignItems: 'center',
+  },
+  cellHeader: {},
+  cellActive: {
+    backgroundColor: 'rgba(249,148,23,0.2)',
+  },
+  headerText: {
+    color: '#f5f5f5',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cellText: {
+    color: '#e8e8e8',
+    fontSize: 15,
+  },
+  hitSymbol: {
+    fontSize: 18,
     fontWeight: '600',
   },
-  nameCol: {
-    minWidth: 80,
-    maxWidth: 100,
-    alignItems: 'flex-start',
-    paddingLeft: 4,
-  },
-  ptsCol: {
-    minWidth: 40,
-  },
-  hitCell: {
-    minWidth: 32,
-  },
-  hitText: {
-    color: '#c5c5c5',
-    fontSize: 16,
-  },
-  hitTextClosed: {
+  hitClosed: {
     color: '#4ade80',
+  },
+  ptsText: {
+    fontWeight: '600',
+    color: '#f5f5f5',
+  },
+  bottomSection: {
+    paddingBottom: 16,
   },
   scoreSection: {
     flexDirection: 'row',
@@ -243,8 +267,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   keyboard: {
+    marginTop: 16,
     paddingHorizontal: 8,
-    paddingBottom: 16,
   },
   modRow: {
     flexDirection: 'row',

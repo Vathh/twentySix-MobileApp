@@ -6,6 +6,7 @@ import { achievementsReducer } from '../helpers/reducers/achievementsReducer';
 import { addAchievement, initialAchievementsState } from '../helpers/reducers/achievementActions';
 import Counter from './Counter';
 import CricketCounter from './CricketCounter';
+import CricketResults from './CricketResults';
 import Stats from './Stats';
 import Settings from './Settings';
 import { useMatchSettings } from '../hooks/useMatchSettings';
@@ -26,12 +27,12 @@ const Match = ({ route, navigation }) => {
 
   const { auth } = useAuth();
   const { scoringMode, setScoringMode, loaded: settingsLoaded } = useMatchSettings();
-  const isCricket = isQuickGame && (quickGame?.gameType === 'cricket');
-
-  const [selectedComponent, setSelectedComponent] = useState('counter');
 
   const isQuickGame = !!route.params?.quickGame;
   const quickGame = route.params?.quickGame;
+  const isCricket = isQuickGame && (quickGame?.gameType === 'cricket');
+
+  const [selectedComponent, setSelectedComponent] = useState('counter');
   const matchParam = route.params?.match;
   const legsToWin = isQuickGame ? (quickGame?.legsCount ?? 3) : 2;
 
@@ -185,10 +186,10 @@ const Match = ({ route, navigation }) => {
       );
     }
     if (selectedComponent === 'stats') {
-      const statsStates = isCricket
-        ? cricketStates.map((s) => ({ legsWon: s?.legsWon ?? 0, matchAverage: '-', currentLegAverage: '-', totalPointsEarned: s?.points, legsAverages: [] }))
-        : playerStates;
-      return <Stats players={players} playerStates={statsStates} />;
+      if (isCricket) {
+        return <CricketResults players={players} cricketStates={cricketStates} legsToWin={legsToWin} />;
+      }
+      return <Stats players={players} playerStates={playerStates} />;
     }
     if (selectedComponent === 'settings') {
       return (
@@ -665,14 +666,16 @@ const Match = ({ route, navigation }) => {
 
       <View style={styles.navigationContainer}>
         <Pressable style={selectedComponent === "counter" ? [styles.navigationBtn, styles.selectedNavigationBtn] : [styles.navigationBtn]} onPress={() => setSelectedComponent('counter')}>
-          <Text style={[styles.navigationBtnText]}>Wynik</Text>
+          <Text style={styles.navigationBtnText}>{isCricket ? 'Gra' : 'Wynik'}</Text>
         </Pressable>
         <Pressable style={selectedComponent === "stats" ? [styles.navigationBtn, styles.selectedNavigationBtn] : [styles.navigationBtn]} onPress={() => setSelectedComponent('stats')}>
-          <Text style={styles.navigationBtnText}>Statystyki</Text>
+          <Text style={styles.navigationBtnText}>{isCricket ? 'Wyniki' : 'Statystyki'}</Text>
         </Pressable>
-        <Pressable style={selectedComponent === "settings" ? [styles.navigationBtn, styles.selectedNavigationBtn] : [styles.navigationBtn]} onPress={() => setSelectedComponent('settings')}>
-          <Text style={styles.navigationBtnText}>Ustawienia</Text>
-        </Pressable>
+        {!isCricket && (
+          <Pressable style={selectedComponent === "settings" ? [styles.navigationBtn, styles.selectedNavigationBtn] : [styles.navigationBtn]} onPress={() => setSelectedComponent('settings')}>
+            <Text style={styles.navigationBtnText}>Ustawienia</Text>
+          </Pressable>
+        )}
       </View>
 
       {renderContent()}
