@@ -15,10 +15,12 @@ const Counter = ({
   handleUndoSingleDart,
   handleUndoLastDartAfterSwitch,
   scoringMode = SCORING_MODES.SUM,
+  canInput = true,
 }) => {
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
+  const inputDisabled = !canInput;
 
   const [dartScores, setDartScores] = useState([0, 0, 0]);
   const [dartIndex, setDartIndex] = useState(0);
@@ -34,6 +36,7 @@ const Counter = ({
   }, [isPerDart]);
 
   const applyDartValue = (baseValue) => {
+    if (inputDisabled) return;
     if (dartIndex === 0) lastSubmittedRef.current = null;
     const mult = baseValue === 25
       ? (modifier === 'double' ? 2 : 1)
@@ -74,7 +77,7 @@ const Counter = ({
   };
 
   const dartPad = (
-    <View style={styles.dartPad}>
+    <View style={[styles.dartPad, inputDisabled && { opacity: 0.6 }]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
       <View style={styles.dartModRow}>
         <Pressable
           style={[styles.dartModBtn, modifier === 'double' && styles.dartModBtnActive]}
@@ -134,7 +137,7 @@ const Counter = ({
   );
 
   const numPad = (
-    <View style={styles.countContainer}>
+    <View style={[styles.countContainer, inputDisabled && { opacity: 0.6 }]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
       <View style={styles.countRow}>
         {[1, 2, 3].map((n) => (
           <Pressable key={n} style={styles.countNumber} onPress={() => handleNumberBtn(String(n))}>
@@ -233,6 +236,9 @@ const Counter = ({
         </View>
 
         {scoreSection}
+        {inputDisabled && (
+          <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
+        )}
         {isPerDart ? dartPad : numPad}
       </View>
     );
@@ -264,6 +270,9 @@ const Counter = ({
         ))}
       </ScrollView>
       {scoreSection}
+      {inputDisabled && (
+        <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
+      )}
       {isPerDart ? dartPad : numPad}
     </View>
   );
@@ -378,6 +387,12 @@ const styles = StyleSheet.create({
   undoText: {
     fontSize: 18,
     color: '#c5c5c5'
+  },
+  waitingText: {
+    fontSize: 14,
+    color: '#a0a0a0',
+    textAlign: 'center',
+    paddingVertical: 8
   },
   countContainer: {
     width: '100%'

@@ -1,7 +1,7 @@
-// const API_BASE_URL = 'http://192.168.0.16:8190/dart_league';
-// const API_BASE_URL = 'http://192.168.0.17:8000/api';
-// const API_BASE_URL = 'http://127.0.0.1:8000/api';
-const API_BASE_URL = 'http://10.0.2.2:8000/api';
+// Adres API backendu. Telefon (Expo Go) musi łączyć się z IP komputera w tej samej sieci Wi‑Fi.
+// Sprawdź IP komputera: w terminalu wpisz ipconfig, szukaj "IPv4" przy "Wireless LAN".
+// Emulator Android: często działa ten sam adres; jeśli nie, zmień na http://10.0.2.2:8000/api
+const API_BASE_URL = 'http://192.168.0.28:8000/api';
 
 
 const GAME_ENDPOINT = '/game';
@@ -63,7 +63,16 @@ export const getQuickGameLobbyLeaveUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_
 export const getQuickGameLobbyReadyUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_READY;
 export const getQuickGameLobbyStartUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_START;
 export const getQuickGameLobbyInviteUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_INVITE;
+export const QUICK_GAME_LOBBY_INVITATIONS_URL = API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/invitations';
+export const getQuickGameLobbyRejectInvitationUrl = (invitationId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/invitations/' + invitationId + '/reject';
 const LOBBY_ADD_GUEST = '/add-guest';
-export const getQuickGameLobbyAddGuestUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;// Znajomi (wymaga auth)
+export const getQuickGameLobbyAddGuestUrl = (lobbyId) => API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;
+
+// Quick game session (sync)
+const QUICK_GAME_SESSION_PREFIX = '/quick-game/session';
+export const getQuickGameSessionUrl = (sessionId) => API_BASE_URL + QUICK_GAME_SESSION_PREFIX + '/' + sessionId;
+export const getQuickGameSessionVisitUrl = (sessionId) => API_BASE_URL + QUICK_GAME_SESSION_PREFIX + '/' + sessionId + '/visit';
+
+// Znajomi (wymaga auth)
 const FRIENDS_PREFIX = '/friends';
 export const FRIENDS_API_URL = API_BASE_URL + FRIENDS_PREFIX;

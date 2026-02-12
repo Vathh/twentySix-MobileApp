@@ -20,7 +20,7 @@ import {
   CRICKET_LEG_WIN,
   CRICKET_LEG_RESET,
 } from '../helpers/reducers/cricketReducer';
-import { UPDATE_GAME_API_URL, QUICK_GAME_UPDATE_API_URL } from '../helpers/apiConfig';
+import { UPDATE_GAME_API_URL, QUICK_GAME_UPDATE_API_URL, getQuickGameSessionUrl, getQuickGameSessionVisitUrl } from '../helpers/apiConfig';
 import useAuth from '../hooks/useAuth';
 
 const Match = ({ route, navigation }) => {
@@ -31,6 +31,11 @@ const Match = ({ route, navigation }) => {
   const isQuickGame = !!route.params?.quickGame;
   const quickGame = route.params?.quickGame;
   const isCricket = isQuickGame && (quickGame?.gameType === 'cricket');
+  const sessionId = quickGame?.sessionId ?? null;
+  const scoringModeSync = quickGame?.scoringMode ?? 'each_own';
+  const isHostSync = quickGame?.isHost ?? false;
+  const myPlayerIndex = quickGame?.myPlayerIndex ?? null;
+  const isSynced501 = sessionId && quickGame?.gameType === '501';
 
   const [selectedComponent, setSelectedComponent] = useState('counter');
   const matchParam = route.params?.match;
@@ -44,7 +49,7 @@ const Match = ({ route, navigation }) => {
   const N = Math.min(Math.max(players.length, 2), 6);
   const match = isQuickGame ? { match: { id: null, type: 'quick_match', tournamentId: null, groupNumber: null } } : matchParam;
 
-  const [isModalVisible, setIsModalVisible] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(!isQuickGame);
   const [isQFModalVisible, setIsQFModalVisible] = useState(false);
   const [matchClosed, setMatchClosed] = useState(false);
 
@@ -71,17 +76,64 @@ const Match = ({ route, navigation }) => {
 
   const [achievementsState, achievementsDispatch] = useReducer(achievementsReducer, initialAchievementsState);
 
-  const [legStartingPlayer, setLegStartingPlayer] = useState();
+  const [legStartingPlayer, setLegStartingPlayer] = useState(isQuickGame && players.length > 0 ? players[0] : undefined);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const currentPlayerIndexRef = useRef(0);
   const okHandlingRef = useRef(false);
   const currentPlayer = players[currentPlayerIndex] ?? null;
   const [currentResult, setCurrentResult] = useState(0);
+  const [syncedSessionState, setSyncedSessionState] = useState(null);
+  const [syncedVisitLoading, setSyncedVisitLoading] = useState(false);
   const [qfHelperDart, setQfHelperDart] = useState(0);
   const [cricketDartsInVisit, setCricketDartsInVisit] = useState(0);
 
   // Ref jest jedynym źródłem prawdy w handleOkBtn; state currentPlayerIndex służy tylko do wyświetlania.
   // Nie synchronizujemy ref ze state w useEffect – po ustawieniu ref i state w handlerach ref nie może być nadpisany.
+
+  const fetchSessionState = useCallback(async () => {
+    if (!sessionId || !auth?.accessToken) return;
+    try {
+      const res = await fetch(getQuickGameSessionUrl(sessionId), {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSyncedSessionState(data);
+      }
+    } catch (e) {
+      console.warn('fetchSessionState', e);
+    }
+  }, [sessionId, auth?.accessToken]);
+
+  useEffect(() => {
+    if (!isSynced501) return;
+    fetchSessionState();
+    const interval = setInterval(fetchSessionState, 2500);
+    return () => clearInterval(interval);
+  }, [isSynced501, fetchSessionState]);
+
+  useEffect(() => {
+    if (isSynced501 && syncedSessionState?.state?.status === 'finished') {
+      setMatchClosed(true);
+    }
+  }, [isSynced501, syncedSessionState?.state?.status]);
+
+  const canInputSync = isSynced501 && (
+    (scoringModeSync === 'one_device' && isHostSync) ||
+    (scoringModeSync === 'each_own' && syncedSessionState?.state?.currentPlayerIndex === myPlayerIndex)
+  );
+
+  const playerStatesForDisplay = isSynced501 && syncedSessionState?.state
+    ? (syncedSessionState.state.playerScores || []).map((score, i) => ({
+        score,
+        legsWon: (syncedSessionState.state.legsWon || [])[i] ?? 0,
+        dartsThrown: 0,
+        currentLegScores: [],
+      }))
+    : playerStates;
+  const currentPlayerIndexForDisplay = isSynced501 && syncedSessionState?.state != null
+    ? syncedSessionState.state.currentPlayerIndex
+    : currentPlayerIndex;
 
   const computeCricketPoints = (playerIdx, segment, multiplier) => {
     const myHitsBefore = cricketStates[playerIdx]?.hits[segment] ?? 0;
@@ -171,8 +223,8 @@ const Match = ({ route, navigation }) => {
       return (
         <Counter
           players={players}
-          playerStates={playerStates}
-          currentPlayerIndex={currentPlayerIndex}
+          playerStates={playerStatesForDisplay}
+          currentPlayerIndex={currentPlayerIndexForDisplay}
           currentResult={currentResult}
           handleNumberBtn={handleNumberBtn}
           handleOkBtn={handleOkBtn}
@@ -182,6 +234,7 @@ const Match = ({ route, navigation }) => {
           handleUndoSingleDart={handleUndoSingleDart}
           handleUndoLastDartAfterSwitch={handleUndoLastDartAfterSwitch}
           scoringMode={scoringMode}
+          canInput={!isSynced501 || canInputSync}
         />
       );
     }
@@ -189,7 +242,7 @@ const Match = ({ route, navigation }) => {
       if (isCricket) {
         return <CricketResults players={players} cricketStates={cricketStates} legsToWin={legsToWin} />;
       }
-      return <Stats players={players} playerStates={playerStates} />;
+      return <Stats players={players} playerStates={playerStatesForDisplay} />;
     }
     if (selectedComponent === 'settings') {
       return (
@@ -300,6 +353,31 @@ const Match = ({ route, navigation }) => {
     if (points <= 0 || points > 180) return;
     if (okHandlingRef.current) return;
 
+    if (isSynced501 && syncedSessionState) {
+      if (!canInputSync || syncedVisitLoading) return;
+      if (!isLastDart) return;
+      const idx = syncedSessionState.state.currentPlayerIndex;
+      const currentScore = syncedSessionState.state.playerScores?.[idx] ?? 501;
+      const bust = currentScore - roundTotal < 0;
+      setSyncedVisitLoading(true);
+      fetch(getQuickGameSessionVisitUrl(sessionId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ playerIndex: idx, visitScore: roundTotal, bust }),
+      })
+        .then((res) => res.ok ? res.json() : Promise.reject(new Error('Visit failed')))
+        .then((data) => {
+          setSyncedSessionState(data);
+          setCurrentResult(0);
+        })
+        .catch((e) => console.warn('submitVisit', e))
+        .finally(() => setSyncedVisitLoading(false));
+      return;
+    }
+
     const idx = currentPlayerIndexRef.current;
     const state = playerStates[idx];
     const dispatch = playerDispatches[idx];
@@ -400,6 +478,30 @@ const Match = ({ route, navigation }) => {
     const resultToApply = (typeof explicitResult === 'number') ? explicitResult : currentResult;
     if (resultToApply > 180 || (typeof resultToApply !== 'number') || resultToApply <= 0) return;
     if (okHandlingRef.current) return;
+
+    if (isSynced501 && syncedSessionState) {
+      if (!canInputSync || syncedVisitLoading) return;
+      const idx = syncedSessionState.state.currentPlayerIndex;
+      const currentScore = syncedSessionState.state.playerScores?.[idx] ?? 501;
+      const bust = currentScore - resultToApply < 0;
+      setSyncedVisitLoading(true);
+      fetch(getQuickGameSessionVisitUrl(sessionId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ playerIndex: idx, visitScore: resultToApply, bust }),
+      })
+        .then((res) => res.ok ? res.json() : Promise.reject(new Error('Visit failed')))
+        .then((data) => {
+          setSyncedSessionState(data);
+          setCurrentResult(0);
+        })
+        .catch((e) => console.warn('submitVisit', e))
+        .finally(() => setSyncedVisitLoading(false));
+      return;
+    }
 
     const idx = currentPlayerIndexRef.current;
     const state = playerStates[idx];
@@ -523,6 +625,7 @@ const Match = ({ route, navigation }) => {
 
   const handleUndoBtn = () => {
     if (matchClosed) return;
+    if (isSynced501) return;
     const allAtStart = playerStates.every((s) => s.score === 501);
     if (allAtStart) return;
     const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;

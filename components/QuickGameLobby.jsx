@@ -11,9 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical } from '@fortawesome/free-solid-svg-icons';
-import DraggableFlatList from 'react-native-draggable-flatlist';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import useAuth from '../hooks/useAuth';
 import {
   QUICK_GAME_LOBBY_CREATE_API_URL,
@@ -26,18 +24,21 @@ import {
   FRIENDS_API_URL,
 } from '../helpers/apiConfig';
 
+const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
+
 const INVITATION_STATUS = {
   sent: { key: 'sent', label: 'Wysłane', icon: faPaperPlane, color: '#F99417' },
   accepted: { key: 'accepted', label: 'Zaakceptowane', icon: faCheck, color: '#4ade80' },
   rejected: { key: 'rejected', label: 'Odrzucone', icon: faTimes, color: '#f87171' },
 };
 
-const QuickGameLobby = ({ navigation }) => {
+const QuickGameLobby = ({ navigation, route }) => {
   const { auth } = useAuth();
   const GAME_TYPES = { X01: '501', CRICKET: 'cricket' };
   const [lobby, setLobby] = useState(null);
   const [legsCount, setLegsCount] = useState(3);
   const [gameType, setGameType] = useState(GAME_TYPES.X01);
+  const [scoringMode, setScoringMode] = useState(SCORING_MODES.EACH_OWN);
   const [invitations, setInvitations] = useState([]); // [{ id, name, status: 'sent'|'accepted'|'rejected' }]
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,6 +49,8 @@ const QuickGameLobby = ({ navigation }) => {
   const [guestName, setGuestName] = useState('');
   const [guestAdding, setGuestAdding] = useState(false);
   const [orderedPlayers, setOrderedPlayers] = useState([]);
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [reorderTempList, setReorderTempList] = useState([]);
 
   const fetchLobbyById = useCallback(async (lobbyId) => {
     if (!lobbyId || !auth?.accessToken) return;
@@ -65,9 +68,22 @@ const QuickGameLobby = ({ navigation }) => {
           }));
           const legsToWin = data.legsCount ?? data.legs_count ?? 3;
           const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
+          const sessionId = data.sessionId ?? null;
+          const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
+          const isHost = data.youAreHost ?? false;
+          const myPlayerIndex = data.myPlayerIndex ?? null;
           setLobby(null);
           navigation.navigate('Match', {
-            quickGame: { players, lobbyId: data.id ?? lobbyId, legsCount: legsToWin, gameType: gameTypeToUse },
+            quickGame: {
+              players,
+              lobbyId: data.id ?? lobbyId,
+              legsCount: legsToWin,
+              gameType: gameTypeToUse,
+              sessionId,
+              scoringMode: scoringModeToUse,
+              isHost,
+              myPlayerIndex,
+            },
           });
           return;
         }
@@ -75,8 +91,10 @@ const QuickGameLobby = ({ navigation }) => {
           ...data,
           legsCount: data.legsCount ?? prev?.legsCount ?? 3,
           gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
+          scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
         }));
         if (data.legsCount != null) setLegsCount(data.legsCount);
+        if (data.scoringMode != null) setScoringMode(data.scoringMode);
         const incoming = (data.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
         setOrderedPlayers((prev) => {
           const key = (p) => p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? '';
@@ -88,6 +106,7 @@ const QuickGameLobby = ({ navigation }) => {
           return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
         });
         if (data.gameType != null || data.game_type != null) setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+        if (data.scoringMode != null) setScoringMode(data.scoringMode);
         if (data.invitations && Array.isArray(data.invitations) && data.invitations.length > 0) {
           setInvitations((prev) => {
             const byId = new Map(prev.map((i) => [i.id, i]));
@@ -108,11 +127,20 @@ const QuickGameLobby = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      if (lobby?.id) {
+      const initial = route?.params?.initialLobby;
+      if (initial?.id) {
+        setLobby(initial);
+        setLegsCount(initial.legsCount ?? initial.legs_count ?? 3);
+        setGameType(initial.gameType ?? initial.game_type ?? GAME_TYPES.X01);
+        setScoringMode(initial.scoringMode ?? SCORING_MODES.EACH_OWN);
+        const pl = (initial.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
+        setOrderedPlayers(pl);
+        navigation.setParams({ initialLobby: undefined });
+      } else if (lobby?.id) {
         fetchLobbyById(lobby.id);
       }
       return () => {};
-    }, [lobby?.id, fetchLobbyById])
+    }, [lobby?.id, fetchLobbyById, route?.params?.initialLobby, navigation])
   );
 
   useEffect(() => {
@@ -120,6 +148,14 @@ const QuickGameLobby = ({ navigation }) => {
     const t = setInterval(() => fetchLobbyById(lobby.id), 4000);
     return () => clearInterval(t);
   }, [lobby?.id, fetchLobbyById]);
+
+  useEffect(() => {
+    if (reorderModalVisible && lobby?.id) {
+      const players = lobby.players || [];
+      const data = orderedPlayers.length ? orderedPlayers : players;
+      setReorderTempList([...data]);
+    }
+  }, [reorderModalVisible]);
 
   const handleCreate = async () => {
     setError('');
@@ -140,6 +176,7 @@ const QuickGameLobby = ({ navigation }) => {
         setLegsCount(data.legsCount ?? 3);
         setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         setInvitations([]);
+        fetchLobbyById(data.id);
       } else {
         setError(data?.message || 'Nie udało się utworzyć lobby');
       }
@@ -290,6 +327,7 @@ const QuickGameLobby = ({ navigation }) => {
         body: JSON.stringify({
           legsCount: legsCount ?? lobby?.legsCount ?? 3,
           gameType: gameType ?? lobby?.gameType ?? GAME_TYPES.X01,
+          scoringMode: scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN,
         }),
       });
       const data = await res.json();
@@ -301,9 +339,22 @@ const QuickGameLobby = ({ navigation }) => {
           name: p.name ?? p.tempName ?? 'Gracz',
           playerId: p.playerId ?? p.player_id,
         }));
+        const sessionId = data.sessionId ?? null;
+        const scoringModeToUse = data.scoringMode ?? scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN;
+        const isHost = data.isHost ?? lobby?.youAreHost ?? false;
+        const myPlayerIndex = data.myPlayerIndex ?? null;
         setLobby(null);
         navigation.navigate('Match', {
-          quickGame: { players: toPass, lobbyId: lobby.id, legsCount: legsToWin, gameType: gameTypeToUse },
+          quickGame: {
+            players: toPass,
+            lobbyId: lobby.id,
+            legsCount: legsToWin,
+            gameType: gameTypeToUse,
+            sessionId,
+            scoringMode: scoringModeToUse,
+            isHost,
+            myPlayerIndex,
+          },
         });
       } else {
         Alert.alert('Błąd', data?.message || 'Nie można rozpocząć meczu');
@@ -386,6 +437,37 @@ const QuickGameLobby = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.label}>Liczenie</Text>
+          <Text style={styles.hintSmall}>Kto wpisuje punkty: na jednym urządzeniu tylko host; każdy na swoim – tylko aktualnie rzucający (tylko host może zmieniać).</Text>
+          <View style={styles.gameTypeRow}>
+            <Pressable
+              style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setScoringMode(SCORING_MODES.ONE_DEVICE);
+                  handleUpdateSettings({ scoringMode: SCORING_MODES.ONE_DEVICE });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnTextActive]}>Na 1 urządzeniu</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setScoringMode(SCORING_MODES.EACH_OWN);
+                  handleUpdateSettings({ scoringMode: SCORING_MODES.EACH_OWN });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnTextActive]}>Każdy na swoim</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.label}>Zaproszenia</Text>
           {isHost && (
             <Pressable style={styles.inviteButton} onPress={openInviteModal}>
@@ -444,29 +526,45 @@ const QuickGameLobby = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.label}>Gracze w lobby (kolejność rzucania od góry)</Text>
-          <Text style={styles.hintSmall}>Przytrzymaj uchwyt i przeciągnij, by zmienić kolejność (tylko host)</Text>
-          <View style={styles.dragListContainer}>
-            <GestureHandlerRootView style={styles.dragListWrap}>
-              <DraggableFlatList
-                data={listData}
-                keyExtractor={(p) => String(p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? Math.random())}
-                onDragEnd={({ data }) => setOrderedPlayers(data)}
-                style={styles.dragListInner}
-                renderItem={({ item, drag, isActive }) => (
-                  <View style={[styles.playerTile, isActive && styles.playerTileActive]}>
+          {listData.length === 0 ? (
+            <View style={styles.emptyPlayersBox}>
+              <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
+              <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gościa powyżej.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.playersList}>
+                {listData.map((item) => (
+                  <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? Math.random())} style={styles.playerTile}>
                     <Text style={styles.playerTileName} numberOfLines={1}>
                       {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
                     </Text>
-                    {isHost && (
-                      <Pressable style={styles.dragHandle} onLongPress={drag} delayLongPress={200}>
-                        <FontAwesomeIcon icon={faGripVertical} size={20} color="#888" />
-                      </Pressable>
-                    )}
                   </View>
-                )}
-              />
-            </GestureHandlerRootView>
-          </View>
+                ))}
+              </View>
+              {isHost && (
+                <>
+                  <Pressable style={styles.reorderButton} onPress={() => { setReorderTempList([...listData]); setReorderModalVisible(true); }}>
+                    <FontAwesomeIcon icon={faGripVertical} size={18} color="#F99417" style={{ marginRight: 8 }} />
+                    <Text style={styles.reorderButtonText}>Zmień kolejność</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.reorderButtonSecondary}
+                    onPress={() => {
+                      const arr = [...listData];
+                      for (let i = arr.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                      }
+                      setOrderedPlayers(arr);
+                    }}
+                  >
+                    <Text style={styles.reorderButtonTextSecondary}>Kolejność losowa</Text>
+                  </Pressable>
+                </>
+              )}
+            </>
+          )}
         </View>
         {auth?.accessToken && (
           <>
@@ -502,8 +600,61 @@ const QuickGameLobby = ({ navigation }) => {
     );
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.formContent} nestedScrollEnabled>
-        {listHeader}
+      <View style={styles.container}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator>
+          {listHeader}
+        </ScrollView>
+        <Modal
+          visible={reorderModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setReorderModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.reorderModalContent}>
+              <Text style={styles.modalTitle}>Zmień kolejność graczy</Text>
+              <Text style={styles.hintSmall}>Użyj strzałek, by zmienić kolejność. Od góry = kolejność rzucania.</Text>
+              <ScrollView style={styles.reorderListWrap} contentContainerStyle={styles.reorderListContent} showsVerticalScrollIndicator>
+                {(reorderTempList.length > 0 ? reorderTempList : listData).map((item, index) => {
+                  const list = reorderTempList.length > 0 ? reorderTempList : listData;
+                  const moveUp = () => {
+                    if (index <= 0) return;
+                    const next = [...list];
+                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    setReorderTempList(next);
+                  };
+                  const moveDown = () => {
+                    if (index >= list.length - 1) return;
+                    const next = [...list];
+                    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                    setReorderTempList(next);
+                  };
+                  return (
+                    <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)} style={styles.playerTile}>
+                      <Text style={styles.playerTileName} numberOfLines={1}>
+                        {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                      </Text>
+                      <View style={styles.reorderButtons}>
+                        <Pressable style={[styles.reorderArrowBtn, index === 0 && styles.reorderArrowBtnDisabled]} onPress={moveUp} disabled={index === 0}>
+                          <FontAwesomeIcon icon={faChevronUp} size={18} color={index === 0 ? '#555' : '#F99417'} />
+                        </Pressable>
+                        <Pressable style={[styles.reorderArrowBtn, index === list.length - 1 && styles.reorderArrowBtnDisabled]} onPress={moveDown} disabled={index === list.length - 1}>
+                          <FontAwesomeIcon icon={faChevronDown} size={18} color={index === list.length - 1 ? '#555' : '#F99417'} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              <Pressable style={styles.button} onPress={() => { setOrderedPlayers(reorderTempList.length > 0 ? reorderTempList : listData); setReorderModalVisible(false); }}>
+                <Text style={styles.buttonText}>Gotowe</Text>
+              </Pressable>
+              <Pressable style={styles.buttonOutlined} onPress={() => setReorderModalVisible(false)}>
+                <Text style={styles.buttonOutlinedText}>Anuluj</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
         <Modal
           visible={inviteModalVisible}
           transparent
@@ -542,7 +693,7 @@ const QuickGameLobby = ({ navigation }) => {
             </Pressable>
           </Pressable>
         </Modal>
-      </ScrollView>
+      </View>
     );
   }
 
@@ -578,6 +729,71 @@ const styles = StyleSheet.create({
   formContent: {
     padding: 24,
     paddingBottom: 40,
+  },
+  scroll: {
+    flex: 1,
+  },
+  playersList: {
+    marginTop: 8,
+  },
+  reorderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#F99417',
+    backgroundColor: 'transparent',
+  },
+  reorderButtonText: {
+    fontSize: 16,
+    color: '#F99417',
+    fontWeight: '600',
+  },
+  reorderButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(249,148,23,0.5)',
+    backgroundColor: 'transparent',
+  },
+  reorderButtonTextSecondary: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '600',
+  },
+  reorderModalContent: {
+    backgroundColor: '#363062',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxHeight: '85%',
+  },
+  reorderListWrap: {
+    maxHeight: 320,
+    marginVertical: 16,
+  },
+  reorderListContent: {
+    paddingBottom: 16,
+  },
+  reorderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  reorderArrowBtn: {
+    padding: 10,
+  },
+  reorderArrowBtnDisabled: {
+    opacity: 0.5,
   },
   title: {
     fontSize: 22,
@@ -615,15 +831,18 @@ const styles = StyleSheet.create({
     color: '#c5c5c5',
     marginVertical: 4,
   },
-  dragListContainer: {
-    height: 220,
-    marginTop: 8,
+  emptyPlayersBox: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
   },
-  dragListWrap: {
-    flex: 1,
-  },
-  dragListInner: {
-    flex: 1,
+  emptyPlayersText: {
+    fontSize: 16,
+    color: '#a0a0a0',
+    marginBottom: 4,
   },
   playerTile: {
     flexDirection: 'row',
