@@ -10,8 +10,9 @@ import Screens from './pages/Screens';
 function AppContent() {
   const insets = useSafeAreaInsets();
   const topInset = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0);
+  const bottomInset = Math.max(insets.bottom, 10);
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <GestureHandlerRootView style={styles.gesture}>
         <StatusBar style="light" />
         <NavigationContainer>

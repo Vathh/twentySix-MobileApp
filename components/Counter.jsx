@@ -16,6 +16,8 @@ const Counter = ({
   handleUndoLastDartAfterSwitch,
   scoringMode = SCORING_MODES.SUM,
   canInput = true,
+  /** Sesja online: punktacja na początek bieżącej wizyty (duży licznik zamrożony do końca 3 lotek). */
+  frozenVisitStartScore = null,
 }) => {
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
@@ -25,23 +27,35 @@ const Counter = ({
   const [dartScores, setDartScores] = useState([0, 0, 0]);
   const [dartIndex, setDartIndex] = useState(0);
   const [modifier, setModifier] = useState(null);
+  /** Przed powrotem API — lokalny początek wizyty do podglądu wirtualnego wyniku. */
+  const [visitSnapBaseline, setVisitSnapBaseline] = useState(null);
   const lastSubmittedRef = useRef(null);
 
   useEffect(() => {
-    if (!isPerDart) {
+    if (!isPerDart || !canInput) {
       setDartScores([0, 0, 0]);
       setDartIndex(0);
       setModifier(null);
+      setVisitSnapBaseline(null);
     }
+  }, [isPerDart, canInput]);
+
+  useEffect(() => {
+    if (!isPerDart) setVisitSnapBaseline(null);
   }, [isPerDart]);
 
   const applyDartValue = (baseValue) => {
     if (inputDisabled) return;
     if (dartIndex === 0) lastSubmittedRef.current = null;
+    if (dartIndex === 0) {
+      setVisitSnapBaseline(playerStates[currentPlayerIndex]?.score ?? 501);
+    }
     const mult = baseValue === 25
       ? (modifier === 'double' ? 2 : 1)
       : (modifier === 'double' ? 2 : modifier === 'triple' ? 3 : 1);
     const points = baseValue * mult;
+    /* Na tarczy stalowej max za jedną lotkę to T20 = 60; inne segmenty są ≤ 60. */
+    if (points > 60) return;
     const nextScores = [...dartScores];
     nextScores[dartIndex] = points;
     setDartScores(nextScores);
@@ -182,18 +196,31 @@ const Counter = ({
         <Text style={styles.scoreText}>{scoreDisplayText}</Text>
       </View>
       <View style={styles.undoContainer}>
-        <Pressable style={styles.undoBtn} onPress={isPerDart ? handleUndoLastDart : handleUndoBtn}>
+        <Pressable style={styles.undoBtn} onPress={isPerDart && !inputDisabled ? handleUndoLastDart : handleUndoBtn}>
           <Text style={styles.undoText}>Cofnij</Text>
         </Pressable>
       </View>
     </View>
   );
 
+  const roundLocalSum = dartScores[0] + dartScores[1] + dartScores[2];
+  const virtualBaseline =
+    frozenVisitStartScore ??
+    visitSnapBaseline ??
+    playerStates[currentPlayerIndex]?.score ??
+    501;
+  const virtualScorePreview =
+    isPerDart && canInput && roundLocalSum > 0
+      ? Math.max(0, virtualBaseline - roundLocalSum)
+      : null;
+
   if (isTwoPlayer && N >= 2) {
     const p0 = players[0];
     const p1 = players[1];
     const s0 = playerStates[0];
     const s1 = playerStates[1];
+    const raw0 = s0?.syncedRawScore ?? s0?.score;
+    const raw1 = s1?.syncedRawScore ?? s1?.score;
     return (
       <View style={styles.container}>
         <View style={styles.resultContainer}>
@@ -212,24 +239,34 @@ const Counter = ({
 
         <View style={styles.countersContainer}>
           <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
-            <Text style={[styles.counterText, currentPlayerIndex === 0 && styles.goldText]}>{s0?.score ?? 501}</Text>
+            <View style={styles.counterScoreStack}>
+              <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}>{s0?.score ?? 501}</Text>
+              {isPerDart && canInput && currentPlayerIndex === 0 && virtualScorePreview != null && (
+                <Text style={styles.virtualScoreText}>{virtualScorePreview}</Text>
+              )}
+            </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
                 ms: {s0?.totalPointsEarned ? s0.matchAverage : '-'}
               </Text>
               <Text style={styles.averageText}>
-                ls: {s0?.score !== 501 ? s0.currentLegAverage : '-'}
+                ls: {raw0 !== 501 ? s0.currentLegAverage : '-'}
               </Text>
             </View>
           </View>
           <View style={styles.counterContainer}>
-            <Text style={[styles.counterText, currentPlayerIndex === 1 && styles.goldText]}>{s1?.score ?? 501}</Text>
+            <View style={styles.counterScoreStack}>
+              <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}>{s1?.score ?? 501}</Text>
+              {isPerDart && canInput && currentPlayerIndex === 1 && virtualScorePreview != null && (
+                <Text style={styles.virtualScoreText}>{virtualScorePreview}</Text>
+              )}
+            </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
                 ms: {s1?.totalPointsEarned ? s1.matchAverage : '-'}
               </Text>
               <Text style={styles.averageText}>
-                ls: {s1?.score !== 501 ? s1.currentLegAverage : '-'}
+                ls: {raw1 !== 501 ? s1.currentLegAverage : '-'}
               </Text>
             </View>
           </View>
@@ -250,24 +287,31 @@ const Counter = ({
         <Text style={styles.multiLegsLabel}>Legi</Text>
       </View>
       <ScrollView style={styles.multiList} contentContainerStyle={styles.multiListContent}>
-        {players.map((p, i) => (
+        {players.map((p, i) => {
+          const st = playerStates[i];
+          const rawS = st?.syncedRawScore ?? st?.score;
+          return (
           <View key={i} style={[styles.multiRow, i === currentPlayerIndex && styles.multiRowActive]}>
             <View style={styles.multiRowLeft}>
               <Text style={styles.multiPlayerName} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
-              <Text style={styles.multiDarts}>({playerStates[i]?.dartsThrown ?? 0})</Text>
+              <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
             </View>
             <View style={styles.multiRowCenter}>
               <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
-                {playerStates[i]?.score ?? 501}
+                {st?.score ?? 501}
               </Text>
-              <Text style={styles.multiLegs}>{playerStates[i]?.legsWon ?? 0} legi</Text>
+              {isPerDart && canInput && i === currentPlayerIndex && virtualScorePreview != null && (
+                <Text style={styles.virtualScoreTextMulti}>{virtualScorePreview}</Text>
+              )}
+              <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
             </View>
             <View style={styles.multiRowRight}>
-              <Text style={styles.multiAvg}>ms: {playerStates[i]?.totalPointsEarned ? playerStates[i].matchAverage : '-'}</Text>
-              <Text style={styles.multiAvg}>ls: {playerStates[i]?.score !== 501 ? playerStates[i].currentLegAverage : '-'}</Text>
+              <Text style={styles.multiAvg}>ms: {st?.totalPointsEarned ? st.matchAverage : '-'}</Text>
+              <Text style={styles.multiAvg}>ls: {rawS !== 501 ? st.currentLegAverage : '-'}</Text>
             </View>
           </View>
-        ))}
+          );
+        })}
       </ScrollView>
       {scoreSection}
       {inputDisabled && (
@@ -327,6 +371,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
+  },
+  counterScoreStack: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterTextNoFlex: {
+    flex: 0,
+  },
+  virtualScoreText: {
+    fontSize: 40,
+    fontWeight: '600',
+    color: '#7a8a9e',
+    marginTop: 4,
+  },
+  virtualScoreTextMulti: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#7a8a9e',
+    marginTop: 4,
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
