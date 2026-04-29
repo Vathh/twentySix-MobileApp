@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import useAuth from '../hooks/useAuth';
-import { FRIENDS_API_URL } from '../helpers/apiConfig';
+import useAuth from '../../hooks/useAuth';
+import { FRIENDS_API_URL } from '../../helpers/apiConfig';
 
 const FriendsScreen = ({ navigation }) => {
   const { auth } = useAuth();
@@ -99,3 +99,4 @@ const styles = StyleSheet.create({
 });
 
 export default FriendsScreen;
+

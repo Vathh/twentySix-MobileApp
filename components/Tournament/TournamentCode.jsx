@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { LOGIN_API_URL } from '../helpers/apiConfig'
-import useAuth from '../hooks/useAuth'
+import { LOGIN_API_URL } from '../../helpers/apiConfig'
+import useAuth from '../../hooks/useAuth'
 
 /**
  * Ekran uwierzytelnienia kodem turnieju.
@@ -124,3 +124,4 @@ const styles = StyleSheet.create({
 })
 
 export default TournamentCode
+

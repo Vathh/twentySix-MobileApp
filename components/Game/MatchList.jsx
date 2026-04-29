@@ -10,8 +10,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faSync } from '@fortawesome/free-solid-svg-icons';
-import useAuth from '../hooks/useAuth';
-import { ACTIVE_GAMES_API_URL } from '../helpers/apiConfig';
+import useAuth from '../../hooks/useAuth';
+import { ACTIVE_GAMES_API_URL } from '../../helpers/apiConfig';
 
 const MatchList = ({ navigation }) => {
   const { auth } = useAuth();
@@ -226,3 +226,4 @@ const styles = StyleSheet.create({
 });
 
 export default MatchList;
+

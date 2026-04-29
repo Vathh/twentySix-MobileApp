@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
-import { SCORING_MODES } from '../hooks/useMatchSettings'
+import { SCORING_MODES } from '../../hooks/useMatchSettings'
 
 const Counter = ({
   players,
@@ -638,3 +638,4 @@ const styles = StyleSheet.create({
 });
 
 export default Counter;
+

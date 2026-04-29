@@ -2,18 +2,18 @@ import React from 'react';
 import { Pressable, Text } from 'react-native';
 import useAuth from '../hooks/useAuth';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import MatchList from '../components/MatchList';
-import Match from '../components/Match';
-import TournamentLogin from '../components/TournamentLogin';
-import TournamentCode from '../components/TournamentCode';
-import Home from '../components/Home';
-import QuickGameLobby from '../components/QuickGameLobby';
-import FriendsScreen from '../components/FriendsScreen';
-import LobbyInvitationsScreen from '../components/LobbyInvitationsScreen';
-import MenuScreen from '../components/MenuScreen';
-import HeaderTitle from '../components/HeaderTitle';
-import LogoutButton from '../components/LogoutButton';
-import LoginButton from '../components/LoginButton';
+import MatchList from '../components/Game/MatchList';
+import Match from '../components/Game/Match';
+import TournamentLogin from '../components/Tournament/TournamentLogin';
+import TournamentCode from '../components/Tournament/TournamentCode';
+import Home from '../components/Core/Home';
+import QuickGameLobby from '../components/QuickGame/QuickGameLobby';
+import FriendsScreen from '../components/Friends/FriendsScreen';
+import LobbyInvitationsScreen from '../components/QuickGame/LobbyInvitationsScreen';
+import MenuScreen from '../components/Core/MenuScreen';
+import HeaderTitle from '../components/Common/HeaderTitle';
+import LogoutButton from '../components/Common/LogoutButton';
+import LoginButton from '../components/Common/LoginButton';
 
 const Stack = createNativeStackNavigator();
 
@@ -145,3 +145,4 @@ const Screens = () => {
 }
 
 export default Screens
+

@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { ACCOUNT_LOGIN_API_URL } from '../helpers/apiConfig';
-import useAuth from '../hooks/useAuth';
+import { ACCOUNT_LOGIN_API_URL } from '../../helpers/apiConfig';
+import useAuth from '../../hooks/useAuth';
 
-const TournamentLogin = () => {
+const QuickGameStartPanel = () => {
 
   const { setAuth } = useAuth();
 
@@ -103,10 +103,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     fontSize: 16
-  },
+    },
   button: {
     alignItems: 'center',
     marginTop: 20,
+    // marginHorizontal: 'auto',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingVertical: 7,
@@ -119,4 +120,5 @@ const styles = StyleSheet.create({
   }
 })
 
-export default TournamentLogin
+export default QuickGameStartPanel
+

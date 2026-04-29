@@ -1,7 +1,7 @@
 import React from 'react'
 import { Alert, Pressable, StyleSheet, Text } from 'react-native';
-import useAuth from '../hooks/useAuth';
-import { LOGOUT_API_URL } from '../helpers/apiConfig';
+import useAuth from '../../hooks/useAuth';
+import { LOGOUT_API_URL } from '../../helpers/apiConfig';
 
 const LogoutButton = () => {
 
@@ -60,3 +60,4 @@ const styles = StyleSheet.create({
 })
 
 export default LogoutButton
+

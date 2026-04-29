@@ -1,25 +1,25 @@
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { playerResultReducer } from '../helpers/reducers/playerResultReducer';
+import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
 	initialPlayerResultState,
 	legLose,
 	legWin,
 	undo,
 	updateStats,
-} from '../helpers/reducers/playerResultActions';
-import { achievementsReducer } from '../helpers/reducers/achievementsReducer';
+} from '../../helpers/reducers/playerResultActions';
+import { achievementsReducer } from '../../helpers/reducers/achievementsReducer';
 import {
 	addAchievement,
 	initialAchievementsState,
-} from '../helpers/reducers/achievementActions';
+} from '../../helpers/reducers/achievementActions';
 import Counter from './Counter';
 import Stats from './Stats';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
-} from '../helpers/apiConfig';
-import useAuth from '../hooks/useAuth';
+} from '../../helpers/apiConfig';
+import useAuth from '../../hooks/useAuth';
 
 const Match = ({ route, navigation }) => {
 	const { auth } = useAuth();
@@ -51,7 +51,7 @@ const Match = ({ route, navigation }) => {
 			}
 		: matchParam;
 
-	const [isModalVisible, setIsModalVisible] = useState(true);
+	const [isModalVisible, setIsModalVisible] = useState(!isQuickGame);
 	const [isQFModalVisible, setIsQFModalVisible] = useState(false);
 	const [matchClosed, setMatchClosed] = useState(false);
 
@@ -104,7 +104,6 @@ const Match = ({ route, navigation }) => {
 		initialAchievementsState,
 	);
 
-	const [legStartingPlayer, setLegStartingPlayer] = useState();
 	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const currentPlayerIndexRef = useRef(0);
 	const okHandlingRef = useRef(false);
@@ -136,16 +135,6 @@ const Match = ({ route, navigation }) => {
 		return null;
 	};
 
-	const switchStartingPlayer = () => {
-		const idx = players.findIndex(
-			(p) => p === legStartingPlayer || p?.id === legStartingPlayer?.id,
-		);
-		const nextIdx = idx >= 0 ? (idx + 1) % N : 0;
-		setLegStartingPlayer(players[nextIdx]);
-		currentPlayerIndexRef.current = nextIdx;
-		setCurrentPlayerIndex(nextIdx);
-	};
-
 	const toggleModal = () => {
 		setIsModalVisible((visibility) => !visibility);
 	};
@@ -161,7 +150,6 @@ const Match = ({ route, navigation }) => {
 		if (idx >= 0) {
 			currentPlayerIndexRef.current = idx;
 			setCurrentPlayerIndex(idx);
-			setLegStartingPlayer(players[idx]);
 		}
 		toggleModal();
 	};
@@ -652,3 +640,4 @@ export default Match;
 //           points: match.match.points
 //         }
 //       };
+

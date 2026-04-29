@@ -9,12 +9,12 @@ import {
   View,
   Pressable,
 } from 'react-native';
-import useAuth from '../hooks/useAuth';
+import useAuth from '../../hooks/useAuth';
 import {
   QUICK_GAME_LOBBY_INVITATIONS_URL,
   getQuickGameLobbyRejectInvitationUrl,
   getQuickGameLobbyUrl,
-} from '../helpers/apiConfig';
+} from '../../helpers/apiConfig';
 
 const LobbyInvitationsScreen = ({ navigation }) => {
   const { auth } = useAuth();
@@ -205,3 +205,4 @@ const styles = StyleSheet.create({
 });
 
 export default LobbyInvitationsScreen;
+

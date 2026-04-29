@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import useAuth from '../hooks/useAuth'
+import useAuth from '../../hooks/useAuth'
 
 const Home = ({ navigation }) => {
 
@@ -81,3 +81,4 @@ const styles = StyleSheet.create({
 })
 
 export default Home
+
