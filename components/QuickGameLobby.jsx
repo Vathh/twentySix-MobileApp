@@ -1,0 +1,1035 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import useAuth from '../hooks/useAuth';
+import {
+  QUICK_GAME_LOBBY_CREATE_API_URL,
+  getQuickGameLobbyUrl,
+  getQuickGameLobbyLeaveUrl,
+  getQuickGameLobbyReadyUrl,
+  getQuickGameLobbyStartUrl,
+  getQuickGameLobbyInviteUrl,
+  getQuickGameLobbyAddGuestUrl,
+  FRIENDS_API_URL,
+} from '../helpers/apiConfig';
+
+const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
+
+const INVITATION_STATUS = {
+  sent: { key: 'sent', label: 'Wysłane', icon: faPaperPlane, color: '#F99417' },
+  accepted: { key: 'accepted', label: 'Zaakceptowane', icon: faCheck, color: '#4ade80' },
+  rejected: { key: 'rejected', label: 'Odrzucone', icon: faTimes, color: '#f87171' },
+};
+
+const QuickGameLobby = ({ navigation, route }) => {
+  const { auth } = useAuth();
+  const GAME_TYPES = { X01: '501', CRICKET: 'cricket' };
+  const [lobby, setLobby] = useState(null);
+  const [legsCount, setLegsCount] = useState(3);
+  const [gameType, setGameType] = useState(GAME_TYPES.X01);
+  const [scoringMode, setScoringMode] = useState(SCORING_MODES.EACH_OWN);
+  const [invitations, setInvitations] = useState([]); // [{ id, name, status: 'sent'|'accepted'|'rejected' }]
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
+  const [guestName, setGuestName] = useState('');
+  const [guestAdding, setGuestAdding] = useState(false);
+  const [orderedPlayers, setOrderedPlayers] = useState([]);
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [reorderTempList, setReorderTempList] = useState([]);
+
+  const fetchLobbyById = useCallback(async (lobbyId) => {
+    if (!lobbyId || !auth?.accessToken) return;
+    try {
+      const res = await fetch(getQuickGameLobbyUrl(lobbyId), {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'started' && data.players?.length >= 2) {
+          const players = (data.players || []).map((p) => ({
+            id: p.id,
+            name: p.name ?? p.tempName ?? 'Gracz',
+            playerId: p.playerId ?? p.player_id,
+          }));
+          const legsToWin = data.legsCount ?? data.legs_count ?? 3;
+          const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
+          const sessionId = data.sessionId ?? null;
+          const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
+          const isHost = data.youAreHost ?? false;
+          const myPlayerIndex = data.myPlayerIndex ?? null;
+          setLobby(null);
+          navigation.navigate('Match', {
+            quickGame: {
+              players,
+              lobbyId: data.id ?? lobbyId,
+              legsCount: legsToWin,
+              gameType: gameTypeToUse,
+              sessionId,
+              scoringMode: scoringModeToUse,
+              isHost,
+              myPlayerIndex,
+            },
+          });
+          return;
+        }
+        setLobby((prev) => ({
+          ...data,
+          legsCount: data.legsCount ?? prev?.legsCount ?? 3,
+          gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
+          scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
+        }));
+        if (data.legsCount != null) setLegsCount(data.legsCount);
+        if (data.scoringMode != null) setScoringMode(data.scoringMode);
+        const incoming = (data.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
+        setOrderedPlayers((prev) => {
+          const key = (p) => p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? '';
+          const incIds = new Set(incoming.map(key));
+          const prevIds = new Set(prev.map(key));
+          if (prev.length === 0 || incIds.size !== prevIds.size || [...incIds].some((id) => !prevIds.has(id))) {
+            return incoming;
+          }
+          return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
+        });
+        if (data.gameType != null || data.game_type != null) setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+        if (data.scoringMode != null) setScoringMode(data.scoringMode);
+        if (data.invitations && Array.isArray(data.invitations) && data.invitations.length > 0) {
+          setInvitations((prev) => {
+            const byId = new Map(prev.map((i) => [i.id, i]));
+            data.invitations.forEach((inv) => {
+              const id = inv.playerId ?? inv.id ?? inv.receiver?.id;
+              const name = inv.name ?? inv.receiver?.name ?? inv.playerName ?? 'Gracz';
+              const status = (inv.status ?? 'sent').toLowerCase();
+              byId.set(id, { id, name, status: status === 'accepted' ? 'accepted' : status === 'rejected' ? 'rejected' : 'sent' });
+            });
+            return Array.from(byId.values());
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('fetchLobbyById', e);
+    }
+  }, [auth?.accessToken, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const initial = route?.params?.initialLobby;
+      if (initial?.id) {
+        setLobby(initial);
+        setLegsCount(initial.legsCount ?? initial.legs_count ?? 3);
+        setGameType(initial.gameType ?? initial.game_type ?? GAME_TYPES.X01);
+        setScoringMode(initial.scoringMode ?? SCORING_MODES.EACH_OWN);
+        const pl = (initial.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
+        setOrderedPlayers(pl);
+        navigation.setParams({ initialLobby: undefined });
+      } else if (lobby?.id) {
+        fetchLobbyById(lobby.id);
+      }
+      return () => {};
+    }, [lobby?.id, fetchLobbyById, route?.params?.initialLobby, navigation])
+  );
+
+  useEffect(() => {
+    if (!lobby?.id) return;
+    const t = setInterval(() => fetchLobbyById(lobby.id), 4000);
+    return () => clearInterval(t);
+  }, [lobby?.id, fetchLobbyById]);
+
+  useEffect(() => {
+    if (reorderModalVisible && lobby?.id) {
+      const players = lobby.players || [];
+      const data = orderedPlayers.length ? orderedPlayers : players;
+      setReorderTempList([...data]);
+    }
+  }, [reorderModalVisible]);
+
+  const handleCreate = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(QUICK_GAME_LOBBY_CREATE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(auth?.accessToken ? { Authorization: `Bearer ${auth.accessToken}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data?.id) {
+        setLobby({ ...data, legsCount: data.legsCount ?? 3, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
+        setLegsCount(data.legsCount ?? 3);
+        setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+        setInvitations([]);
+        fetchLobbyById(data.id);
+      } else {
+        setError(data?.message || 'Nie udało się utworzyć lobby');
+      }
+    } catch (e) {
+      setError('Błąd połączenia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFriends = useCallback(async () => {
+    if (!auth?.accessToken) return;
+    setFriendsLoading(true);
+    try {
+      const res = await fetch(FRIENDS_API_URL, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(Array.isArray(data) ? data : (data?.friends ?? data?.data ?? []));
+      } else {
+        setFriends([]);
+      }
+    } catch (e) {
+      setFriends([]);
+    } finally {
+      setFriendsLoading(false);
+    }
+  }, [auth?.accessToken]);
+
+  const openInviteModal = () => {
+    setInviteModalVisible(true);
+    fetchFriends();
+  };
+
+  const handleInviteFriend = async (friend) => {
+    if (!lobby?.id || !auth?.accessToken) return;
+    const playerId = friend.playerId ?? friend.id ?? friend.player_id;
+    const name = friend.name ?? friend.playerName ?? 'Znajomy';
+    try {
+      const res = await fetch(getQuickGameLobbyInviteUrl(lobby.id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ playerId: playerId ?? friend.userId ?? friend.user_id }),
+      });
+      if (res.ok) {
+        setInvitations((prev) => [...prev, { id: friend.id ?? playerId, name, status: 'sent' }]);
+        setInviteModalVisible(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        Alert.alert('Błąd', data?.message || 'Nie udało się wysłać zaproszenia');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia');
+    }
+  };
+
+  const handleAddGuest = async () => {
+    const name = guestName.trim();
+    if (!name || !lobby?.id || !auth?.accessToken || guestAdding) return;
+    setGuestAdding(true);
+    setError('');
+    try {
+      const res = await fetch(getQuickGameLobbyAddGuestUrl(lobby.id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ tempPlayerName: name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.id) {
+        setLobby((prev) => ({ ...data, legsCount: data.legsCount ?? prev?.legsCount ?? 3 }));
+        setGuestName('');
+        fetchLobbyById(lobby.id);
+      } else {
+        Alert.alert('Błąd', data?.message || 'Nie udało się dodać gościa');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia');
+    } finally {
+      setGuestAdding(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!lobby?.id || !auth?.accessToken) return;
+    try {
+      await fetch(getQuickGameLobbyLeaveUrl(lobby.id), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      setLobby(null);
+    } catch (e) {
+      console.warn('leave', e);
+    }
+  };
+
+  const handleReady = async () => {
+    if (!lobby?.id || !auth?.accessToken || myReady) return;
+    try {
+      await fetch(getQuickGameLobbyReadyUrl(lobby.id), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      setMyReady(true);
+      fetchLobbyById(lobby.id);
+    } catch (e) {
+      console.warn('ready', e);
+    }
+  };
+
+  const handleUpdateSettings = async (updates) => {
+    if (!lobby?.id || !auth?.accessToken || !lobby.youAreHost) return;
+    try {
+      const res = await fetch(getQuickGameLobbyUrl(lobby.id), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLobby((prev) => ({ ...prev, ...data }));
+      }
+    } catch (e) {
+      console.warn('handleUpdateSettings', e);
+    }
+  };
+
+  const handleStart = async () => {
+    if (!lobby?.id || !auth?.accessToken) return;
+    try {
+      const res = await fetch(getQuickGameLobbyStartUrl(lobby.id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({
+          legsCount: legsCount ?? lobby?.legsCount ?? 3,
+          gameType: gameType ?? lobby?.gameType ?? GAME_TYPES.X01,
+          scoringMode: scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.players) {
+        const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? 3;
+        const gameTypeToUse = data.gameType ?? gameType ?? lobby?.gameType ?? GAME_TYPES.X01;
+        const toPass = (orderedPlayers.length ? orderedPlayers : data.players).map((p) => ({
+          id: p.id,
+          name: p.name ?? p.tempName ?? 'Gracz',
+          playerId: p.playerId ?? p.player_id,
+        }));
+        const sessionId = data.sessionId ?? null;
+        const scoringModeToUse = data.scoringMode ?? scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN;
+        const isHost = data.isHost ?? lobby?.youAreHost ?? false;
+        const myPlayerIndex = data.myPlayerIndex ?? null;
+        setLobby(null);
+        navigation.navigate('Match', {
+          quickGame: {
+            players: toPass,
+            lobbyId: lobby.id,
+            legsCount: legsToWin,
+            gameType: gameTypeToUse,
+            sessionId,
+            scoringMode: scoringModeToUse,
+            isHost,
+            myPlayerIndex,
+          },
+        });
+      } else {
+        Alert.alert('Błąd', data?.message || 'Nie można rozpocząć meczu');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia');
+    }
+  };
+
+  const backToChoice = () => {
+    setLobby(null);
+    setInvitations([]);
+    setMyReady(false);
+    setError('');
+  };
+
+  if (lobby?.id) {
+    const players = lobby.players || [];
+    const listData = orderedPlayers.length ? orderedPlayers : players;
+    const isHost = lobby.youAreHost === true;
+    // Gotowość tylko zarejestrowanych; host jest zawsze uznawany za gotowego, goście nie liczą się
+    const allRegisteredReady =
+      players.length >= 2 &&
+      players.every((p) => !p.isRegistered || p.isHost || p.ready);
+
+    const listHeader = (
+      <>
+        <Text style={styles.title}>Lobby: {lobby.code || lobby.id}</Text>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Typ gry</Text>
+          <Text style={styles.hintSmall}>Wybierz tryb rozgrywki meczu (tylko host może zmieniać)</Text>
+          <View style={styles.gameTypeRow}>
+            <Pressable
+              style={[styles.gameTypeBtn, gameType === GAME_TYPES.X01 && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setGameType(GAME_TYPES.X01);
+                  handleUpdateSettings({ gameType: GAME_TYPES.X01 });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.X01 && styles.gameTypeBtnTextActive]}>501</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.gameTypeBtn, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setGameType(GAME_TYPES.CRICKET);
+                  handleUpdateSettings({ gameType: GAME_TYPES.CRICKET });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnTextActive]}>Cricket</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Ilość legów</Text>
+          <TextInput
+            style={styles.input}
+            value={String(legsCount)}
+            onChangeText={(t) => {
+              const n = parseInt(t.replace(/\D/g, ''), 10);
+              if (!isNaN(n)) setLegsCount(Math.min(15, Math.max(1, n)));
+              else if (t === '') setLegsCount(1);
+            }}
+            onBlur={() => isHost && handleUpdateSettings({ legsCount })}
+            keyboardType="number-pad"
+            placeholder="3"
+            maxLength={2}
+            placeholderTextColor="#a0a0a0"
+            editable={isHost}
+          />
+          <Text style={styles.hintSmall}>Mecz rozgrywany do wygranej liczby legów (1–15). Domyślnie 3.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Liczenie</Text>
+          <Text style={styles.hintSmall}>Kto wpisuje punkty: na jednym urządzeniu tylko host; każdy na swoim – tylko aktualnie rzucający (tylko host może zmieniać).</Text>
+          <View style={styles.gameTypeRow}>
+            <Pressable
+              style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setScoringMode(SCORING_MODES.ONE_DEVICE);
+                  handleUpdateSettings({ scoringMode: SCORING_MODES.ONE_DEVICE });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnTextActive]}>Na 1 urządzeniu</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnActive]}
+              onPress={() => {
+                if (isHost) {
+                  setScoringMode(SCORING_MODES.EACH_OWN);
+                  handleUpdateSettings({ scoringMode: SCORING_MODES.EACH_OWN });
+                }
+              }}
+              disabled={!isHost}
+            >
+              <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnTextActive]}>Każdy na swoim</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Zaproszenia</Text>
+          {isHost && (
+            <Pressable style={styles.inviteButton} onPress={openInviteModal}>
+              <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
+              <Text style={styles.inviteButtonText}>Zaproś znajomego</Text>
+            </Pressable>
+          )}
+          {invitations.length === 0 ? (
+            <Text style={styles.hintSmall}>Brak zaproszeń. Kliknij „Zaproś znajomego”, aby dodać.</Text>
+          ) : (
+            invitations.map((inv) => {
+              const statusInfo = INVITATION_STATUS[inv.status] ?? INVITATION_STATUS.sent;
+              return (
+                <View key={inv.id} style={styles.invitationRow}>
+                  <Text style={styles.invitationName}>{inv.name}</Text>
+                  <View style={styles.invitationStatus}>
+                    <FontAwesomeIcon icon={statusInfo.icon} size={18} color={statusInfo.color} style={styles.invitationStatusIcon} />
+                    <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Gracze tymczasowi / goście</Text>
+          <Text style={styles.hintSmall}>
+            Dla graczy niezarejestrowanych – wpisz nazwę i dodaj jako lokalnego gracza do meczu.
+          </Text>
+          {isHost && (
+            <>
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]}
+                value={guestName}
+                onChangeText={setGuestName}
+                placeholder="Nazwa gracza"
+                placeholderTextColor="#a0a0a0"
+                maxLength={50}
+                editable={!guestAdding}
+              />
+              <Pressable
+                style={[styles.inviteButton, { marginTop: 8 }, (!guestName.trim() || guestAdding) && styles.buttonDisabled]}
+                onPress={handleAddGuest}
+                disabled={!guestName.trim() || guestAdding}
+              >
+                <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
+                <Text style={styles.inviteButtonText}>{guestAdding ? 'Dodawanie…' : 'Dodaj gościa'}</Text>
+              </Pressable>
+            </>
+          )}
+          {!isHost && (
+            <Text style={styles.hintSmall}>Tylko host może dodawać gości do lobby.</Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Gracze w lobby (kolejność rzucania od góry)</Text>
+          {listData.length === 0 ? (
+            <View style={styles.emptyPlayersBox}>
+              <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
+              <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gościa powyżej.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.playersList}>
+                {listData.map((item) => (
+                  <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? Math.random())} style={styles.playerTile}>
+                    <Text style={styles.playerTileName} numberOfLines={1}>
+                      {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              {isHost && (
+                <>
+                  <Pressable style={styles.reorderButton} onPress={() => { setReorderTempList([...listData]); setReorderModalVisible(true); }}>
+                    <FontAwesomeIcon icon={faGripVertical} size={18} color="#F99417" style={{ marginRight: 8 }} />
+                    <Text style={styles.reorderButtonText}>Zmień kolejność</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.reorderButtonSecondary}
+                    onPress={() => {
+                      const arr = [...listData];
+                      for (let i = arr.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                      }
+                      setOrderedPlayers(arr);
+                    }}
+                  >
+                    <Text style={styles.reorderButtonTextSecondary}>Kolejność losowa</Text>
+                  </Pressable>
+                </>
+              )}
+            </>
+          )}
+        </View>
+        {auth?.accessToken && (
+          <>
+            {!isHost && (
+              <Pressable
+                style={[styles.button, myReady && styles.buttonDisabled]}
+                onPress={handleReady}
+                disabled={myReady}
+              >
+                <Text style={[styles.buttonText, myReady && styles.buttonTextDisabled]}>
+                  {myReady ? 'Gotowy ✓' : 'Gotowy'}
+                </Text>
+              </Pressable>
+            )}
+            {isHost && (
+              <Pressable
+                style={[styles.button, !allRegisteredReady && styles.buttonDisabled]}
+                onPress={handleStart}
+                disabled={!allRegisteredReady}
+              >
+                <Text style={styles.buttonText}>Rozpocznij mecz</Text>
+              </Pressable>
+            )}
+            <Pressable style={styles.buttonOutlined} onPress={handleLeave}>
+              <Text style={styles.buttonOutlinedText}>Opuść lobby</Text>
+            </Pressable>
+          </>
+        )}
+        <Pressable style={styles.buttonOutlined} onPress={backToChoice}>
+          <Text style={styles.buttonOutlinedText}>Wróć</Text>
+        </Pressable>
+      </>
+    );
+
+    return (
+      <View style={styles.container}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator>
+          {listHeader}
+        </ScrollView>
+        <Modal
+          visible={reorderModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setReorderModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.reorderModalContent}>
+              <Text style={styles.modalTitle}>Zmień kolejność graczy</Text>
+              <Text style={styles.hintSmall}>Użyj strzałek, by zmienić kolejność. Od góry = kolejność rzucania.</Text>
+              <ScrollView style={styles.reorderListWrap} contentContainerStyle={styles.reorderListContent} showsVerticalScrollIndicator>
+                {(reorderTempList.length > 0 ? reorderTempList : listData).map((item, index) => {
+                  const list = reorderTempList.length > 0 ? reorderTempList : listData;
+                  const moveUp = () => {
+                    if (index <= 0) return;
+                    const next = [...list];
+                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    setReorderTempList(next);
+                  };
+                  const moveDown = () => {
+                    if (index >= list.length - 1) return;
+                    const next = [...list];
+                    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                    setReorderTempList(next);
+                  };
+                  return (
+                    <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)} style={styles.playerTile}>
+                      <Text style={styles.playerTileName} numberOfLines={1}>
+                        {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                      </Text>
+                      <View style={styles.reorderButtons}>
+                        <Pressable style={[styles.reorderArrowBtn, index === 0 && styles.reorderArrowBtnDisabled]} onPress={moveUp} disabled={index === 0}>
+                          <FontAwesomeIcon icon={faChevronUp} size={18} color={index === 0 ? '#555' : '#F99417'} />
+                        </Pressable>
+                        <Pressable style={[styles.reorderArrowBtn, index === list.length - 1 && styles.reorderArrowBtnDisabled]} onPress={moveDown} disabled={index === list.length - 1}>
+                          <FontAwesomeIcon icon={faChevronDown} size={18} color={index === list.length - 1 ? '#555' : '#F99417'} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              <Pressable style={styles.button} onPress={() => { setOrderedPlayers(reorderTempList.length > 0 ? reorderTempList : listData); setReorderModalVisible(false); }}>
+                <Text style={styles.buttonText}>Gotowe</Text>
+              </Pressable>
+              <Pressable style={styles.buttonOutlined} onPress={() => setReorderModalVisible(false)}>
+                <Text style={styles.buttonOutlinedText}>Anuluj</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          visible={inviteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setInviteModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setInviteModalVisible(false)}>
+            <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Zaproś znajomego</Text>
+              {friendsLoading ? (
+                <Text style={styles.hintSmall}>Ładowanie listy znajomych…</Text>
+              ) : friends.length === 0 ? (
+                <Text style={styles.hintSmall}>Brak znajomych lub błąd ładowania.</Text>
+              ) : (
+                <ScrollView style={styles.friendsList}>
+                  {friends.map((f) => {
+                    const name = f.name ?? f.playerName ?? f.player?.name ?? 'Znajomy';
+                    const alreadyInvited = invitations.some((i) => i.id === (f.playerId ?? f.id) || i.name === name);
+                    return (
+                      <Pressable
+                        key={f.id ?? f.playerId}
+                        style={[styles.friendRow, alreadyInvited && styles.friendRowDisabled]}
+                        onPress={() => !alreadyInvited && handleInviteFriend(f)}
+                        disabled={alreadyInvited}
+                      >
+                        <Text style={styles.friendRowText}>{name}</Text>
+                        {alreadyInvited && <Text style={styles.hintSmall}>(zaproszony)</Text>}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+              <Pressable style={styles.buttonSecondary} onPress={() => setInviteModalVisible(false)}>
+                <Text style={styles.buttonTextSecondary}>Zamknij</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      </View>
+    );
+  }
+
+  // Ekran początkowy: jeden przycisk „Utwórz lobby” – od razu tworzy lobby i wchodzi w widok lobby
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Szybki mecz – Lobby</Text>
+      <Text style={styles.hint}>
+        Utwórz lobby i zaproś znajomych do gry. Ustawienia i zaproszenia zarządzasz w lobby.
+      </Text>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Pressable
+        style={styles.button}
+        onPress={handleCreate}
+        disabled={!auth?.accessToken || loading}
+      >
+        <Text style={styles.buttonText}>{loading ? 'Tworzenie lobby…' : 'Utwórz lobby'}</Text>
+      </Pressable>
+      {!auth?.accessToken && (
+        <Text style={styles.hint}>
+          Zaloguj się, aby móc tworzyć lobby i zapraszać znajomych.
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#363062',
+  },
+  formContent: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  scroll: {
+    flex: 1,
+  },
+  playersList: {
+    marginTop: 8,
+  },
+  reorderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#F99417',
+    backgroundColor: 'transparent',
+  },
+  reorderButtonText: {
+    fontSize: 16,
+    color: '#F99417',
+    fontWeight: '600',
+  },
+  reorderButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(249,148,23,0.5)',
+    backgroundColor: 'transparent',
+  },
+  reorderButtonTextSecondary: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '600',
+  },
+  reorderModalContent: {
+    backgroundColor: '#363062',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxHeight: '85%',
+  },
+  reorderListWrap: {
+    maxHeight: 320,
+    marginVertical: 16,
+  },
+  reorderListContent: {
+    paddingBottom: 16,
+  },
+  reorderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  reorderArrowBtn: {
+    padding: 10,
+  },
+  reorderArrowBtnDisabled: {
+    opacity: 0.5,
+  },
+  title: {
+    fontSize: 22,
+    color: '#c5c5c5',
+    marginBottom: 16,
+    fontWeight: 'bold',
+  },
+  hint: {
+    fontSize: 14,
+    color: '#c5c5c5',
+    marginBottom: 16,
+  },
+  hintSmall: {
+    fontSize: 13,
+    color: '#a0a0a0',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  error: {
+    fontSize: 14,
+    color: '#ff6b6b',
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 16,
+    color: '#F99417',
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+  section: {
+    marginBottom: 20,
+  },
+  playerRow: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    marginVertical: 4,
+  },
+  emptyPlayersBox: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  emptyPlayersText: {
+    fontSize: 16,
+    color: '#a0a0a0',
+    marginBottom: 4,
+  },
+  playerTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  playerTileActive: {
+    backgroundColor: '#5a5590',
+    opacity: 0.95,
+  },
+  playerTileName: {
+    flex: 1,
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '500',
+  },
+  dragHandle: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  input: {
+    marginBottom: 4,
+    padding: 12,
+    backgroundColor: '#f5f5f5cc',
+    borderRadius: 8,
+    fontSize: 16,
+    color: '#363062',
+  },
+  invitationsBox: {
+    marginBottom: 8,
+    paddingVertical: 8,
+  },
+  invitationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  invitationName: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '500',
+  },
+  invitationStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invitationStatusIcon: {
+    marginRight: 6,
+  },
+  invitationStatusText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F99417',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  inviteButtonText: {
+    fontSize: 16,
+    color: '#363062',
+    fontWeight: 'bold',
+  },
+  button: {
+    backgroundColor: '#F99417',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#363062',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buttonTextDisabled: {
+    color: '#6b6b6b',
+  },
+  buttonOutlined: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#F99417',
+    backgroundColor: 'transparent',
+  },
+  buttonOutlinedText: {
+    color: '#F99417',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  buttonSecondary: {
+    paddingVertical: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  buttonTextSecondary: {
+    color: '#c5c5c5',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#363062',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    color: '#F99417',
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  friendsList: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  friendRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#4a4580',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  friendRowDisabled: {
+    opacity: 0.6,
+  },
+  friendRowText: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '500',
+  },
+  gameTypeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  gameTypeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    alignItems: 'center',
+  },
+  gameTypeBtnActive: {
+    borderColor: '#F99417',
+    backgroundColor: 'rgba(249,148,23,0.2)',
+  },
+  gameTypeBtnText: {
+    fontSize: 16,
+    color: '#c5c5c5',
+    fontWeight: '600',
+  },
+  gameTypeBtnTextActive: {
+    color: '#F99417',
+  },
+});
+
+export default QuickGameLobby;
