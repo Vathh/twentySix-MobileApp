@@ -1,7 +1,17 @@
-import { LEG_LOSE, LEG_WIN, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
+import { LEG_LOSE, LEG_WIN, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
+    case SYNC_FROM_SERVER: {
+      return {
+        ...state,
+        score: action.score,
+        legsWon: action.legsWon,
+        dartsThrown: 0,
+        currentLegScores: [],
+        currentLegAverage: 0,
+      };
+    }
     case UPDATE_SINGLE_DART: {
       const points = action.points;
       const score = state.score - points;

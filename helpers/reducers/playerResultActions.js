@@ -1,9 +1,16 @@
+export const SYNC_FROM_SERVER = 'SYNC_FROM_SERVER';
 export const UPDATE_STATS = 'UPDATE_STATS';
 export const UPDATE_SINGLE_DART = 'UPDATE_SINGLE_DART';
 export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
 export const UNDO = 'UNDO';
+
+export const syncFromServer = ({ score, legsWon }) => ({
+  type: SYNC_FROM_SERVER,
+  score,
+  legsWon,
+});
 
 export const updateStats = (points) => ({
   type: UPDATE_STATS,

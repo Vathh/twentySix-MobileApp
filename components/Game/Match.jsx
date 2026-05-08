@@ -1,10 +1,11 @@
-import React, { useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
 	initialPlayerResultState,
 	legLose,
 	legWin,
+	syncFromServer,
 	undo,
 	updateStats,
 } from '../../helpers/reducers/playerResultActions';
@@ -18,6 +19,8 @@ import Stats from './Stats';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
+	getQuickGameSessionUrl,
+	getQuickGameSessionVisitUrl,
 } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
 
@@ -29,6 +32,20 @@ const Match = ({ route, navigation }) => {
 	const isQuickGame = !!route.params?.quickGame;
 	const quickGame = route.params?.quickGame;
 	const matchParam = route.params?.match;
+
+	const sessionId = quickGame?.sessionId ?? null;
+	const sessionScoringMode = quickGame?.scoringMode ?? 'each_own';
+	const sessionIsHost = quickGame?.isHost ?? false;
+	const myPlayerIndexFromLobby =
+		quickGame?.myPlayerIndex !== undefined && quickGame?.myPlayerIndex !== null
+			? quickGame.myPlayerIndex
+			: null;
+	const hasSessionForSync =
+		isQuickGame &&
+		!!sessionId &&
+		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
+	const useSessionSync = hasSessionForSync && !!auth?.accessToken;
+	const legsToWinQuick = quickGame?.legsCount ?? 2;
 
 	const players = isQuickGame
 		? (quickGame?.players ?? []).map((p) => ({
@@ -51,7 +68,9 @@ const Match = ({ route, navigation }) => {
 			}
 		: matchParam;
 
-	const [isModalVisible, setIsModalVisible] = useState(!isQuickGame);
+	const [isModalVisible, setIsModalVisible] = useState(
+		!isQuickGame || hasSessionForSync ? false : true,
+	);
 	const [isQFModalVisible, setIsQFModalVisible] = useState(false);
 	const [matchClosed, setMatchClosed] = useState(false);
 
@@ -110,6 +129,7 @@ const Match = ({ route, navigation }) => {
 	const currentPlayer = players[currentPlayerIndex] ?? null;
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
+	const lastSessionKeyRef = useRef('');
 
 	// Ref jest jedynym źródłem prawdy w handleOkBtn; state currentPlayerIndex służy tylko do wyświetlania.
 	// Nie synchronizujemy ref ze state w useEffect – po ustawieniu ref i state w handlerach ref nie może być nadpisany.
@@ -158,6 +178,21 @@ const Match = ({ route, navigation }) => {
 		if (matchClosed) {
 			return;
 		}
+		if (
+			useSessionSync &&
+			sessionScoringMode === 'one_device' &&
+			!sessionIsHost
+		) {
+			return;
+		}
+		if (
+			useSessionSync &&
+			sessionScoringMode === 'each_own' &&
+			myPlayerIndexFromLobby !== null &&
+			myPlayerIndexFromLobby !== currentPlayerIndexRef.current
+		) {
+			return;
+		}
 		okHandlingRef.current = false;
 		if (currentResult.toString().length < 3) {
 			setCurrentResult((result) => parseInt(result.toString() + number, 10));
@@ -171,6 +206,109 @@ const Match = ({ route, navigation }) => {
 		okHandlingRef.current = false;
 		setCurrentResult(0);
 	};
+
+	const submitVisitToServer = useCallback(
+		async (playerIndex, visitScore, bust) => {
+			if (!sessionId || !auth?.accessToken) return null;
+			try {
+				const res = await fetch(getQuickGameSessionVisitUrl(sessionId), {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${auth.accessToken}`,
+					},
+					body: JSON.stringify({ playerIndex, visitScore, bust }),
+				});
+				const text = await res.text();
+				let data;
+				try {
+					data = JSON.parse(text);
+				} catch {
+					data = null;
+				}
+				if (!res.ok) {
+					Alert.alert(
+						'Błąd',
+						(data && data.message) || text || 'Nie udało się zapisać wizyty',
+					);
+					return null;
+				}
+				return data;
+			} catch (e) {
+				console.warn('submitVisitToServer', e);
+				Alert.alert('Błąd', 'Brak połączenia z serwerem');
+				return null;
+			}
+		},
+		[sessionId, auth?.accessToken],
+	);
+
+	const applySessionData = useCallback(
+		(data) => {
+			if (!data?.state) return;
+			lastSessionKeyRef.current = JSON.stringify(data.state ?? {});
+			const s = data.state;
+			const dispatchers = [
+				player1Dispatch,
+				player2Dispatch,
+				player3Dispatch,
+				player4Dispatch,
+				player5Dispatch,
+				player6Dispatch,
+			].slice(0, N);
+			for (let i = 0; i < N; i++) {
+				dispatchers[i](
+					syncFromServer({
+						score: s.playerScores[i] ?? 501,
+						legsWon: s.legsWon[i] ?? 0,
+					}),
+				);
+			}
+			const cur = s.currentPlayerIndex ?? 0;
+			currentPlayerIndexRef.current = cur;
+			setCurrentPlayerIndex(cur);
+			if (s.status === 'finished') {
+				setMatchClosed(true);
+			}
+		},
+		[
+			N,
+			player1Dispatch,
+			player2Dispatch,
+			player3Dispatch,
+			player4Dispatch,
+			player5Dispatch,
+			player6Dispatch,
+		],
+	);
+
+	useEffect(() => {
+		if (!useSessionSync || matchClosed) return undefined;
+		let cancelled = false;
+		const tick = async () => {
+			if (cancelled) return;
+			try {
+				const res = await fetch(getQuickGameSessionUrl(sessionId), {
+					headers: { Authorization: `Bearer ${auth.accessToken}` },
+				});
+				if (!res.ok || cancelled) return;
+				const data = await res.json();
+				if (cancelled) return;
+				const key = JSON.stringify(data.state ?? {});
+				if (key === lastSessionKeyRef.current) return;
+				lastSessionKeyRef.current = key;
+				applySessionData(data);
+			} catch (e) {
+				console.warn('session poll', e);
+			}
+		};
+		tick();
+		const t = setInterval(tick, 2500);
+		return () => {
+			cancelled = true;
+			clearInterval(t);
+		};
+	}, [useSessionSync, sessionId, auth?.accessToken, matchClosed, applySessionData]);
 
 	const handleMaxAndOneSeventy = (playerForAchievement) => {
 		const p = playerForAchievement ?? currentPlayer;
@@ -220,8 +358,102 @@ const Match = ({ route, navigation }) => {
 		}
 	};
 
+	const handleSessionOkBtn = async () => {
+		if (matchClosed || !sessionId || !auth?.accessToken) return false;
+		if (
+			currentResult > 180 ||
+			typeof currentResult !== 'number' ||
+			currentResult <= 0
+		)
+			return false;
+		if (okHandlingRef.current) return false;
+
+		const idx = currentPlayerIndexRef.current;
+		const state = playerStates[idx];
+		const resultToApply = currentResult;
+		const player = players[idx];
+
+		if (sessionScoringMode === 'one_device' && !sessionIsHost) {
+			Alert.alert(
+				'Info',
+				'W trybie „jedno urządzenie” punkty wpisuje tylko host.',
+			);
+			return false;
+		}
+		if (
+			sessionScoringMode === 'each_own' &&
+			myPlayerIndexFromLobby !== null &&
+			myPlayerIndexFromLobby !== idx
+		) {
+			Alert.alert(
+				'Info',
+				'Teraz rzuca drugi gracz — wpisz wizytę na urządzeniu rzucającego.',
+			);
+			return false;
+		}
+
+		const overshoot = resultToApply > state.score;
+
+		if (!overshoot && resultToApply === state.score) {
+			okHandlingRef.current = true;
+			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
+				{
+					text: 'NIE',
+					style: 'cancel',
+					onPress: () => {
+						okHandlingRef.current = false;
+					},
+				},
+				{
+					text: 'TAK',
+					style: 'destructive',
+					onPress: async () => {
+						handleMaxAndOneSeventy(player);
+						if (resultToApply >= 100) {
+							achievementsDispatch(
+								addAchievement({
+									playerId: player.playerId,
+									tournamentId: match.match.tournamentId,
+									value: resultToApply,
+									type: 'hf',
+								}),
+							);
+						}
+						const data = await submitVisitToServer(idx, resultToApply, false);
+						okHandlingRef.current = false;
+						setCurrentResult(0);
+						if (data) applySessionData(data);
+					},
+				},
+			]);
+			setCurrentResult(0);
+			return true;
+		}
+
+		okHandlingRef.current = true;
+		handleMaxAndOneSeventy(player);
+
+		if (overshoot) {
+			const data = await submitVisitToServer(idx, 0, true);
+			okHandlingRef.current = false;
+			setCurrentResult(0);
+			if (data) applySessionData(data);
+			return true;
+		}
+
+		const data = await submitVisitToServer(idx, resultToApply, false);
+		okHandlingRef.current = false;
+		setCurrentResult(0);
+		if (data) applySessionData(data);
+		return true;
+	};
+
 	const handleOkBtn = () => {
 		if (matchClosed) return;
+		if (useSessionSync) {
+			void handleSessionOkBtn();
+			return;
+		}
 		if (
 			currentResult > 180 ||
 			typeof currentResult !== 'number' ||
@@ -276,6 +508,14 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleCheckout = (idx) => {
+		if (useSessionSync) {
+			const st = playerStates[idx];
+			void (async () => {
+				const data = await submitVisitToServer(idx, st.score, false);
+				if (data) applySessionData(data);
+			})();
+			return;
+		}
 		const state = playerStates[idx];
 		if (state.dartsThrown < 20) {
 			setQfHelperDart(state.dartsThrown);
@@ -350,6 +590,16 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleQFModalBtn = (dartNumber) => {
+		if (useSessionSync) {
+			const idx = currentPlayerIndexRef.current;
+			const st = playerStates[idx];
+			void (async () => {
+				const data = await submitVisitToServer(idx, st.score, false);
+				if (data) applySessionData(data);
+			})();
+			toggleQFModal();
+			return;
+		}
 		const dart = qfHelperDart + dartNumber;
 		const idx = currentPlayerIndexRef.current;
 		const player = players[idx];
@@ -366,6 +616,13 @@ const Match = ({ route, navigation }) => {
 
 	const handleUndoBtn = () => {
 		if (matchClosed) return;
+		if (useSessionSync) {
+			Alert.alert(
+				'Info',
+				'Cofanie wizyt w meczu online nie jest obsługiwane.',
+			);
+			return;
+		}
 		const allAtStart = playerStates.every((s) => s.score === 501);
 		if (allAtStart) return;
 		const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
@@ -376,7 +633,8 @@ const Match = ({ route, navigation }) => {
 
 	useEffect(() => {
 		const legsWonArr = playerStates.map((s) => s.legsWon);
-		const hasWinner = legsWonArr.some((l) => l >= 2);
+		const legsTarget = isQuickGame ? legsToWinQuick : 2;
+		const hasWinner = legsWonArr.some((l) => l >= legsTarget);
 		if (!hasWinner) return;
 
 		setMatchClosed(true);
@@ -448,6 +706,8 @@ const Match = ({ route, navigation }) => {
 		player4State?.legsWon,
 		player5State?.legsWon,
 		player6State?.legsWon,
+		isQuickGame,
+		legsToWinQuick,
 	]);
 
 	useEffect(
