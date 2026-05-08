@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import Pusher from 'pusher-js';
 import { getReverbConfig } from '../helpers/apiConfig';
+import {
+	attachPusherReverbDebugLogging,
+	logReverbWs,
+	normalizePusherPayload,
+} from '../helpers/reverbWsLog';
 
 const SESSION_EVENT = 'session.state';
+const SESSION_EVENT_ALT = '.session.state';
 
 /**
  * Subskrypcja prywatnego kanału Reverb dla stanu sesji szybkiego meczu.
@@ -47,6 +53,14 @@ export function useQuickGameSessionRealtime({
 			},
 		});
 
+		const unbindDebug = attachPusherReverbDebugLogging(pusher, {
+			scope: 'quick-game-session',
+			wsHost: cfg.wsHost,
+			wsPort: cfg.wsPort,
+			forceTLS: cfg.forceTLS,
+			authEndpoint: cfg.authEndpoint,
+		});
+
 		const setConn = (v) => setWsConnected(v);
 		pusher.connection.bind('connected', () => setConn(true));
 		pusher.connection.bind('disconnected', () => setConn(false));
@@ -56,20 +70,31 @@ export function useQuickGameSessionRealtime({
 
 		const channelName = `private-quick-game-session.${sessionId}`;
 		const channel = pusher.subscribe(channelName);
+		channel.bind('pusher:subscription_succeeded', () => {
+			logReverbWs(
+				'info',
+				'quick-game-session',
+				`subskrypcja kanału OK: ${channelName}`,
+			);
+		});
 		channel.bind('pusher:subscription_error', (status) => {
 			console.warn(
-				'[QuickGame session WS] subscription_error — sprawdź /broadcasting/auth i kanał:',
+				'[WS/Reverb:quick-game-session] subscription_error — token, /broadcasting/auth, nazwa kanału:',
 				status,
 			);
 			setConn(false);
 		});
-		channel.bind(SESSION_EVENT, (payload) => {
-			if (payload && payload.state) {
-				onSessionStateRef.current?.({ state: payload.state });
+		const onSession = (payload) => {
+			const data = normalizePusherPayload(payload);
+			if (data?.state) {
+				onSessionStateRef.current?.({ state: data.state });
 			}
-		});
+		};
+		channel.bind(SESSION_EVENT, onSession);
+		channel.bind(SESSION_EVENT_ALT, onSession);
 
 		return () => {
+			unbindDebug();
 			channel.unbind_all();
 			pusher.unsubscribe(channelName);
 			pusher.disconnect();

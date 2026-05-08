@@ -14,6 +14,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical } from '@fortawesome/free-solid-svg-icons';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import useAuth from '../../hooks/useAuth';
+import { useQuickGameLobbyRealtime } from '../../hooks/useQuickGameLobbyRealtime';
 import {
   QUICK_GAME_LOBBY_CREATE_API_URL,
   getQuickGameLobbyUrl,
@@ -51,6 +52,65 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [guestAdding, setGuestAdding] = useState(false);
   const [orderedPlayers, setOrderedPlayers] = useState([]);
 
+  const applyLobbyData = useCallback((data, fallbackLobbyId = null) => {
+    if (!data) return;
+    if (data.status === 'started' && data.players?.length >= 2) {
+      const players = (data.players || []).map((p) => ({
+        id: p.id,
+        name: p.name ?? p.tempName ?? 'Gracz',
+        playerId: p.playerId ?? p.player_id,
+      }));
+      const legsToWin = data.legsCount ?? data.legs_count ?? 3;
+      const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
+      const sessionId = data.sessionId ?? null;
+      const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
+      const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
+      const myPlayerIndex = data.myPlayerIndex ?? null;
+      setLobby(null);
+      navigation.navigate('Match', {
+        quickGame: {
+          players,
+          lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
+          legsCount: legsToWin,
+          gameType: gameTypeToUse,
+          sessionId,
+          scoringMode: scoringModeToUse,
+          isHost,
+          myPlayerIndex,
+        },
+      });
+      return;
+    }
+
+    setLobby((prev) => ({
+      ...(prev ?? {}),
+      ...data,
+      // Pole user-specific może nie przyjść w evencie lobby; zachowaj poprzednią wartość.
+      youAreHost: data.youAreHost ?? prev?.youAreHost ?? false,
+      legsCount: data.legsCount ?? prev?.legsCount ?? 3,
+      gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
+      scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
+    }));
+    if (data.legsCount != null) setLegsCount(data.legsCount);
+    if (data.scoringMode != null) setScoringMode(data.scoringMode);
+    if (data.gameType != null || data.game_type != null) {
+      setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+    }
+    // Bez tablicy players nie ruszaj orderedPlayers (unikaj [] z „pustego” payloadu).
+    if (Array.isArray(data.players)) {
+      const incoming = data.players.map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
+      setOrderedPlayers((prev) => {
+        const key = (p) => p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? '';
+        const incIds = new Set(incoming.map(key));
+        const prevIds = new Set(prev.map(key));
+        if (prev.length === 0 || incIds.size !== prevIds.size || [...incIds].some((id) => !prevIds.has(id))) {
+          return incoming;
+        }
+        return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
+      });
+    }
+  }, [GAME_TYPES.X01, SCORING_MODES.EACH_OWN, lobby?.id, lobby?.youAreHost, navigation]);
+
   const fetchLobbyById = useCallback(async (lobbyId) => {
     if (!lobbyId || !auth?.accessToken) return;
     try {
@@ -59,70 +119,12 @@ const QuickGameLobby = ({ navigation, route }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'started' && data.players?.length >= 2) {
-          const players = (data.players || []).map((p) => ({
-            id: p.id,
-            name: p.name ?? p.tempName ?? 'Gracz',
-            playerId: p.playerId ?? p.player_id,
-          }));
-          const legsToWin = data.legsCount ?? data.legs_count ?? 3;
-          const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
-          const sessionId = data.sessionId ?? null;
-          const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
-          const isHost = data.youAreHost ?? false;
-          const myPlayerIndex = data.myPlayerIndex ?? null;
-          setLobby(null);
-          navigation.navigate('Match', {
-            quickGame: {
-              players,
-              lobbyId: data.id ?? lobbyId,
-              legsCount: legsToWin,
-              gameType: gameTypeToUse,
-              sessionId,
-              scoringMode: scoringModeToUse,
-              isHost,
-              myPlayerIndex,
-            },
-          });
-          return;
-        }
-        setLobby((prev) => ({
-          ...data,
-          legsCount: data.legsCount ?? prev?.legsCount ?? 3,
-          gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
-          scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
-        }));
-        if (data.legsCount != null) setLegsCount(data.legsCount);
-        if (data.scoringMode != null) setScoringMode(data.scoringMode);
-        const incoming = (data.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
-        setOrderedPlayers((prev) => {
-          const key = (p) => p.id ?? p.playerId ?? p.player_id ?? p.tempName ?? '';
-          const incIds = new Set(incoming.map(key));
-          const prevIds = new Set(prev.map(key));
-          if (prev.length === 0 || incIds.size !== prevIds.size || [...incIds].some((id) => !prevIds.has(id))) {
-            return incoming;
-          }
-          return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
-        });
-        if (data.gameType != null || data.game_type != null) setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
-        if (data.scoringMode != null) setScoringMode(data.scoringMode);
-        if (data.invitations && Array.isArray(data.invitations) && data.invitations.length > 0) {
-          setInvitations((prev) => {
-            const byId = new Map(prev.map((i) => [i.id, i]));
-            data.invitations.forEach((inv) => {
-              const id = inv.playerId ?? inv.id ?? inv.receiver?.id;
-              const name = inv.name ?? inv.receiver?.name ?? inv.playerName ?? 'Gracz';
-              const status = (inv.status ?? 'sent').toLowerCase();
-              byId.set(id, { id, name, status: status === 'accepted' ? 'accepted' : status === 'rejected' ? 'rejected' : 'sent' });
-            });
-            return Array.from(byId.values());
-          });
-        }
+        applyLobbyData(data, lobbyId);
       }
     } catch (e) {
       console.warn('fetchLobbyById', e);
     }
-  }, [auth?.accessToken, navigation]);
+  }, [auth?.accessToken, applyLobbyData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,11 +144,18 @@ const QuickGameLobby = ({ navigation, route }) => {
     }, [lobby?.id, fetchLobbyById, route?.params?.initialLobby, navigation])
   );
 
+  useQuickGameLobbyRealtime({
+    lobbyId: lobby?.id ?? null,
+    accessToken: auth?.accessToken ?? null,
+    enabled: !!lobby?.id && !!auth?.accessToken,
+    onLobbyUpdated: applyLobbyData,
+  });
+
   useEffect(() => {
-    if (!lobby?.id) return;
-    const t = setInterval(() => fetchLobbyById(lobby.id), 4000);
+    if (!lobby?.id || !auth?.accessToken) return undefined;
+    const t = setInterval(() => fetchLobbyById(lobby.id), 45000);
     return () => clearInterval(t);
-  }, [lobby?.id, fetchLobbyById]);
+  }, [lobby?.id, auth?.accessToken, fetchLobbyById]);
 
   const handleCreate = async () => {
     setError('');
@@ -367,7 +376,13 @@ const QuickGameLobby = ({ navigation, route }) => {
 
   if (lobby?.id) {
     const players = lobby.players || [];
-    const listData = orderedPlayers.length ? orderedPlayers : players;
+    // Gdy serwer (WS/HTTP) ma więcej graczy niż lokalna kolejność — pokaż stan z serwera (inaczej host nie widzi dołączających).
+    const listData =
+      players.length > orderedPlayers.length
+        ? players
+        : orderedPlayers.length
+          ? orderedPlayers
+          : players;
     const isHost = lobby.youAreHost === true;
     // Gotowość tylko zarejestrowanych; host jest zawsze uznawany za gotowego, goście nie liczą się
     const allRegisteredReady =

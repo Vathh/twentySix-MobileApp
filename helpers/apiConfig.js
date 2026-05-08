@@ -9,20 +9,40 @@ const LARAVEL_BASE_URL =
 
 // Reverb (WebSocket) – musi być taki sam jak REVERB_APP_KEY w .env backendu
 export const REVERB_APP_KEY = 'sld-reverb-key';
-// Host i port Reverb (domyślnie to samo co API, port 8080)
-const REVERB_WS_PORT = 8080;
-const reverbHostFromApi = (() => {
+// Host i port Reverb: ten sam host co API (LAN), NIE używaj 0.0.0.0 w aplikacji — to tylko bind serwera.
+// Opcjonalnie: EXPO_PUBLIC_REVERB_HOST / EXPO_PUBLIC_REVERB_PORT w .env (Metro musi być zrestartowany).
+const REVERB_WS_PORT = Number(process.env.EXPO_PUBLIC_REVERB_PORT) || 8080;
+
+const INVALID_CLIENT_WS_HOSTS = new Set(['0.0.0.0', '[::]', '::', '']);
+
+function resolveReverbWsHost() {
+	const fromEnv =
+		typeof process !== 'undefined'
+			? process.env.EXPO_PUBLIC_REVERB_HOST?.trim()
+			: '';
+	if (fromEnv) {
+		return fromEnv;
+	}
 	try {
 		const u = new URL(API_BASE_URL);
-		return u.hostname;
+		const host = u.hostname;
+		if (INVALID_CLIENT_WS_HOSTS.has(host)) {
+			console.warn(
+				'[WS/Reverb:config] API_BASE_URL ma host 0.0.0.0 / :: — telefon nie połączy się z Reverb. Ustaw IPv4 komputera w API_BASE_URL albo EXPO_PUBLIC_REVERB_HOST (np. 192.168.0.28). W backendzie REVERB_HOST=0.0.0.0 jest OK dla serwera; klient musi użyć realnego IP.',
+			);
+		}
+		return host;
 	} catch {
 		return '192.168.0.28';
 	}
-})();
+}
+
+const reverbHostResolved = resolveReverbWsHost();
+
 export const getReverbConfig = () => ({
 	key: REVERB_APP_KEY,
 	cluster: 'reverb',
-	wsHost: reverbHostFromApi,
+	wsHost: reverbHostResolved,
 	wsPort: REVERB_WS_PORT,
 	wssPort: REVERB_WS_PORT,
 	forceTLS: false,
