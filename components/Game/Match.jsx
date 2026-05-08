@@ -292,7 +292,7 @@ const Match = ({ route, navigation }) => {
 		[applySessionData],
 	);
 
-	const { wsConnected } = useQuickGameSessionRealtime({
+	useQuickGameSessionRealtime({
 		sessionId,
 		accessToken: auth?.accessToken ?? null,
 		enabled: useSessionSync && !matchClosed,
@@ -324,10 +324,14 @@ const Match = ({ route, navigation }) => {
 		};
 	}, [useSessionSync, sessionId, auth?.accessToken, matchClosed, applySessionData]);
 
-	/** Rzadki backup HTTP tylko gdy WebSocket nie jest połączony (np. sieć / Reverb wyłączony). */
-	const BACKUP_POLL_MS = 45000;
+	/**
+	 * Backup HTTP zawsze w tle: połączenie WS z Reverb może być „OK”, a i tak Laravel
+	 * nie wyśle eventów (np. BROADCAST_CONNECTION=log/null). Wtedy drugi gracz musi
+	 * dostać stan przez GET, niezależnie od flagi połączenia socketa.
+	 */
+	const BACKUP_POLL_MS = 15000;
 	useEffect(() => {
-		if (!useSessionSync || matchClosed || wsConnected) {
+		if (!useSessionSync || matchClosed) {
 			return undefined;
 		}
 		if (!sessionId || !auth?.accessToken) {
@@ -356,14 +360,7 @@ const Match = ({ route, navigation }) => {
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [
-		useSessionSync,
-		matchClosed,
-		wsConnected,
-		sessionId,
-		auth?.accessToken,
-		applySessionData,
-	]);
+	}, [useSessionSync, matchClosed, sessionId, auth?.accessToken, applySessionData]);
 
 	const handleMaxAndOneSeventy = (playerForAchievement) => {
 		const p = playerForAchievement ?? currentPlayer;

@@ -56,6 +56,13 @@ export function useQuickGameSessionRealtime({
 
 		const channelName = `private-quick-game-session.${sessionId}`;
 		const channel = pusher.subscribe(channelName);
+		channel.bind('pusher:subscription_error', (status) => {
+			console.warn(
+				'[QuickGame session WS] subscription_error — sprawdź /broadcasting/auth i kanał:',
+				status,
+			);
+			setConn(false);
+		});
 		channel.bind(SESSION_EVENT, (payload) => {
 			if (payload && payload.state) {
 				onSessionStateRef.current?.({ state: payload.state });
