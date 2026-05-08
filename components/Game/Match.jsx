@@ -23,6 +23,7 @@ import {
 	getQuickGameSessionVisitUrl,
 } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
+import { useQuickGameSessionRealtime } from '../../hooks/useQuickGameSessionRealtime';
 
 const Match = ({ route, navigation }) => {
 	const { auth } = useAuth();
@@ -246,7 +247,9 @@ const Match = ({ route, navigation }) => {
 	const applySessionData = useCallback(
 		(data) => {
 			if (!data?.state) return;
-			lastSessionKeyRef.current = JSON.stringify(data.state ?? {});
+			const key = JSON.stringify(data.state ?? {});
+			if (key === lastSessionKeyRef.current) return;
+			lastSessionKeyRef.current = key;
 			const s = data.state;
 			const dispatchers = [
 				player1Dispatch,
@@ -282,8 +285,54 @@ const Match = ({ route, navigation }) => {
 		],
 	);
 
+	const onRealtimeSession = useCallback(
+		({ state }) => {
+			applySessionData({ state });
+		},
+		[applySessionData],
+	);
+
+	const { wsConnected } = useQuickGameSessionRealtime({
+		sessionId,
+		accessToken: auth?.accessToken ?? null,
+		enabled: useSessionSync && !matchClosed,
+		onSessionState: onRealtimeSession,
+	});
+
+	/** Jednorazowy stan po wejściu na ekran (HTTP). */
 	useEffect(() => {
-		if (!useSessionSync || matchClosed) return undefined;
+		if (!useSessionSync || matchClosed || !sessionId || !auth?.accessToken) {
+			return undefined;
+		}
+		let cancelled = false;
+		const load = async () => {
+			try {
+				const res = await fetch(getQuickGameSessionUrl(sessionId), {
+					headers: { Authorization: `Bearer ${auth.accessToken}` },
+				});
+				if (!res.ok || cancelled) return;
+				const data = await res.json();
+				if (cancelled) return;
+				applySessionData(data);
+			} catch (e) {
+				console.warn('session initial fetch', e);
+			}
+		};
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, [useSessionSync, sessionId, auth?.accessToken, matchClosed, applySessionData]);
+
+	/** Rzadki backup HTTP tylko gdy WebSocket nie jest połączony (np. sieć / Reverb wyłączony). */
+	const BACKUP_POLL_MS = 45000;
+	useEffect(() => {
+		if (!useSessionSync || matchClosed || wsConnected) {
+			return undefined;
+		}
+		if (!sessionId || !auth?.accessToken) {
+			return undefined;
+		}
 		let cancelled = false;
 		const tick = async () => {
 			if (cancelled) return;
@@ -299,16 +348,22 @@ const Match = ({ route, navigation }) => {
 				lastSessionKeyRef.current = key;
 				applySessionData(data);
 			} catch (e) {
-				console.warn('session poll', e);
+				console.warn('session backup poll', e);
 			}
 		};
-		tick();
-		const t = setInterval(tick, 2500);
+		const t = setInterval(tick, BACKUP_POLL_MS);
 		return () => {
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [useSessionSync, sessionId, auth?.accessToken, matchClosed, applySessionData]);
+	}, [
+		useSessionSync,
+		matchClosed,
+		wsConnected,
+		sessionId,
+		auth?.accessToken,
+		applySessionData,
+	]);
 
 	const handleMaxAndOneSeventy = (playerForAchievement) => {
 		const p = playerForAchievement ?? currentPlayer;
