@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useRef,
+	useState,
+} from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
@@ -7,6 +14,8 @@ import {
 	legWin,
 	syncFromServer,
 	undo,
+	undoSingleDart,
+	updateSingleDart,
 	updateStats,
 } from '../../helpers/reducers/playerResultActions';
 import { achievementsReducer } from '../../helpers/reducers/achievementsReducer';
@@ -16,6 +25,8 @@ import {
 } from '../../helpers/reducers/achievementActions';
 import Counter from './Counter';
 import Stats from './Stats';
+import Settings from '../Core/Settings';
+import { useMatchSettings } from '../../hooks/useMatchSettings';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
@@ -27,6 +38,11 @@ import { useQuickGameSessionRealtime } from '../../hooks/useQuickGameSessionReal
 
 const Match = ({ route, navigation }) => {
 	const { auth } = useAuth();
+	const {
+		scoringMode,
+		setScoringMode,
+		loaded: matchSettingsLoaded,
+	} = useMatchSettings();
 
 	const [selectedComponent, setSelectedComponent] = useState('counter');
 
@@ -131,30 +147,32 @@ const Match = ({ route, navigation }) => {
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
 	const lastSessionKeyRef = useRef('');
+	/** Pozostały wynik na początku bieżącej wizyty (tryb rzut po rzucie, offline). */
+	const visitStartScoreRef = useRef(null);
+
+	const counterCanInput = useMemo(() => {
+		if (matchClosed) return false;
+		if (!useSessionSync) return true;
+		if (sessionScoringMode === 'one_device' && !sessionIsHost) return false;
+		if (
+			sessionScoringMode === 'each_own' &&
+			myPlayerIndexFromLobby !== null &&
+			myPlayerIndexFromLobby !== currentPlayerIndex
+		) {
+			return false;
+		}
+		return true;
+	}, [
+		matchClosed,
+		useSessionSync,
+		sessionScoringMode,
+		sessionIsHost,
+		myPlayerIndexFromLobby,
+		currentPlayerIndex,
+	]);
 
 	// Ref jest jedynym źródłem prawdy w handleOkBtn; state currentPlayerIndex służy tylko do wyświetlania.
 	// Nie synchronizujemy ref ze state w useEffect – po ustawieniu ref i state w handlerach ref nie może być nadpisany.
-
-	const renderContent = () => {
-		if (selectedComponent === 'counter') {
-			return (
-				<Counter
-					players={players}
-					playerStates={playerStates}
-					currentPlayerIndex={currentPlayerIndex}
-					currentResult={currentResult}
-					handleNumberBtn={handleNumberBtn}
-					handleOkBtn={handleOkBtn}
-					handleUndoBtn={handleUndoBtn}
-					handleClearBtn={handleClearBtn}
-				/>
-			);
-		}
-		if (selectedComponent === 'stats') {
-			return <Stats players={players} playerStates={playerStates} />;
-		}
-		return null;
-	};
 
 	const toggleModal = () => {
 		setIsModalVisible((visibility) => !visibility);
@@ -362,10 +380,12 @@ const Match = ({ route, navigation }) => {
 		};
 	}, [useSessionSync, matchClosed, sessionId, auth?.accessToken, applySessionData]);
 
-	const handleMaxAndOneSeventy = (playerForAchievement) => {
+	const handleMaxAndOneSeventy = (playerForAchievement, visitScore) => {
 		const p = playerForAchievement ?? currentPlayer;
 		if (!p) return;
-		if (currentResult == 180) {
+		const val =
+			visitScore !== undefined && visitScore !== null ? visitScore : currentResult;
+		if (val == 180) {
 			const max = {
 				playerId: p.playerId,
 				tournamentId: match.match.tournamentId,
@@ -375,27 +395,29 @@ const Match = ({ route, navigation }) => {
 			achievementsDispatch(addAchievement(max));
 		}
 
-		if (currentResult >= 170 && currentResult < 180) {
+		if (val >= 170 && val < 180) {
 			const oneSeventy = {
 				playerId: p.playerId,
 				tournamentId: match.match.tournamentId,
-				value: currentResult,
+				value: val,
 				type: 'one_seventy',
 			};
 			achievementsDispatch(addAchievement(oneSeventy));
 		}
 	};
 
-	const handleHf = () => {
-		if (currentResult >= 100) {
-			const hf = {
-				playerId: currentPlayer.playerId,
-				tournamentId: match.match.tournamentId,
-				value: currentResult,
-				type: 'hf',
-			};
-			achievementsDispatch(addAchievement(hf));
-		}
+	const handleHf = (visitScore, playerForHf) => {
+		const val =
+			visitScore !== undefined && visitScore !== null ? visitScore : currentResult;
+		const p = playerForHf ?? currentPlayer;
+		if (!p || val < 100) return;
+		const hf = {
+			playerId: p.playerId,
+			tournamentId: match.match.tournamentId,
+			value: val,
+			type: 'hf',
+		};
+		achievementsDispatch(addAchievement(hf));
 	};
 
 	const handleQf = (player, dart) => {
@@ -410,19 +432,19 @@ const Match = ({ route, navigation }) => {
 		}
 	};
 
-	const handleSessionOkBtn = async () => {
+	/** Ta sama ścieżka API co przy sumie — `resultToApply` to punkty z całej wizyty (1–180). */
+	const submitSessionVisitCore = async (resultToApply) => {
 		if (matchClosed || !sessionId || !auth?.accessToken) return false;
 		if (
-			currentResult > 180 ||
-			typeof currentResult !== 'number' ||
-			currentResult <= 0
+			resultToApply > 180 ||
+			typeof resultToApply !== 'number' ||
+			resultToApply <= 0
 		)
 			return false;
 		if (okHandlingRef.current) return false;
 
 		const idx = currentPlayerIndexRef.current;
 		const state = playerStates[idx];
-		const resultToApply = currentResult;
 		const player = players[idx];
 
 		if (sessionScoringMode === 'one_device' && !sessionIsHost) {
@@ -460,7 +482,7 @@ const Match = ({ route, navigation }) => {
 					text: 'TAK',
 					style: 'destructive',
 					onPress: async () => {
-						handleMaxAndOneSeventy(player);
+						handleMaxAndOneSeventy(player, resultToApply);
 						if (resultToApply >= 100) {
 							achievementsDispatch(
 								addAchievement({
@@ -483,7 +505,7 @@ const Match = ({ route, navigation }) => {
 		}
 
 		okHandlingRef.current = true;
-		handleMaxAndOneSeventy(player);
+		handleMaxAndOneSeventy(player, resultToApply);
 
 		if (overshoot) {
 			const data = await submitVisitToServer(idx, 0, true);
@@ -498,6 +520,111 @@ const Match = ({ route, navigation }) => {
 		setCurrentResult(0);
 		if (data) applySessionData(data);
 		return true;
+	};
+
+	const handleSessionOkBtn = async () => submitSessionVisitCore(currentResult);
+
+	const handleDartSubmit = (points, roundTotal, isLastDart, dartIndex) => {
+		if (matchClosed) return;
+		if (!counterCanInput) return;
+
+		const idx = currentPlayerIndexRef.current;
+
+		if (!isLastDart) {
+			if (useSessionSync) return;
+			if (dartIndex === 0) {
+				visitStartScoreRef.current = playerStates[idx]?.score ?? 501;
+			}
+			playerDispatches[idx](updateSingleDart(points));
+			return;
+		}
+
+		if (useSessionSync) {
+			void submitSessionVisitCore(roundTotal);
+			return;
+		}
+
+		const dispatch = playerDispatches[idx];
+		const player = players[idx];
+
+		dispatch(updateSingleDart(points));
+
+		const visitStart = visitStartScoreRef.current ?? 501;
+		const resultToApply = roundTotal;
+
+		okHandlingRef.current = true;
+		handleMaxAndOneSeventy(player, resultToApply);
+
+		if (resultToApply > visitStart) {
+			dispatch(undoSingleDart());
+			dispatch(undoSingleDart());
+			dispatch(undoSingleDart());
+			okHandlingRef.current = false;
+			return;
+		}
+
+		if (resultToApply < visitStart - 1) {
+			const nextIdx = (idx + 1) % N;
+			currentPlayerIndexRef.current = nextIdx;
+			setCurrentPlayerIndex(nextIdx);
+			okHandlingRef.current = false;
+			return;
+		}
+
+		if (resultToApply === visitStart) {
+			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
+				{
+					text: 'NIE',
+					style: 'cancel',
+					onPress: () => {
+						dispatch(undoSingleDart());
+						dispatch(undoSingleDart());
+						dispatch(undoSingleDart());
+						okHandlingRef.current = false;
+					},
+				},
+				{
+					text: 'TAK',
+					style: 'destructive',
+					onPress: () => {
+						okHandlingRef.current = false;
+						handleHf(resultToApply, player);
+						handleCheckout(idx);
+					},
+				},
+			]);
+			return;
+		}
+
+		dispatch(undoSingleDart());
+		dispatch(undoSingleDart());
+		dispatch(undoSingleDart());
+		okHandlingRef.current = false;
+	};
+
+	const handleUndoSingleDart = () => {
+		if (matchClosed) return;
+		if (useSessionSync) return;
+		const idx = currentPlayerIndexRef.current;
+		playerDispatches[idx](undoSingleDart());
+	};
+
+	const handleUndoLastDartAfterSwitch = () => {
+		if (matchClosed) return;
+		if (useSessionSync) {
+			Alert.alert(
+				'Info',
+				'Cofanie wizyt w meczu online nie jest obsługiwane.',
+			);
+			return;
+		}
+		const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
+		currentPlayerIndexRef.current = prevIdx;
+		setCurrentPlayerIndex(prevIdx);
+		const d = playerDispatches[prevIdx];
+		d(undoSingleDart());
+		d(undoSingleDart());
+		d(undoSingleDart());
 	};
 
 	const handleOkBtn = () => {
@@ -779,6 +906,46 @@ const Match = ({ route, navigation }) => {
 		[navigation],
 	);
 
+	function renderContent() {
+		if (selectedComponent === 'counter') {
+			return (
+				<Counter
+					players={players}
+					playerStates={playerStates}
+					currentPlayerIndex={currentPlayerIndex}
+					currentResult={currentResult}
+					handleNumberBtn={handleNumberBtn}
+					handleOkBtn={handleOkBtn}
+					handleUndoBtn={handleUndoBtn}
+					handleClearBtn={handleClearBtn}
+					scoringMode={scoringMode}
+					canInput={counterCanInput}
+					frozenVisitStartScore={
+						useSessionSync
+							? (playerStates[currentPlayerIndex]?.score ?? 501)
+							: null
+					}
+					handleDartSubmit={handleDartSubmit}
+					handleUndoSingleDart={handleUndoSingleDart}
+					handleUndoLastDartAfterSwitch={handleUndoLastDartAfterSwitch}
+				/>
+			);
+		}
+		if (selectedComponent === 'stats') {
+			return <Stats players={players} playerStates={playerStates} />;
+		}
+		if (selectedComponent === 'settings') {
+			return (
+				<Settings
+					scoringMode={scoringMode}
+					setScoringMode={setScoringMode}
+					loaded={matchSettingsLoaded}
+				/>
+			);
+		}
+		return null;
+	}
+
 	return (
 		<View style={styles.container}>
 			<Modal visible={isModalVisible}>
@@ -854,6 +1021,16 @@ const Match = ({ route, navigation }) => {
 					onPress={() => setSelectedComponent('stats')}
 				>
 					<Text style={styles.navigationBtnText}>Statystyki</Text>
+				</Pressable>
+				<Pressable
+					style={
+						selectedComponent === 'settings'
+							? [styles.navigationBtn, styles.selectedNavigationBtn]
+							: [styles.navigationBtn]
+					}
+					onPress={() => setSelectedComponent('settings')}
+				>
+					<Text style={styles.navigationBtnText}>Ustawienia</Text>
 				</Pressable>
 			</View>
 
