@@ -12,7 +12,6 @@ import {
 	initialPlayerResultState,
 	legLose,
 	legWin,
-	syncFromServer,
 	undo,
 	undoSingleDart,
 	updateSingleDart,
@@ -30,11 +29,10 @@ import { useMatchSettings } from '../../hooks/useMatchSettings';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
-	getQuickGameSessionUrl,
-	getQuickGameSessionVisitUrl,
+	getQuickGameLobbyUrl,
 } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
-import { useQuickGameSessionRealtime } from '../../hooks/useQuickGameSessionRealtime';
+import { useQuickGameMatchScoring } from '../../hooks/useQuickGameMatchScoring';
 
 const Match = ({ route, navigation }) => {
 	const { auth } = useAuth();
@@ -42,6 +40,7 @@ const Match = ({ route, navigation }) => {
 		scoringMode,
 		setScoringMode,
 		loaded: matchSettingsLoaded,
+		isPerDartMode,
 	} = useMatchSettings();
 
 	const [selectedComponent, setSelectedComponent] = useState('counter');
@@ -50,30 +49,47 @@ const Match = ({ route, navigation }) => {
 	const quickGame = route.params?.quickGame;
 	const matchParam = route.params?.match;
 
-	const sessionId = quickGame?.sessionId ?? null;
-	const sessionScoringMode = quickGame?.scoringMode ?? 'each_own';
-	const sessionIsHost = quickGame?.isHost ?? false;
-	const myPlayerIndexFromLobby =
-		quickGame?.myPlayerIndex !== undefined && quickGame?.myPlayerIndex !== null
-			? quickGame.myPlayerIndex
-			: null;
-	const hasSessionForSync =
-		isQuickGame &&
-		!!sessionId &&
-		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
-	const useSessionSync = hasSessionForSync && !!auth?.accessToken;
-	const legsToWinQuick = quickGame?.legsCount ?? 2;
+	const [resolvedQuickGameId, setResolvedQuickGameId] = useState(
+		quickGame?.quickGameId ?? null,
+	);
+	const lobbyScoringMode = quickGame?.scoringMode ?? 'each_own';
+	const isHost = quickGame?.isHost ?? false;
 
 	const players = isQuickGame
 		? (quickGame?.players ?? []).map((p) => ({
 				id: p.id,
 				name: p.name ?? 'Gracz',
-				playerId: p.playerId,
+				playerId: p.playerId != null ? Number(p.playerId) : null,
 			}))
 		: matchParam?.match
 			? [matchParam.match.player1, matchParam.match.player2]
 			: [];
 	const N = Math.min(Math.max(players.length, 2), 6);
+
+	const myPlayerIndexFromLobby = useMemo(() => {
+		if (
+			quickGame?.myPlayerIndex !== undefined &&
+			quickGame?.myPlayerIndex !== null
+		) {
+			return quickGame.myPlayerIndex;
+		}
+		if (auth?.playerId != null) {
+			const idx = players.findIndex(
+				(p) => p.playerId != null && p.playerId === Number(auth.playerId),
+			);
+			if (idx >= 0) return idx;
+		}
+		return null;
+	}, [quickGame?.myPlayerIndex, auth?.playerId, players]);
+
+	const hasOnlineQuickGame =
+		isQuickGame &&
+		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
+	const useScoringApi =
+		hasOnlineQuickGame && !!resolvedQuickGameId && !!auth?.accessToken;
+	const useOnlineSync = useScoringApi;
+	const legsToWinQuick = quickGame?.legsCount ?? 2;
+
 	const match = isQuickGame
 		? {
 				match: {
@@ -86,7 +102,7 @@ const Match = ({ route, navigation }) => {
 		: matchParam;
 
 	const [isModalVisible, setIsModalVisible] = useState(
-		!isQuickGame || hasSessionForSync ? false : true,
+		!isQuickGame || useOnlineSync ? false : true,
 	);
 	const [isQFModalVisible, setIsQFModalVisible] = useState(false);
 	const [matchClosed, setMatchClosed] = useState(false);
@@ -146,16 +162,76 @@ const Match = ({ route, navigation }) => {
 	const currentPlayer = players[currentPlayerIndex] ?? null;
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
-	const lastSessionKeyRef = useRef('');
 	/** Pozostały wynik na początku bieżącej wizyty (tryb rzut po rzucie, offline). */
 	const visitStartScoreRef = useRef(null);
 
+	useEffect(() => {
+		setResolvedQuickGameId(quickGame?.quickGameId ?? null);
+	}, [quickGame?.quickGameId]);
+
+	/** Gość / WS bez quickGameId — dociągnij z lobby (host ma ID od razu po starcie). */
+	useEffect(() => {
+		if (
+			resolvedQuickGameId ||
+			!quickGame?.lobbyId ||
+			!auth?.accessToken ||
+			matchClosed
+		) {
+			return undefined;
+		}
+		let cancelled = false;
+		const fetchLobby = async () => {
+			try {
+				const res = await fetch(getQuickGameLobbyUrl(quickGame.lobbyId), {
+					headers: { Authorization: `Bearer ${auth.accessToken}` },
+				});
+				if (!res.ok || cancelled) return;
+				const data = await res.json();
+				if (cancelled) return;
+				if (data.quickGameId) {
+					setResolvedQuickGameId(data.quickGameId);
+				}
+			} catch (e) {
+				console.warn('resolve quickGameId from lobby', e);
+			}
+		};
+		fetchLobby();
+		const t = setInterval(fetchLobby, 2000);
+		return () => {
+			cancelled = true;
+			clearInterval(t);
+		};
+	}, [
+		resolvedQuickGameId,
+		quickGame?.lobbyId,
+		auth?.accessToken,
+		matchClosed,
+	]);
+
+	const matchScoring = useQuickGameMatchScoring({
+		enabled: useScoringApi && !matchClosed,
+		quickGameId: resolvedQuickGameId,
+		accessToken: auth?.accessToken ?? null,
+		players,
+		N,
+		playerDispatches,
+		playerStates,
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex,
+		setMatchClosed,
+		matchClosed,
+		isPerDartMode,
+		lobbyScoringMode,
+		isHost,
+		myPlayerIndexFromLobby,
+	});
+
 	const counterCanInput = useMemo(() => {
 		if (matchClosed) return false;
-		if (!useSessionSync) return true;
-		if (sessionScoringMode === 'one_device' && !sessionIsHost) return false;
+		if (!useScoringApi) return true;
+		if (lobbyScoringMode === 'one_device' && !isHost) return false;
 		if (
-			sessionScoringMode === 'each_own' &&
+			lobbyScoringMode === 'each_own' &&
 			myPlayerIndexFromLobby !== null &&
 			myPlayerIndexFromLobby !== currentPlayerIndex
 		) {
@@ -164,9 +240,9 @@ const Match = ({ route, navigation }) => {
 		return true;
 	}, [
 		matchClosed,
-		useSessionSync,
-		sessionScoringMode,
-		sessionIsHost,
+		useScoringApi,
+		lobbyScoringMode,
+		isHost,
 		myPlayerIndexFromLobby,
 		currentPlayerIndex,
 	]);
@@ -198,15 +274,15 @@ const Match = ({ route, navigation }) => {
 			return;
 		}
 		if (
-			useSessionSync &&
-			sessionScoringMode === 'one_device' &&
-			!sessionIsHost
+			useScoringApi &&
+			lobbyScoringMode === 'one_device' &&
+			!isHost
 		) {
 			return;
 		}
 		if (
-			useSessionSync &&
-			sessionScoringMode === 'each_own' &&
+			useScoringApi &&
+			lobbyScoringMode === 'each_own' &&
 			myPlayerIndexFromLobby !== null &&
 			myPlayerIndexFromLobby !== currentPlayerIndexRef.current
 		) {
@@ -225,160 +301,6 @@ const Match = ({ route, navigation }) => {
 		okHandlingRef.current = false;
 		setCurrentResult(0);
 	};
-
-	const submitVisitToServer = useCallback(
-		async (playerIndex, visitScore, bust) => {
-			if (!sessionId || !auth?.accessToken) return null;
-			try {
-				const res = await fetch(getQuickGameSessionVisitUrl(sessionId), {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${auth.accessToken}`,
-					},
-					body: JSON.stringify({ playerIndex, visitScore, bust }),
-				});
-				const text = await res.text();
-				let data;
-				try {
-					data = JSON.parse(text);
-				} catch {
-					data = null;
-				}
-				if (!res.ok) {
-					Alert.alert(
-						'Błąd',
-						(data && data.message) || text || 'Nie udało się zapisać wizyty',
-					);
-					return null;
-				}
-				return data;
-			} catch (e) {
-				console.warn('submitVisitToServer', e);
-				Alert.alert('Błąd', 'Brak połączenia z serwerem');
-				return null;
-			}
-		},
-		[sessionId, auth?.accessToken],
-	);
-
-	const applySessionData = useCallback(
-		(data) => {
-			if (!data?.state) return;
-			const key = JSON.stringify(data.state ?? {});
-			if (key === lastSessionKeyRef.current) return;
-			lastSessionKeyRef.current = key;
-			const s = data.state;
-			const dispatchers = [
-				player1Dispatch,
-				player2Dispatch,
-				player3Dispatch,
-				player4Dispatch,
-				player5Dispatch,
-				player6Dispatch,
-			].slice(0, N);
-			for (let i = 0; i < N; i++) {
-				dispatchers[i](
-					syncFromServer({
-						score: s.playerScores[i] ?? 501,
-						legsWon: s.legsWon[i] ?? 0,
-					}),
-				);
-			}
-			const cur = s.currentPlayerIndex ?? 0;
-			currentPlayerIndexRef.current = cur;
-			setCurrentPlayerIndex(cur);
-			if (s.status === 'finished') {
-				setMatchClosed(true);
-			}
-		},
-		[
-			N,
-			player1Dispatch,
-			player2Dispatch,
-			player3Dispatch,
-			player4Dispatch,
-			player5Dispatch,
-			player6Dispatch,
-		],
-	);
-
-	const onRealtimeSession = useCallback(
-		({ state }) => {
-			applySessionData({ state });
-		},
-		[applySessionData],
-	);
-
-	useQuickGameSessionRealtime({
-		sessionId,
-		accessToken: auth?.accessToken ?? null,
-		enabled: useSessionSync && !matchClosed,
-		onSessionState: onRealtimeSession,
-	});
-
-	/** Jednorazowy stan po wejściu na ekran (HTTP). */
-	useEffect(() => {
-		if (!useSessionSync || matchClosed || !sessionId || !auth?.accessToken) {
-			return undefined;
-		}
-		let cancelled = false;
-		const load = async () => {
-			try {
-				const res = await fetch(getQuickGameSessionUrl(sessionId), {
-					headers: { Authorization: `Bearer ${auth.accessToken}` },
-				});
-				if (!res.ok || cancelled) return;
-				const data = await res.json();
-				if (cancelled) return;
-				applySessionData(data);
-			} catch (e) {
-				console.warn('session initial fetch', e);
-			}
-		};
-		load();
-		return () => {
-			cancelled = true;
-		};
-	}, [useSessionSync, sessionId, auth?.accessToken, matchClosed, applySessionData]);
-
-	/**
-	 * Backup HTTP zawsze w tle: połączenie WS z Reverb może być „OK”, a i tak Laravel
-	 * nie wyśle eventów (np. BROADCAST_CONNECTION=log/null). Wtedy drugi gracz musi
-	 * dostać stan przez GET, niezależnie od flagi połączenia socketa.
-	 */
-	const BACKUP_POLL_MS = 15000;
-	useEffect(() => {
-		if (!useSessionSync || matchClosed) {
-			return undefined;
-		}
-		if (!sessionId || !auth?.accessToken) {
-			return undefined;
-		}
-		let cancelled = false;
-		const tick = async () => {
-			if (cancelled) return;
-			try {
-				const res = await fetch(getQuickGameSessionUrl(sessionId), {
-					headers: { Authorization: `Bearer ${auth.accessToken}` },
-				});
-				if (!res.ok || cancelled) return;
-				const data = await res.json();
-				if (cancelled) return;
-				const key = JSON.stringify(data.state ?? {});
-				if (key === lastSessionKeyRef.current) return;
-				lastSessionKeyRef.current = key;
-				applySessionData(data);
-			} catch (e) {
-				console.warn('session backup poll', e);
-			}
-		};
-		const t = setInterval(tick, BACKUP_POLL_MS);
-		return () => {
-			cancelled = true;
-			clearInterval(t);
-		};
-	}, [useSessionSync, matchClosed, sessionId, auth?.accessToken, applySessionData]);
 
 	const handleMaxAndOneSeventy = (playerForAchievement, visitScore) => {
 		const p = playerForAchievement ?? currentPlayer;
@@ -432,42 +354,21 @@ const Match = ({ route, navigation }) => {
 		}
 	};
 
-	/** Ta sama ścieżka API co przy sumie — `resultToApply` to punkty z całej wizyty (1–180). */
-	const submitSessionVisitCore = async (resultToApply) => {
-		if (matchClosed || !sessionId || !auth?.accessToken) return false;
+	/** Wizyta przez scoring API — `resultToApply` to punkty z całej wizyty (1–180). */
+	const submitOnlineVisitCore = async (resultToApply, dartsInVisit = 3) => {
+		if (matchClosed || !useScoringApi) return false;
+		if (okHandlingRef.current) return false;
+		const idx = currentPlayerIndexRef.current;
+		const state = playerStates[idx];
+		const player = players[idx];
 		if (
 			resultToApply > 180 ||
 			typeof resultToApply !== 'number' ||
 			resultToApply <= 0
-		)
-			return false;
-		if (okHandlingRef.current) return false;
-
-		const idx = currentPlayerIndexRef.current;
-		const state = playerStates[idx];
-		const player = players[idx];
-
-		if (sessionScoringMode === 'one_device' && !sessionIsHost) {
-			Alert.alert(
-				'Info',
-				'W trybie „jedno urządzenie” punkty wpisuje tylko host.',
-			);
-			return false;
-		}
-		if (
-			sessionScoringMode === 'each_own' &&
-			myPlayerIndexFromLobby !== null &&
-			myPlayerIndexFromLobby !== idx
 		) {
-			Alert.alert(
-				'Info',
-				'Teraz rzuca drugi gracz — wpisz wizytę na urządzeniu rzucającego.',
-			);
 			return false;
 		}
-
 		const overshoot = resultToApply > state.score;
-
 		if (!overshoot && resultToApply === state.score) {
 			okHandlingRef.current = true;
 			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
@@ -484,45 +385,40 @@ const Match = ({ route, navigation }) => {
 					onPress: async () => {
 						handleMaxAndOneSeventy(player, resultToApply);
 						if (resultToApply >= 100) {
-							achievementsDispatch(
-								addAchievement({
-									playerId: player.playerId,
-									tournamentId: match.match.tournamentId,
-									value: resultToApply,
-									type: 'hf',
-								}),
-							);
+							handleHf(resultToApply, player);
 						}
-						const data = await submitVisitToServer(idx, resultToApply, false);
+						await matchScoring.closeLegWithWinner(idx, resultToApply, 3);
 						okHandlingRef.current = false;
 						setCurrentResult(0);
-						if (data) applySessionData(data);
 					},
 				},
 			]);
 			setCurrentResult(0);
 			return true;
 		}
-
 		okHandlingRef.current = true;
 		handleMaxAndOneSeventy(player, resultToApply);
-
 		if (overshoot) {
-			const data = await submitVisitToServer(idx, 0, true);
-			okHandlingRef.current = false;
-			setCurrentResult(0);
-			if (data) applySessionData(data);
-			return true;
+			await matchScoring.submitVisit({
+				playerIndex: idx,
+				visitScore: 0,
+				bust: true,
+				dartsInVisit,
+			});
+		} else {
+			await matchScoring.submitVisit({
+				playerIndex: idx,
+				visitScore: resultToApply,
+				bust: false,
+				dartsInVisit,
+			});
 		}
-
-		const data = await submitVisitToServer(idx, resultToApply, false);
 		okHandlingRef.current = false;
 		setCurrentResult(0);
-		if (data) applySessionData(data);
 		return true;
 	};
 
-	const handleSessionOkBtn = async () => submitSessionVisitCore(currentResult);
+	const handleOnlineOkBtn = async () => submitOnlineVisitCore(currentResult);
 
 	const handleDartSubmit = (points, roundTotal, isLastDart, dartIndex) => {
 		if (matchClosed) return;
@@ -531,7 +427,6 @@ const Match = ({ route, navigation }) => {
 		const idx = currentPlayerIndexRef.current;
 
 		if (!isLastDart) {
-			if (useSessionSync) return;
 			if (dartIndex === 0) {
 				visitStartScoreRef.current = playerStates[idx]?.score ?? 501;
 			}
@@ -539,8 +434,8 @@ const Match = ({ route, navigation }) => {
 			return;
 		}
 
-		if (useSessionSync) {
-			void submitSessionVisitCore(roundTotal);
+		if (useScoringApi) {
+			void submitOnlineVisitCore(roundTotal, dartIndex + 1);
 			return;
 		}
 
@@ -604,18 +499,15 @@ const Match = ({ route, navigation }) => {
 
 	const handleUndoSingleDart = () => {
 		if (matchClosed) return;
-		if (useSessionSync) return;
+		if (useOnlineSync) return;
 		const idx = currentPlayerIndexRef.current;
 		playerDispatches[idx](undoSingleDart());
 	};
 
 	const handleUndoLastDartAfterSwitch = () => {
 		if (matchClosed) return;
-		if (useSessionSync) {
-			Alert.alert(
-				'Info',
-				'Cofanie wizyt w meczu online nie jest obsługiwane.',
-			);
+		if (useScoringApi) {
+			void matchScoring.undoVisit();
 			return;
 		}
 		const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
@@ -629,8 +521,8 @@ const Match = ({ route, navigation }) => {
 
 	const handleOkBtn = () => {
 		if (matchClosed) return;
-		if (useSessionSync) {
-			void handleSessionOkBtn();
+		if (useScoringApi) {
+			void handleOnlineOkBtn();
 			return;
 		}
 		if (
@@ -687,12 +579,9 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleCheckout = (idx) => {
-		if (useSessionSync) {
+		if (useScoringApi) {
 			const st = playerStates[idx];
-			void (async () => {
-				const data = await submitVisitToServer(idx, st.score, false);
-				if (data) applySessionData(data);
-			})();
+			void matchScoring.closeLegWithWinner(idx, st.score, 3);
 			return;
 		}
 		const state = playerStates[idx];
@@ -738,13 +627,21 @@ const Match = ({ route, navigation }) => {
 		playersPayload,
 		achievementsPayload,
 		lobbyId,
+		gameId = null,
 	) => {
 		try {
 			const body = {
-				players: playersPayload,
 				achievements: achievementsPayload || [],
 				lobbyId: lobbyId ?? undefined,
 			};
+			if (gameId) {
+				body.gameId = gameId;
+				if (playersPayload?.length) {
+					body.players = playersPayload;
+				}
+			} else {
+				body.players = playersPayload;
+			}
 			const response = await fetch(QUICK_GAME_UPDATE_API_URL, {
 				method: 'POST',
 				headers: {
@@ -769,13 +666,10 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleQFModalBtn = (dartNumber) => {
-		if (useSessionSync) {
+		if (useScoringApi) {
 			const idx = currentPlayerIndexRef.current;
 			const st = playerStates[idx];
-			void (async () => {
-				const data = await submitVisitToServer(idx, st.score, false);
-				if (data) applySessionData(data);
-			})();
+			void matchScoring.closeLegWithWinner(idx, st.score, dartNumber);
 			toggleQFModal();
 			return;
 		}
@@ -795,11 +689,8 @@ const Match = ({ route, navigation }) => {
 
 	const handleUndoBtn = () => {
 		if (matchClosed) return;
-		if (useSessionSync) {
-			Alert.alert(
-				'Info',
-				'Cofanie wizyt w meczu online nie jest obsługiwane.',
-			);
+		if (useScoringApi) {
+			void matchScoring.undoVisit();
 			return;
 		}
 		const allAtStart = playerStates.every((s) => s.score === 501);
@@ -817,36 +708,45 @@ const Match = ({ route, navigation }) => {
 		if (!hasWinner) return;
 
 		setMatchClosed(true);
-		const winnerIdx = legsWonArr.findIndex((l) => l >= 2);
+		const winnerIdx = legsWonArr.findIndex((l) => l >= legsTarget);
 		const winner = players[winnerIdx];
 		const loser = N === 2 ? players[1 - winnerIdx] : null;
 
 		if (isQuickGame) {
-			const withPlace = players
-				.map((p, i) => ({ player: p, state: playerStates[i], idx: i }))
-				.filter((x) => x.player?.playerId)
-				.sort((a, b) => b.state.legsWon - a.state.legsWon);
-			if (withPlace.length >= 2) {
-				const playersPayload = withPlace.map((x, place) => ({
-					playerId: x.player.playerId,
-					score: x.state.legsWon,
-					place: place + 1,
-					average: parseFloat(x.state.matchAverage) || null,
-					dartsThrown: x.state.totalDartsThrown || null,
-					pointsEarned: x.state.totalPointsEarned || null,
-				}));
-				const achievementsPayload = (achievementsState?.achievements || []).map(
-					(a) => ({
-						playerId: a.playerId,
-						value: a.value ?? null,
-						type: a.type,
-					}),
-				);
+			const achievementsPayload = (achievementsState?.achievements || []).map(
+				(a) => ({
+					playerId: a.playerId,
+					value: a.value ?? null,
+					type: a.type,
+				}),
+			);
+			if (useScoringApi && resolvedQuickGameId) {
 				sendQuickGameResult(
-					playersPayload,
+					null,
 					achievementsPayload,
 					quickGame?.lobbyId,
+					resolvedQuickGameId,
 				);
+			} else {
+				const withPlace = players
+					.map((p, i) => ({ player: p, state: playerStates[i], idx: i }))
+					.filter((x) => x.player?.playerId)
+					.sort((a, b) => b.state.legsWon - a.state.legsWon);
+				if (withPlace.length >= 2) {
+					const playersPayload = withPlace.map((x, place) => ({
+						playerId: x.player.playerId,
+						score: x.state.legsWon,
+						place: place + 1,
+						average: parseFloat(x.state.matchAverage) || null,
+						dartsThrown: x.state.totalDartsThrown || null,
+						pointsEarned: x.state.totalPointsEarned || null,
+					}));
+					sendQuickGameResult(
+						playersPayload,
+						achievementsPayload,
+						quickGame?.lobbyId,
+					);
+				}
 			}
 			const msg =
 				N === 2 && loser
@@ -921,7 +821,7 @@ const Match = ({ route, navigation }) => {
 					scoringMode={scoringMode}
 					canInput={counterCanInput}
 					frozenVisitStartScore={
-						useSessionSync
+						useOnlineSync
 							? (playerStates[currentPlayerIndex]?.score ?? 501)
 							: null
 					}

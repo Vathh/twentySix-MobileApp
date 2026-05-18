@@ -32,7 +32,12 @@ const QuickGameStartPanel = () => {
       }
 
       const accessToken = data?.token;
-      setAuth({ accessToken, tournamentId: null });
+      setAuth({
+        accessToken,
+        tournamentId: null,
+        userId: data?.user?.id ?? null,
+        playerId: data?.user?.playerId ?? null,
+      });
     } catch (err) {
       setErrorMsg('Nieprawidłowy email lub hasło');
     }

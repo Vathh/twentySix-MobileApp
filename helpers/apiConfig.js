@@ -132,11 +132,31 @@ const LOBBY_ADD_GUEST = '/add-guest';
 export const getQuickGameLobbyAddGuestUrl = (lobbyId) =>
 	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;
 
-// Quick game session (sync)
-const QUICK_GAME_SESSION_PREFIX = '/quick-game/session';
-export const getQuickGameSessionUrl = (sessionId) =>
-	API_BASE_URL + QUICK_GAME_SESSION_PREFIX + '/' + sessionId;
-export const getQuickGameSessionVisitUrl = (sessionId) =>
-	API_BASE_URL + QUICK_GAME_SESSION_PREFIX + '/' + sessionId + '/visit'; // Znajomi (wymaga auth)
+// Match scoring (wizyty, legi) — ten sam kontrakt dla quick / group / playoff
+const QUICK_GAMES_PREFIX = '/quick-games';
+const GROUP_GAMES_PREFIX = '/group-games';
+const PLAYOFF_GAMES_PREFIX = '/playoff-games';
+
+export const getQuickGameScoringBaseUrl = (quickGameId) =>
+	API_BASE_URL + QUICK_GAMES_PREFIX + '/' + quickGameId;
+
+export const getGroupGameScoringBaseUrl = (gameId) =>
+	API_BASE_URL + GROUP_GAMES_PREFIX + '/' + gameId;
+
+export const getPlayoffGameScoringBaseUrl = (playoffGameId) =>
+	API_BASE_URL + PLAYOFF_GAMES_PREFIX + '/' + playoffGameId;
+
+export const getMatchScoringStateUrl = (baseUrl) => baseUrl + '/scoring/state';
+export const getMatchScoringStartLegUrl = (baseUrl) => baseUrl + '/legs';
+export const getMatchScoringVisitUrl = (baseUrl, legId) =>
+	baseUrl + '/legs/' + legId + '/visits';
+export const getMatchScoringUndoUrl = (baseUrl, legId) =>
+	baseUrl + '/legs/' + legId + '/visits/undo';
+export const getMatchScoringCloseLegUrl = (baseUrl, legId) =>
+	baseUrl + '/legs/' + legId + '/close';
+
+/** Kanał publiczny Pusher: quick-game.{id} | group-game.{id} | playoff-game.{id} */
+export const getMatchScoringChannelName = (kind, matchId) =>
+	kind + '-game.' + matchId;
 const FRIENDS_PREFIX = '/friends';
 export const FRIENDS_API_URL = API_BASE_URL + FRIENDS_PREFIX;

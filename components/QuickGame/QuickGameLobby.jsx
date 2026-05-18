@@ -52,6 +52,15 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [guestAdding, setGuestAdding] = useState(false);
   const [orderedPlayers, setOrderedPlayers] = useState([]);
 
+  const resolveMyPlayerIndex = useCallback((players, fromApi) => {
+    if (fromApi !== undefined && fromApi !== null) return fromApi;
+    if (auth?.playerId == null) return null;
+    const idx = players.findIndex(
+      (p) => p.playerId != null && Number(p.playerId) === Number(auth.playerId),
+    );
+    return idx >= 0 ? idx : null;
+  }, [auth?.playerId]);
+
   const applyLobbyData = useCallback((data, fallbackLobbyId = null) => {
     if (!data) return;
     if (data.status === 'started' && data.players?.length >= 2) {
@@ -62,10 +71,10 @@ const QuickGameLobby = ({ navigation, route }) => {
       }));
       const legsToWin = data.legsCount ?? data.legs_count ?? 3;
       const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
-      const sessionId = data.sessionId ?? null;
+      const quickGameId = data.quickGameId ?? null;
       const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
       const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
-      const myPlayerIndex = data.myPlayerIndex ?? null;
+      const myPlayerIndex = resolveMyPlayerIndex(players, data.myPlayerIndex);
       setLobby(null);
       navigation.navigate('Match', {
         quickGame: {
@@ -73,7 +82,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
           legsCount: legsToWin,
           gameType: gameTypeToUse,
-          sessionId,
+          quickGameId,
           scoringMode: scoringModeToUse,
           isHost,
           myPlayerIndex,
@@ -109,7 +118,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
       });
     }
-  }, [GAME_TYPES.X01, SCORING_MODES.EACH_OWN, lobby?.id, lobby?.youAreHost, navigation]);
+  }, [GAME_TYPES.X01, SCORING_MODES.EACH_OWN, lobby?.id, lobby?.youAreHost, navigation, resolveMyPlayerIndex]);
 
   const fetchLobbyById = useCallback(async (lobbyId) => {
     if (!lobbyId || !auth?.accessToken) return;
@@ -342,10 +351,10 @@ const QuickGameLobby = ({ navigation, route }) => {
           name: p.name ?? p.tempName ?? 'Gracz',
           playerId: p.playerId ?? p.player_id,
         }));
-        const sessionId = data.sessionId ?? null;
+        const quickGameId = data.quickGameId ?? null;
         const scoringModeToUse = data.scoringMode ?? scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN;
         const isHost = data.isHost ?? lobby?.youAreHost ?? false;
-        const myPlayerIndex = data.myPlayerIndex ?? null;
+        const myPlayerIndex = resolveMyPlayerIndex(toPass, data.myPlayerIndex);
         setLobby(null);
         navigation.navigate('Match', {
           quickGame: {
@@ -353,7 +362,7 @@ const QuickGameLobby = ({ navigation, route }) => {
             lobbyId: lobby.id,
             legsCount: legsToWin,
             gameType: gameTypeToUse,
-            sessionId,
+            quickGameId,
             scoringMode: scoringModeToUse,
             isHost,
             myPlayerIndex,
