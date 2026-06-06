@@ -1,0 +1,24 @@
+---
+description: twentySix mobile — produkt, MVP i zasady pracy z agentem
+alwaysApply: true
+---
+
+# twentySix — aplikacja mobilna
+
+Pełna wizja produktu: **`twentysix-backend/docs/product.md`**. Przed większymi zmianami czytaj ten plik (`@docs/product.md`).
+
+## Produkt
+
+- **Nazwa:** **twentySix** (wszędzie w UI i tekście). **26** tylko jako logo/ikona — nie jako nazwa produktu. Nie używaj „Suwalska Liga Darta”.
+- Ten folder (`twentysix-mobile`) = aplikacja mobilna twentySix (React Native / Expo).
+
+## Zasady
+
+- `product.md` > stary kod przy rozbieżnościach.
+- Nie rozszerzaj poza MVP bez prośby (krykiet, komunikator, premium — później).
+- Nie commituj / nie pushuj bez prośby. Komunikacja po polsku.
+- Zmiany API — sprawdź też `twentysix-backend`.
+
+## Mobile MVP (skrót)
+
+Tablet turniejowy, quick game (FFA, BO3, 2 tryby urządzeń), znajomi i akceptacje zaproszeń, offline/solo bez zapisu.

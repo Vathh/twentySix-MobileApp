@@ -1,97 +1,105 @@
-# Zaimplementowane funkcjonalności – aplikacja mobilna (Suwalska Liga Darta)
+# twentySix — stan implementacji (mobile) vs MVP
 
-Dokument opisuje dotychczas zaimplementowane funkcje aplikacji mobilnej (React Native / Expo). Przydatny przy planowaniu kolejnych kroków.
+Mapa zgodności z [`../twentysix-backend/docs/product.md`](../twentysix-backend/docs/product.md).  
+**Legenda:** ✅ gotowe · ⚠️ częściowo · ❌ brak
 
----
-
-## 1. Nawigacja i ekrany
-
-- **Stack Navigator** – jedna lista ekranów zależna od stanu logowania.
-- **Przed zalogowaniem:** Home, TournamentLogin.
-- **Po zalogowaniu:** MatchList, Match, QuickGameLobby.
-- **Nagłówek** – HeaderTitle, LogoutButton, spójne kolory (np. #363062, #F99417).
+Backend (API): [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-backend/IMPLEMENTED_FEATURES.md)
 
 ---
 
-## 2. Autentykacja
+## Podsumowanie
 
-- **Home** – wybór trybu: „Turniej” lub „Szybki mecz” (obecnie oba prowadzą do TournamentLogin).
-- **TournamentLogin** – logowanie przez kod turnieju (POST `/api/login`); po sukcesie zapis tokena + `tournamentId` w kontekście (AuthProvider).
-- **Wylogowanie** – LogoutButton (np. wyczyszczenie tokena w AuthProvider).
-
----
-
-## 3. Mecze turniejowe
-
-- **MatchList** – lista aktywnych meczów turnieju (GET `/api/game/active?tournamentId=...`), grupowanie po numerze grupy, odświeżanie.
-- **Wybór meczu** – modal z listą meczów w grupie, przejście do ekranu Match z danymi meczu.
-- **Match** – rozgrywka pojedynczego meczu (2 graczy): wprowadzanie wyników legów, wygrany leg/mecz, wysyłka wyniku (POST `/api/game/update`), achievementy.
-- **Counter / Stats** – licznik punktów i statystyki w trakcie meczu.
+| Obszar | Postęp |
+|--------|--------|
+| Tablet turniejowy | ~70% |
+| Quick game | ~55% |
+| Znajomi / zaproszenia | ~40% |
+| Offline / solo | 0% |
 
 ---
 
-## 4. Szybkie mecze – Lobby
+## Ekrany i nawigacja
 
-- **QuickGameLobby** – pełny flow lobby szybkiego meczu (2–6 graczy).
-- **Tryby:** wybór „Utwórz” / „Dołącz”, tworzenie lobby (POST `/api/quick-game/lobby/create`), dołączenie po kodzie (GET `/api/quick-game/lobby/code/{code}`, POST `/api/quick-game/lobby/join`).
-- **W lobby:** lista graczy, status „Gotowy”, opuszczenie lobby (Leave), odświeżanie co kilka sekund (polling).
-- **Host:** przycisk „Rozpocznij mecz” gdy co najmniej 2 graczy i wszyscy gotowi (POST `/api/quick-game/lobby/{id}/start`).
-- **Goście (bez konta):** podanie nazwy przy dołączeniu; cache nazw w AsyncStorage (`tempPlayerCache.js`) dla wygody.
-- **Znajomi:** panel boczny (drawer) z listą znajomych (GET `/api/friends`), zaproszenie do lobby (POST `/api/quick-game/lobby/{id}/invite`).
-- **Start meczu** – po „Rozpocznij mecz” przejście do ekranu Match z listą graczy z lobby.
-
----
-
-## 5. Szybki mecz – rozgrywka (Match)
-
-- **Wielu graczy (3–6)** – stan per gracz (wyniki legów, kolejność), dynamiczna logika gry.
-- **Zakończenie meczu** – wysłanie wyników na POST `/api/quick-game/update` (lista graczy: `playerId`, wyniki, średnie, achievementy dla zarejestrowanych).
-- **Counter / Stats** – dostosowane do wielu graczy (podświetlenie aktualnego gracza, podsumowanie).
+| Wymaganie | Status | Pliki |
+|-----------|--------|-------|
+| Gość: wybór trybu (turniej / quick) | ✅ | `components/Core/Home.jsx`, `Screens.jsx` |
+| Logowanie kodem turnieju | ✅ | `components/Tournament/TournamentLogin.jsx` |
+| Logowanie kontem (quick game) | ✅ | `TournamentLogin.jsx` (email+hasło) |
+| Menu po zalogowaniu | ✅ | `components/Core/MenuScreen.jsx` |
+| Marka **twentySix** w nagłówku | ⚠️ | `HeaderTitle.jsx` — tylko część ekranów |
+| Offline / solo ćwiczenia | ❌ | Brak flow |
 
 ---
 
-## 6. Konfiguracja API
+## Tablet turniejowy
 
-- **apiConfig.js** – `API_BASE_URL` oraz stałe URL-e dla: logowania, gier turniejowych (active, update), quick game (create, active, inProgress, update), lobby (create, join, code, leave, ready, start, invite), znajomych (`/friends`).
-- **Uwaga:** dla emulatora Android często `10.0.2.2:8000`; dla fizycznego urządzenia adres IP komputera z backendem.
-
----
-
-## 7. Stan i kontekst
-
-- **AuthProvider** – token, `tournamentId`, stan zalogowania; udostępniany przez `useAuth()`.
-- **Reducery (helpers/reducers)** – np. achievementy, wyniki graczy – używane przy zbieraniu danych do wysłania wyniku szybkiego meczu.
-
----
-
-## 8. Komponenty pomocnicze
-
-- **Counter** – punkty / stan w meczu (2 lub wielu graczy).
-- **Stats / StatsRow / StatsTitleRow** – wyświetlanie statystyk w meczu.
-- **QuickGameStartPanel** – panel startowy szybkiego meczu (jeśli używany w flow).
-- **tempPlayerCache** – cache tymczasowych nazw graczy (AsyncStorage).
+| Wymaganie | Status | Pliki / uwagi |
+|-----------|--------|---------------|
+| Kod bez konta | ✅ | `TournamentCode.jsx`, `POST /api/login` |
+| Faza grupowa: kafelki grup → mecze | ⚠️ | `MatchList.jsx` — grupy tak; playoff jako „Grupa 0” |
+| Playoff: płaska lista + runda | ❌ | Brak osobnego widoku playoff |
+| Tylko mecze `oczekujący` | ⚠️ | Lista z API active; brak jawnych statusów w UI |
+| Lock → `w trakcie` przy wyborze | ❌ | Brak `POST /api/game/inProgress` |
+| Sędziowanie 501 H2H | ✅ | `Match.jsx` + legacy `UPDATE_GAME_API_URL` |
+| Scoring API + WebSocket (turniej) | ❌ | Trasy w `apiConfig.js` nieużywane w `Match.jsx` |
+| Achievementy do API | ⚠️ | Częściowo w starym flow |
 
 ---
 
-## 9. Czego brakuje (przykłady do rozważenia)
+## Quick game
 
-- **Profil użytkownika** – podgląd statystyk, historia (odczyt z API/web).
-- **Lista znajomych** – dedykowany ekran zamiast tylko panelu w lobby.
-- **Powiadomienia** – zaproszenia do znajomych / do lobby (push lub polling).
-- **Historia szybkich meczów** – lista rozegranych meczów, szczegóły.
-- **Ustawienia** – zmiana adresu API, theme, powiadomienia.
-- **Offline / synchronizacja** – zapis lokalny i wysyłka gdy jest sieć (opcjonalnie).
+| Wymaganie | Status | Pliki / uwagi |
+|-----------|--------|---------------|
+| Lobby: tworzenie, zaproszenia | ✅ | `QuickGameLobby.jsx` |
+| Akceptacja zaproszenia lobby | ✅ | `LobbyInvitationsScreen.jsx` |
+| Tylko znajomi (MVP) | ❌ | `add-guest` w lobby |
+| Max 8 graczy | ⚠️ | Cap **6** w UI |
+| Kolejność graczy (drag) | ✅ | `QuickGameLobby.jsx` |
+| `one_device` / `each_own` | ⚠️ | ✅ dla 2P online; ❌ 3+ multi-device |
+| FFA 3+ (każdy gra sam) | ⚠️ | Lokalnie w `Match.jsx`; brak live sync 3+ |
+| BO3 — pierwszy do **2** legów | ⚠️ | Domyślnie `legsCount=3` |
+| Rotacja startu legów (po openerze) | ❌ | Offline: `(winnerIdx+1)` zamiast opener+1 |
+| Wyniki w statystykach gracza | ⚠️ | Zależy od API po meczu |
+| Min. 2 do startu | ✅ | Walidacja w lobby |
 
 ---
 
-## Zależności od backendu
+## Znajomi
 
-Aplikacja korzysta z API Laravel (DartScore):
+| Wymaganie | Status | Pliki / uwagi |
+|-----------|--------|---------------|
+| Lista znajomych | ✅ | `FriendsScreen.jsx` |
+| Wysłanie zaproszenia do znajomego | ❌ | Brak UI `POST /friends/invite` |
+| Akceptacja / odrzucenie zaproszenia | ❌ | Brak ekranu `invitations/received` |
+| Zaproszenie turniejowe (akceptacja mobile) | ❌ | Brak API i UI |
 
-- Auth: `/api/login`, `/api/register`.
-- Turniej: `/api/game/active`, `/api/game/update`, `/api/game/inProgress`.
-- Quick game: `/api/quick-game/create`, `/api/quick-game/active`, `/api/quick-game/inProgress`, `/api/quick-game/update`.
-- Lobby: `/api/quick-game/lobby/*` (create, join, code, leave, ready, start, invite).
-- Znajomi: `/api/friends`, `/api/quick-game/lobby/{id}/invite`.
+---
 
-Szczegóły endpointów i wymaganej autentykacji opisane są w pliku **IMPLEMENTED_FEATURES.md** w projekcie API (DartScore).
+## Offline / ćwiczenia
+
+| Wymaganie | Status |
+|-----------|--------|
+| Mecz offline bez zapisu | ❌ |
+| Solo ćwiczenia | ❌ |
+
+---
+
+## Konfiguracja / marka
+
+| Element | Status |
+|---------|--------|
+| `app.json` → `name: twentySix` | ✅ |
+| `HeaderTitle` → twentySix | ✅ |
+| Tytuły ekranów, Home | ⚠️ |
+| Ikona z logo **26** | ⚠️ | Assets bez rebrandu graficznego (tekst wszędzie: twentySix) |
+
+---
+
+## Priorytet mobile (sugerowane)
+
+1. Zaproszenia znajomych (wysyłka + akceptacja) — mobile only MVP.
+2. Zaproszenia turniejowe — akceptacja na mobile.
+3. Lock meczu tablet + playoff UI + scoring API/WS.
+4. Quick game: rotacja legów, BO3=2, FFA do 8, friends-only.
+5. Offline + solo ćwiczenia.
+6. Spójna marka twentySix w UI.
