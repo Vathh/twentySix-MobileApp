@@ -160,3 +160,13 @@ export const getMatchScoringChannelName = (kind, matchId) =>
 	kind + '-game.' + matchId;
 const FRIENDS_PREFIX = '/friends';
 export const FRIENDS_API_URL = API_BASE_URL + FRIENDS_PREFIX;
+
+const TOURNAMENT_INVITATIONS_PREFIX = '/tournaments/invitations';
+export const TOURNAMENT_INVITATIONS_RECEIVED_URL =
+	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/received';
+export const getTournamentInvitationAcceptUrl = (invitationId) =>
+	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/' + invitationId + '/accept';
+export const getTournamentInvitationRejectUrl = (invitationId) =>
+	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
+export const getTournamentInvitationWithdrawUrl = (invitationId) =>
+	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/' + invitationId + '/withdraw';

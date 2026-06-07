@@ -9,7 +9,7 @@ import TournamentCode from '../components/Tournament/TournamentCode';
 import Home from '../components/Core/Home';
 import QuickGameLobby from '../components/QuickGame/QuickGameLobby';
 import FriendsScreen from '../components/Friends/FriendsScreen';
-import LobbyInvitationsScreen from '../components/QuickGame/LobbyInvitationsScreen';
+import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import MenuScreen from '../components/Core/MenuScreen';
 import HeaderTitle from '../components/Common/HeaderTitle';
 import LogoutButton from '../components/Common/LogoutButton';
@@ -112,8 +112,8 @@ const Screens = () => {
         />
         <Stack.Screen
           name="Zaproszenia"
-          component={LobbyInvitationsScreen}
-          options={{ headerTitle: 'Zaproszenia do lobby' }}
+          component={InvitationsScreen}
+          options={{ headerTitle: 'Zaproszenia' }}
         />
       </Stack.Navigator>
     );

@@ -12,7 +12,7 @@ const MenuScreen = ({ navigation }) => {
         <Text style={styles.itemText}>Znajomi</Text>
       </Pressable>
       <Pressable style={styles.item} onPress={() => navigation.navigate('Zaproszenia')}>
-        <Text style={styles.itemText}>Zaproszenia do lobby</Text>
+        <Text style={styles.itemText}>Zaproszenia</Text>
       </Pressable>
     </View>
   );

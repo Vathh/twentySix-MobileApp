@@ -71,7 +71,7 @@ Backend (API): [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-bac
 | Lista znajomych | ✅ | `FriendsScreen.jsx` |
 | Wysłanie zaproszenia do znajomego | ❌ | Brak UI `POST /friends/invite` |
 | Akceptacja / odrzucenie zaproszenia | ❌ | Brak ekranu `invitations/received` |
-| Zaproszenie turniejowe (akceptacja mobile) | ❌ | Brak API i UI |
+| Zaproszenie turniejowe (akceptacja mobile) | ✅ | `InvitationsScreen` — zakładka Turniej |
 
 ---
 
@@ -98,7 +98,7 @@ Backend (API): [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-bac
 ## Priorytet mobile (sugerowane)
 
 1. Zaproszenia znajomych (wysyłka + akceptacja) — mobile only MVP.
-2. Zaproszenia turniejowe — akceptacja na mobile.
+2. ~~Zaproszenia turniejowe — akceptacja na mobile.~~ ✅
 3. Lock meczu tablet + playoff UI + scoring API/WS.
 4. Quick game: rotacja legów, BO3=2, FFA do 8, friends-only.
 5. Offline + solo ćwiczenia.
