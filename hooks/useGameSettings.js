@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS = {
 
 export { SCORING_MODES };
 
-export function useMatchSettings() {
+export function useGameSettings() {
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
@@ -25,13 +25,13 @@ export function useMatchSettings() {
             const parsed = JSON.parse(json);
             setSettingsState((prev) => ({ ...prev, ...parsed }));
           } catch (e) {
-            console.warn('useMatchSettings load error', e);
+            console.warn('useGameSettings load error', e);
           }
         }
         setLoaded(true);
       })
       .catch((e) => {
-        console.warn('useMatchSettings load error', e);
+        console.warn('useGameSettings load error', e);
         setLoaded(true);
       });
   }, []);
@@ -40,7 +40,7 @@ export function useMatchSettings() {
     setSettingsState((prev) => {
       const next = { ...prev, [key]: value };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch((e) =>
-        console.warn('useMatchSettings save error', e)
+        console.warn('useGameSettings save error', e)
       );
       return next;
     });

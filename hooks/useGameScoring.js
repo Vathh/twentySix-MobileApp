@@ -1,28 +1,27 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
+import { getGameScoringChannelName } from '../helpers/apiConfig';
+import { applyGameScoringState } from '../helpers/applyGameScoringState';
 import {
-	getMatchScoringChannelName,
-	getQuickGameScoringBaseUrl,
-} from '../helpers/apiConfig';
-import { applyMatchScoringState } from '../helpers/applyMatchScoringState';
-import {
-	closeMatchLeg,
-	fetchMatchScoringState,
+	closeGameLeg,
+	fetchGameScoringState,
 	newClientVisitId,
-	recordMatchVisit,
-	startMatchLeg,
-	undoMatchVisit,
-} from '../helpers/matchScoringApi';
-import { useMatchScoringRealtime } from './useMatchScoringRealtime';
+	recordGameVisit,
+	startGameLeg,
+	undoGameVisit,
+} from '../helpers/gameScoringApi';
+import { useGameScoringRealtime } from './useGameScoringRealtime';
 
 const BACKUP_POLL_MS = 2500;
 
 /**
- * Synchronizacja szybkiego meczu przez API wizyt (quick-games/{id}/...).
+ * Wspólny hook synchronizacji meczu przez scoring API (quick / group / playoff).
  */
-export function useQuickGameMatchScoring({
+export function useGameScoring({
 	enabled,
-	quickGameId,
+	baseUrl,
+	channelKind,
+	gameId,
 	accessToken,
 	players,
 	N,
@@ -30,27 +29,24 @@ export function useQuickGameMatchScoring({
 	playerStates,
 	currentPlayerIndexRef,
 	setCurrentPlayerIndex,
-	setMatchClosed,
-	matchClosed,
+	setGameClosed,
+	gameClosed,
 	isPerDartMode,
-	lobbyScoringMode,
-	isHost,
-	myPlayerIndexFromLobby,
+	inputPolicy = { type: 'tournament' },
 }) {
-	const baseUrl = quickGameId ? getQuickGameScoringBaseUrl(quickGameId) : null;
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
 	const ensureLegPromiseRef = useRef(null);
 
 	const applyState = useCallback(
 		(state) => {
-			const result = applyMatchScoringState(state, {
+			const result = applyGameScoringState(state, {
 				players,
 				N,
 				dispatches: playerDispatches,
 				currentPlayerIndexRef,
 				setCurrentPlayerIndex,
-				setMatchClosed,
+				setGameClosed,
 				lastStateKeyRef,
 			});
 			currentLegIdRef.current = result.currentLegId;
@@ -62,7 +58,7 @@ export function useQuickGameMatchScoring({
 			playerDispatches,
 			currentPlayerIndexRef,
 			setCurrentPlayerIndex,
-			setMatchClosed,
+			setGameClosed,
 		],
 	);
 
@@ -71,11 +67,11 @@ export function useQuickGameMatchScoring({
 			return null;
 		}
 		try {
-			const state = await fetchMatchScoringState(baseUrl, accessToken);
+			const state = await fetchGameScoringState(baseUrl, accessToken);
 			applyState(state);
 			return state;
 		} catch (e) {
-			console.warn('loadMatchScoringState', e);
+			console.warn('loadGameScoringState', e);
 			return null;
 		}
 	}, [enabled, baseUrl, accessToken, applyState]);
@@ -92,7 +88,7 @@ export function useQuickGameMatchScoring({
 		}
 		ensureLegPromiseRef.current = (async () => {
 			try {
-				let state = await fetchMatchScoringState(baseUrl, accessToken);
+				let state = await fetchGameScoringState(baseUrl, accessToken);
 				if (state.currentLeg?.id) {
 					currentLegIdRef.current = state.currentLeg.id;
 					applyState(state);
@@ -100,11 +96,11 @@ export function useQuickGameMatchScoring({
 				}
 				const tracked = !!isPerDartMode;
 				try {
-					state = await startMatchLeg(baseUrl, accessToken, tracked, tracked);
+					state = await startGameLeg(baseUrl, accessToken, tracked, tracked);
 				} catch (startErr) {
 					const msg = startErr?.message ?? '';
 					if (msg.includes('otwarty leg') || msg.includes('już otwarty')) {
-						state = await fetchMatchScoringState(baseUrl, accessToken);
+						state = await fetchGameScoringState(baseUrl, accessToken);
 					} else {
 						throw startErr;
 					}
@@ -120,15 +116,15 @@ export function useQuickGameMatchScoring({
 	}, [enabled, baseUrl, accessToken, isPerDartMode, applyState]);
 
 	useEffect(() => {
-		if (!enabled || matchClosed) {
+		if (!enabled || gameClosed) {
 			return undefined;
 		}
 		loadState();
 		return undefined;
-	}, [enabled, quickGameId, matchClosed, loadState]);
+	}, [enabled, gameId, gameClosed, loadState]);
 
 	useEffect(() => {
-		if (!enabled || matchClosed || !baseUrl || !accessToken) {
+		if (!enabled || gameClosed || !baseUrl || !accessToken) {
 			return undefined;
 		}
 		let cancelled = false;
@@ -141,19 +137,23 @@ export function useQuickGameMatchScoring({
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [enabled, matchClosed, baseUrl, accessToken, loadState]);
+	}, [enabled, gameClosed, baseUrl, accessToken, loadState]);
 
-	useMatchScoringRealtime({
+	useGameScoringRealtime({
 		channelName:
-			enabled && quickGameId
-				? getMatchScoringChannelName('quick', quickGameId)
+			enabled && channelKind && gameId
+				? getGameScoringChannelName(channelKind, gameId)
 				: null,
-		enabled: enabled && !matchClosed,
-		onMatchState: applyState,
+		enabled: enabled && !gameClosed,
+		onGameState: applyState,
 	});
 
 	const assertCanInput = useCallback(
 		(playerIndex) => {
+			if (inputPolicy.type === 'tournament') {
+				return true;
+			}
+			const { lobbyScoringMode, isHost, myPlayerIndexFromLobby } = inputPolicy;
 			if (lobbyScoringMode === 'one_device' && !isHost) {
 				Alert.alert(
 					'Info',
@@ -174,7 +174,7 @@ export function useQuickGameMatchScoring({
 			}
 			return true;
 		},
-		[lobbyScoringMode, isHost, myPlayerIndexFromLobby],
+		[inputPolicy],
 	);
 
 	const buildCloseLegPlayers = useCallback(
@@ -233,7 +233,7 @@ export function useQuickGameMatchScoring({
 				const remainingAfter = bust
 					? remainingBefore
 					: Math.max(0, remainingBefore - visitScore);
-				const state = await recordMatchVisit(baseUrl, legId, accessToken, {
+				const state = await recordGameVisit(baseUrl, legId, accessToken, {
 					playerId: player.playerId,
 					score: bust ? 0 : visitScore,
 					remainingBefore,
@@ -277,7 +277,7 @@ export function useQuickGameMatchScoring({
 					throw new Error('Brak otwartego lega');
 				}
 				const remainingBefore = playerStates[playerIndex]?.score ?? 501;
-				await recordMatchVisit(baseUrl, legId, accessToken, {
+				await recordGameVisit(baseUrl, legId, accessToken, {
 					playerId: player.playerId,
 					score: visitScore,
 					remainingBefore,
@@ -287,7 +287,7 @@ export function useQuickGameMatchScoring({
 					bust: false,
 					clientVisitId: newClientVisitId(),
 				});
-				const state = await closeMatchLeg(baseUrl, legId, accessToken, {
+				const state = await closeGameLeg(baseUrl, legId, accessToken, {
 					winnerId: player.playerId,
 					players: buildCloseLegPlayers(player.playerId, checkoutDart),
 				});
@@ -321,7 +321,7 @@ export function useQuickGameMatchScoring({
 			return null;
 		}
 		try {
-			const state = await undoMatchVisit(baseUrl, legId, accessToken);
+			const state = await undoGameVisit(baseUrl, legId, accessToken);
 			applyState(state);
 			return state;
 		} catch (e) {

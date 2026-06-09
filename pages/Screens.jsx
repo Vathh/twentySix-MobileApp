@@ -2,8 +2,8 @@ import React from 'react';
 import { Pressable, Text } from 'react-native';
 import useAuth from '../hooks/useAuth';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import MatchList from '../components/Game/MatchList';
-import Match from '../components/Game/Match';
+import GameList from '../components/Game/GameList';
+import GameScoringScreen from '../components/Game/GameScoringScreen';
 import TournamentLogin from '../components/Tournament/TournamentLogin';
 import TournamentCode from '../components/Tournament/TournamentCode';
 import Home from '../components/Core/Home';
@@ -91,8 +91,8 @@ const Screens = () => {
           options={{ headerTitle: 'Szybki mecz – Lobby' }}
         />
         <Stack.Screen
-          name="Match"
-          component={Match}
+          name="GameScoring"
+          component={GameScoringScreen}
           options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
@@ -121,10 +121,10 @@ const Screens = () => {
 
   // Zalogowany kodem turnieju: tylko lista meczów i rozgrywka (widok turniejowy)
   return (
-    <Stack.Navigator key="tournament" initialRouteName="MatchList">
+    <Stack.Navigator key="tournament" initialRouteName="GameList">
       <Stack.Screen
-        name="MatchList"
-        component={MatchList}
+        name="GameList"
+        component={GameList}
         options={{
           ...headerOptions,
           headerTitle: (props) => <HeaderTitle {...props} />,
@@ -132,8 +132,8 @@ const Screens = () => {
         }}
       />
       <Stack.Screen
-        name="Match"
-        component={Match}
+        name="GameScoring"
+        component={GameScoringScreen}
         options={{
           ...headerOptions,
           headerTitle: (props) => <HeaderTitle {...props} />,

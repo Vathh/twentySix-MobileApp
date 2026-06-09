@@ -76,7 +76,7 @@ const QuickGameLobby = ({ navigation, route }) => {
       const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
       const myPlayerIndex = resolveMyPlayerIndex(players, data.myPlayerIndex);
       setLobby(null);
-      navigation.navigate('Match', {
+      navigation.navigate('GameScoring', {
         quickGame: {
           players,
           lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
@@ -356,7 +356,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         const isHost = data.isHost ?? lobby?.youAreHost ?? false;
         const myPlayerIndex = resolveMyPlayerIndex(toPass, data.myPlayerIndex);
         setLobby(null);
-        navigation.navigate('Match', {
+        navigation.navigate('GameScoring', {
           quickGame: {
             players: toPass,
             lobbyId: lobby.id,

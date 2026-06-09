@@ -1,0 +1,18 @@
+---
+description: twentySix — konwencja nazewnictwa (Game, nie Match)
+alwaysApply: true
+---
+
+# Nazewnictwo: Game, nie Match
+
+Źródło prawdy: **`../twentysix-backend/CONVENTIONS.md`** (sekcja „Nazewnictwo - Game vs Match”).
+
+## W mobile
+
+- ✅ `lockTournamentGame`, `UPDATE_GAME_API_URL`, `getGroupGameScoringBaseUrl`
+- ❌ Nowe pliki/funkcje: `lockTournamentMatch`, `MatchLockService` itp.
+
+## Wyjątki
+
+- Ekrany sędziowania: `GameScoringScreen.jsx`, lista turniejowa: `GameList.jsx`
+- Tekst UI może mówić „mecz”; **identyfikatory w kodzie** preferują `Game`

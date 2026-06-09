@@ -4,14 +4,14 @@ import { syncFromServer } from './reducers/playerResultActions';
  * Mapuje stan z API scoringu na reducery graczy.
  * @returns {{ currentLegId: number|null, currentPlayerIndex: number|null }}
  */
-export function applyMatchScoringState(state, ctx) {
+export function applyGameScoringState(state, ctx) {
 	const {
 		players,
 		N,
 		dispatches,
 		currentPlayerIndexRef,
 		setCurrentPlayerIndex,
-		setMatchClosed,
+		setGameClosed,
 		lastStateKeyRef,
 	} = ctx;
 
@@ -34,7 +34,9 @@ export function applyMatchScoringState(state, ctx) {
 
 	(state.players || []).forEach((sp) => {
 		const spId = pid(sp.playerId);
-		const idx = players.findIndex((p) => pid(p.playerId) === spId);
+		const idx = players.findIndex(
+			(p) => pid(p.playerId ?? p.id) === spId,
+		);
 		if (idx >= 0 && idx < N) {
 			dispatches[idx](
 				syncFromServer({
@@ -50,7 +52,9 @@ export function applyMatchScoringState(state, ctx) {
 	if (visits.length > 0) {
 		const last = visits[visits.length - 1];
 		const lastPid = pid(last.playerId);
-		const lastIdx = players.findIndex((p) => pid(p.playerId) === lastPid);
+		const lastIdx = players.findIndex(
+			(p) => pid(p.playerId ?? p.id) === lastPid,
+		);
 		if (lastIdx >= 0) {
 			if (last.bust) {
 				nextPlayerIndex = lastIdx;
@@ -64,8 +68,8 @@ export function applyMatchScoringState(state, ctx) {
 	}
 	setCurrentPlayerIndex?.(nextPlayerIndex);
 
-	if (state.match?.status === 'finished') {
-		setMatchClosed?.(true);
+	if (state.game?.status === 'finished') {
+		setGameClosed?.(true);
 	}
 
 	return {

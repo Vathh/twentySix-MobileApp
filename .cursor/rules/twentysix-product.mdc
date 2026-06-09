@@ -15,6 +15,7 @@ Pełna wizja produktu: **`twentysix-backend/docs/product.md`**. Przed większymi
 ## Zasady
 
 - `product.md` > stary kod przy rozbieżnościach.
+- **Nazewnictwo:** rozgrywka = **Game**, nie Match (szczegóły: `twentysix-backend/CONVENTIONS.md`, reguła `twentysix-naming.mdc` w backendzie). Nowe helpery: np. `lockTournamentGame`, nie `lockTournamentMatch`.
 - Nie rozszerzaj poza MVP bez prośby (krykiet, komunikator, premium — później).
 - Nie commituj / nie pushuj bez prośby. Komunikacja po polsku.
 - Zmiany API — sprawdź też `twentysix-backend`.

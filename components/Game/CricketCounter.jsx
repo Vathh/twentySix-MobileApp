@@ -11,7 +11,7 @@ const CricketCounter = ({
   onCricketHit,
   onCricketMiss,
   onCricketUndo,
-  matchClosed = false,
+  gameClosed = false,
 }) => {
   const N = players?.length ?? 0;
   const [modifier, setModifier] = useState(null);
@@ -20,7 +20,7 @@ const CricketCounter = ({
     return cricketStates.every((s) => (s?.hits[seg] ?? 0) >= 3);
   };
 
-  const isButtonDisabled = (seg) => matchClosed || isSegmentClosedByAll(seg);
+  const isButtonDisabled = (seg) => gameClosed || isSegmentClosedByAll(seg);
 
   const handleSegmentPress = (seg, mult = 1) => {
     if (isButtonDisabled(seg)) return;
@@ -30,13 +30,13 @@ const CricketCounter = ({
   };
 
   const handleMiss = () => {
-    if (matchClosed) return;
+    if (gameClosed) return;
     setModifier(null);
     onCricketMiss?.();
   };
 
   const handleUndo = () => {
-    if (matchClosed) return;
+    if (gameClosed) return;
     setModifier(null);
     onCricketUndo?.();
   };
@@ -143,7 +143,7 @@ const CricketCounter = ({
           >
             <Text style={[styles.numText, (modifier === 'triple' || isButtonDisabled('bull')) && styles.numTextDisabled]}>Bull</Text>
           </Pressable>
-          <Pressable style={styles.numBtn} onPress={handleMiss} disabled={matchClosed}>
+          <Pressable style={styles.numBtn} onPress={handleMiss} disabled={gameClosed}>
             <Text style={styles.numText}>0</Text>
           </Pressable>
         </View>

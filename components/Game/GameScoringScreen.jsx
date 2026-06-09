@@ -25,29 +25,33 @@ import {
 import Counter from './Counter';
 import Stats from './Stats';
 import Settings from '../Core/Settings';
-import { useMatchSettings } from '../../hooks/useMatchSettings';
+import { useGameSettings } from '../../hooks/useGameSettings';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
 	getQuickGameLobbyUrl,
+	getGroupGameScoringBaseUrl,
+	getPlayoffGameScoringBaseUrl,
+	getQuickGameScoringBaseUrl,
 } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
-import { useQuickGameMatchScoring } from '../../hooks/useQuickGameMatchScoring';
+import { useGameScoring } from '../../hooks/useGameScoring';
+import { normalizeTournamentPlayers } from '../../helpers/normalizeTournamentPlayers';
 
-const Match = ({ route, navigation }) => {
+const GameScoringScreen = ({ route, navigation }) => {
 	const { auth } = useAuth();
 	const {
 		scoringMode,
 		setScoringMode,
-		loaded: matchSettingsLoaded,
+		loaded: gameSettingsLoaded,
 		isPerDartMode,
-	} = useMatchSettings();
+	} = useGameSettings();
 
 	const [selectedComponent, setSelectedComponent] = useState('counter');
 
 	const isQuickGame = !!route.params?.quickGame;
 	const quickGame = route.params?.quickGame;
-	const matchParam = route.params?.match;
+	const tournamentGame = route.params?.game;
 
 	const [resolvedQuickGameId, setResolvedQuickGameId] = useState(
 		quickGame?.quickGameId ?? null,
@@ -61,8 +65,11 @@ const Match = ({ route, navigation }) => {
 				name: p.name ?? 'Gracz',
 				playerId: p.playerId != null ? Number(p.playerId) : null,
 			}))
-		: matchParam?.match
-			? [matchParam.match.player1, matchParam.match.player2]
+		: tournamentGame
+			? normalizeTournamentPlayers(
+					tournamentGame.player1,
+					tournamentGame.player2,
+				)
 			: [];
 	const N = Math.min(Math.max(players.length, 2), 6);
 
@@ -85,27 +92,27 @@ const Match = ({ route, navigation }) => {
 	const hasOnlineQuickGame =
 		isQuickGame &&
 		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
+	const isTournamentGame = !!tournamentGame?.id;
 	const useScoringApi =
-		hasOnlineQuickGame && !!resolvedQuickGameId && !!auth?.accessToken;
+		(hasOnlineQuickGame && !!resolvedQuickGameId && !!auth?.accessToken) ||
+		(isTournamentGame && !!auth?.accessToken);
 	const useOnlineSync = useScoringApi;
 	const legsToWinQuick = quickGame?.legsCount ?? 2;
 
-	const match = isQuickGame
+	const activeGame = isQuickGame
 		? {
-				match: {
-					id: null,
-					type: 'quick_match',
-					tournamentId: null,
-					groupNumber: null,
-				},
+				id: null,
+				type: 'quick_game',
+				tournamentId: null,
+				groupNumber: null,
 			}
-		: matchParam;
+		: tournamentGame ?? null;
 
 	const [isModalVisible, setIsModalVisible] = useState(
 		!isQuickGame || useOnlineSync ? false : true,
 	);
 	const [isQFModalVisible, setIsQFModalVisible] = useState(false);
-	const [matchClosed, setMatchClosed] = useState(false);
+	const [gameClosed, setGameClosed] = useState(false);
 
 	const [player1State, player1Dispatch] = useReducer(
 		playerResultReducer,
@@ -159,6 +166,7 @@ const Match = ({ route, navigation }) => {
 	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const currentPlayerIndexRef = useRef(0);
 	const okHandlingRef = useRef(false);
+	const tournamentResultSentRef = useRef(false);
 	const currentPlayer = players[currentPlayerIndex] ?? null;
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
@@ -175,7 +183,7 @@ const Match = ({ route, navigation }) => {
 			resolvedQuickGameId ||
 			!quickGame?.lobbyId ||
 			!auth?.accessToken ||
-			matchClosed
+			gameClosed
 		) {
 			return undefined;
 		}
@@ -205,12 +213,37 @@ const Match = ({ route, navigation }) => {
 		resolvedQuickGameId,
 		quickGame?.lobbyId,
 		auth?.accessToken,
-		matchClosed,
+		gameClosed,
 	]);
 
-	const matchScoring = useQuickGameMatchScoring({
-		enabled: useScoringApi && !matchClosed,
-		quickGameId: resolvedQuickGameId,
+	const scoringGameId = isTournamentGame
+		? tournamentGame.id
+		: resolvedQuickGameId;
+	const scoringChannelKind = isTournamentGame
+		? tournamentGame.type === 'playoff'
+			? 'playoff'
+			: 'group'
+		: 'quick';
+	const scoringBaseUrl = useMemo(() => {
+		if (!useScoringApi || !scoringGameId) return null;
+		if (isTournamentGame) {
+			return tournamentGame.type === 'playoff'
+				? getPlayoffGameScoringBaseUrl(scoringGameId)
+				: getGroupGameScoringBaseUrl(scoringGameId);
+		}
+		return getQuickGameScoringBaseUrl(scoringGameId);
+	}, [
+		useScoringApi,
+		scoringGameId,
+		isTournamentGame,
+		tournamentGame?.type,
+	]);
+
+	const gameScoring = useGameScoring({
+		enabled: useScoringApi && !gameClosed,
+		baseUrl: scoringBaseUrl,
+		channelKind: scoringChannelKind,
+		gameId: scoringGameId,
 		accessToken: auth?.accessToken ?? null,
 		players,
 		N,
@@ -218,17 +251,23 @@ const Match = ({ route, navigation }) => {
 		playerStates,
 		currentPlayerIndexRef,
 		setCurrentPlayerIndex,
-		setMatchClosed,
-		matchClosed,
+		setGameClosed,
+		gameClosed,
 		isPerDartMode,
-		lobbyScoringMode,
-		isHost,
-		myPlayerIndexFromLobby,
+		inputPolicy: isTournamentGame
+			? { type: 'tournament' }
+			: {
+					type: 'quick',
+					lobbyScoringMode,
+					isHost,
+					myPlayerIndexFromLobby,
+				},
 	});
 
 	const counterCanInput = useMemo(() => {
-		if (matchClosed) return false;
+		if (gameClosed) return false;
 		if (!useScoringApi) return true;
+		if (isTournamentGame) return true;
 		if (lobbyScoringMode === 'one_device' && !isHost) return false;
 		if (
 			lobbyScoringMode === 'each_own' &&
@@ -239,8 +278,9 @@ const Match = ({ route, navigation }) => {
 		}
 		return true;
 	}, [
-		matchClosed,
+		gameClosed,
 		useScoringApi,
+		isTournamentGame,
 		lobbyScoringMode,
 		isHost,
 		myPlayerIndexFromLobby,
@@ -270,23 +310,20 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleNumberBtn = (number) => {
-		if (matchClosed) {
+		if (gameClosed) {
 			return;
 		}
-		if (
-			useScoringApi &&
-			lobbyScoringMode === 'one_device' &&
-			!isHost
-		) {
-			return;
-		}
-		if (
-			useScoringApi &&
-			lobbyScoringMode === 'each_own' &&
-			myPlayerIndexFromLobby !== null &&
-			myPlayerIndexFromLobby !== currentPlayerIndexRef.current
-		) {
-			return;
+		if (useScoringApi && !isTournamentGame) {
+			if (lobbyScoringMode === 'one_device' && !isHost) {
+				return;
+			}
+			if (
+				lobbyScoringMode === 'each_own' &&
+				myPlayerIndexFromLobby !== null &&
+				myPlayerIndexFromLobby !== currentPlayerIndexRef.current
+			) {
+				return;
+			}
 		}
 		okHandlingRef.current = false;
 		if (currentResult.toString().length < 3) {
@@ -295,7 +332,7 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleClearBtn = () => {
-		if (matchClosed) {
+		if (gameClosed) {
 			return;
 		}
 		okHandlingRef.current = false;
@@ -310,7 +347,7 @@ const Match = ({ route, navigation }) => {
 		if (val == 180) {
 			const max = {
 				playerId: p.playerId,
-				tournamentId: match.match.tournamentId,
+				tournamentId: activeGame?.tournamentId,
 				value: null,
 				type: 'max',
 			};
@@ -320,7 +357,7 @@ const Match = ({ route, navigation }) => {
 		if (val >= 170 && val < 180) {
 			const oneSeventy = {
 				playerId: p.playerId,
-				tournamentId: match.match.tournamentId,
+				tournamentId: activeGame?.tournamentId,
 				value: val,
 				type: 'one_seventy',
 			};
@@ -335,7 +372,7 @@ const Match = ({ route, navigation }) => {
 		if (!p || val < 100) return;
 		const hf = {
 			playerId: p.playerId,
-			tournamentId: match.match.tournamentId,
+			tournamentId: activeGame?.tournamentId,
 			value: val,
 			type: 'hf',
 		};
@@ -346,7 +383,7 @@ const Match = ({ route, navigation }) => {
 		if (dart < 20) {
 			const qf = {
 				playerId: player.playerId,
-				tournamentId: match.match.tournamentId,
+				tournamentId: activeGame?.tournamentId,
 				value: dart,
 				type: 'qf',
 			};
@@ -356,7 +393,7 @@ const Match = ({ route, navigation }) => {
 
 	/** Wizyta przez scoring API — `resultToApply` to punkty z całej wizyty (1–180). */
 	const submitOnlineVisitCore = async (resultToApply, dartsInVisit = 3) => {
-		if (matchClosed || !useScoringApi) return false;
+		if (gameClosed || !useScoringApi) return false;
 		if (okHandlingRef.current) return false;
 		const idx = currentPlayerIndexRef.current;
 		const state = playerStates[idx];
@@ -387,7 +424,7 @@ const Match = ({ route, navigation }) => {
 						if (resultToApply >= 100) {
 							handleHf(resultToApply, player);
 						}
-						await matchScoring.closeLegWithWinner(idx, resultToApply, 3);
+						await gameScoring.closeLegWithWinner(idx, resultToApply, 3);
 						okHandlingRef.current = false;
 						setCurrentResult(0);
 					},
@@ -399,14 +436,14 @@ const Match = ({ route, navigation }) => {
 		okHandlingRef.current = true;
 		handleMaxAndOneSeventy(player, resultToApply);
 		if (overshoot) {
-			await matchScoring.submitVisit({
+			await gameScoring.submitVisit({
 				playerIndex: idx,
 				visitScore: 0,
 				bust: true,
 				dartsInVisit,
 			});
 		} else {
-			await matchScoring.submitVisit({
+			await gameScoring.submitVisit({
 				playerIndex: idx,
 				visitScore: resultToApply,
 				bust: false,
@@ -421,7 +458,7 @@ const Match = ({ route, navigation }) => {
 	const handleOnlineOkBtn = async () => submitOnlineVisitCore(currentResult);
 
 	const handleDartSubmit = (points, roundTotal, isLastDart, dartIndex) => {
-		if (matchClosed) return;
+		if (gameClosed) return;
 		if (!counterCanInput) return;
 
 		const idx = currentPlayerIndexRef.current;
@@ -498,16 +535,16 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleUndoSingleDart = () => {
-		if (matchClosed) return;
+		if (gameClosed) return;
 		if (useOnlineSync) return;
 		const idx = currentPlayerIndexRef.current;
 		playerDispatches[idx](undoSingleDart());
 	};
 
 	const handleUndoLastDartAfterSwitch = () => {
-		if (matchClosed) return;
+		if (gameClosed) return;
 		if (useScoringApi) {
-			void matchScoring.undoVisit();
+			void gameScoring.undoVisit();
 			return;
 		}
 		const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
@@ -520,7 +557,7 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleOkBtn = () => {
-		if (matchClosed) return;
+		if (gameClosed) return;
 		if (useScoringApi) {
 			void handleOnlineOkBtn();
 			return;
@@ -581,7 +618,7 @@ const Match = ({ route, navigation }) => {
 	const handleCheckout = (idx) => {
 		if (useScoringApi) {
 			const st = playerStates[idx];
-			void matchScoring.closeLegWithWinner(idx, st.score, 3);
+			void gameScoring.closeLegWithWinner(idx, st.score, 3);
 			return;
 		}
 		const state = playerStates[idx];
@@ -599,7 +636,32 @@ const Match = ({ route, navigation }) => {
 		setCurrentPlayerIndex(nextIdx);
 	};
 
-	const sendMatchResult = async (matchResultDTO) => {
+	const sendTournamentAchievements = async (achievements) => {
+		if (!activeGame?.id || !achievements?.length) return;
+		const winnerIdx = playerStates.findIndex((s, i) => {
+			const other = playerStates[1 - i];
+			return N === 2 && s.legsWon > (other?.legsWon ?? 0);
+		});
+		const winner = players[winnerIdx >= 0 ? winnerIdx : 0];
+		const gameResultDTO = {
+			game: {
+				id: activeGame.id,
+				type: activeGame.type,
+				player1Id: players[0]?.playerId ?? players[0]?.id,
+				player2Id: players[1]?.playerId ?? players[1]?.id,
+				player1Score: playerStates[0]?.legsWon ?? 0,
+				player2Score: playerStates[1]?.legsWon ?? 0,
+				winnerId: winner?.playerId ?? winner?.id,
+				tournamentId: activeGame.tournamentId,
+				groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
+			},
+			achievements,
+			legs: [],
+		};
+		await sendGameResult(gameResultDTO);
+	};
+
+	const sendGameResult = async (gameResultDTO) => {
 		try {
 			const response = await fetch(UPDATE_GAME_API_URL, {
 				method: 'POST',
@@ -607,7 +669,7 @@ const Match = ({ route, navigation }) => {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${auth?.accessToken}`,
 				},
-				body: JSON.stringify(matchResultDTO),
+				body: JSON.stringify(gameResultDTO),
 			});
 
 			if (response.ok) {
@@ -669,7 +731,7 @@ const Match = ({ route, navigation }) => {
 		if (useScoringApi) {
 			const idx = currentPlayerIndexRef.current;
 			const st = playerStates[idx];
-			void matchScoring.closeLegWithWinner(idx, st.score, dartNumber);
+			void gameScoring.closeLegWithWinner(idx, st.score, dartNumber);
 			toggleQFModal();
 			return;
 		}
@@ -688,9 +750,9 @@ const Match = ({ route, navigation }) => {
 	};
 
 	const handleUndoBtn = () => {
-		if (matchClosed) return;
+		if (gameClosed) return;
 		if (useScoringApi) {
-			void matchScoring.undoVisit();
+			void gameScoring.undoVisit();
 			return;
 		}
 		const allAtStart = playerStates.every((s) => s.score === 501);
@@ -707,10 +769,32 @@ const Match = ({ route, navigation }) => {
 		const hasWinner = legsWonArr.some((l) => l >= legsTarget);
 		if (!hasWinner) return;
 
-		setMatchClosed(true);
+		setGameClosed(true);
 		const winnerIdx = legsWonArr.findIndex((l) => l >= legsTarget);
 		const winner = players[winnerIdx];
 		const loser = N === 2 ? players[1 - winnerIdx] : null;
+
+		if (isTournamentGame && useScoringApi) {
+			if (tournamentResultSentRef.current) return;
+			tournamentResultSentRef.current = true;
+			const achievementsPayload = (achievementsState?.achievements || []).map(
+				(a) => ({
+					playerId: a.playerId,
+					tournamentId: a.tournamentId,
+					value: a.value ?? null,
+					type: a.type,
+				}),
+			);
+			if (achievementsPayload.length > 0) {
+				void sendTournamentAchievements(achievementsPayload);
+			}
+			Alert.alert(
+				'MECZ ZAKOŃCZONY',
+				`${loser?.name ?? 'Przegrany'} przegrał zatem pozostaje przy tarczy jako liczący.`,
+				[{ text: 'OK', style: 'destructive', onPress: () => {} }],
+			);
+			return;
+		}
 
 		if (isQuickGame) {
 			const achievementsPayload = (achievementsState?.achievements || []).map(
@@ -737,7 +821,7 @@ const Match = ({ route, navigation }) => {
 						playerId: x.player.playerId,
 						score: x.state.legsWon,
 						place: place + 1,
-						average: parseFloat(x.state.matchAverage) || null,
+						average: parseFloat(x.state.gameAverage) || null,
 						dartsThrown: x.state.totalDartsThrown || null,
 						pointsEarned: x.state.totalPointsEarned || null,
 					}));
@@ -758,21 +842,22 @@ const Match = ({ route, navigation }) => {
 			return;
 		}
 
-		const matchResultDTO = {
+		const gameResultDTO = {
 			game: {
-				id: match.match.id,
-				type: match.match.type,
-				player1Id: players[0]?.id,
-				player2Id: players[1]?.id,
+				id: activeGame.id,
+				type: activeGame.type,
+				player1Id: players[0]?.playerId ?? players[0]?.id,
+				player2Id: players[1]?.playerId ?? players[1]?.id,
 				player1Score: playerStates[0]?.legsWon,
 				player2Score: playerStates[1]?.legsWon,
-				winnerId: winner.id,
-				tournamentId: match.match.tournamentId,
-				groupNumber: match.match.groupNumber,
+				winnerId: winner.playerId ?? winner.id,
+				tournamentId: activeGame.tournamentId,
+				groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
 			},
-			achievements: achievementsState,
+			achievements: achievementsState?.achievements ?? [],
+			legs: [],
 		};
-		sendMatchResult(matchResultDTO);
+		sendGameResult(gameResultDTO);
 		Alert.alert(
 			'MECZ ZAKOŃCZONY',
 			`${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`,
@@ -786,6 +871,8 @@ const Match = ({ route, navigation }) => {
 		player5State?.legsWon,
 		player6State?.legsWon,
 		isQuickGame,
+		isTournamentGame,
+		useScoringApi,
 		legsToWinQuick,
 	]);
 
@@ -839,7 +926,7 @@ const Match = ({ route, navigation }) => {
 				<Settings
 					scoringMode={scoringMode}
 					setScoringMode={setScoringMode}
-					loaded={matchSettingsLoaded}
+					loaded={gameSettingsLoaded}
 				/>
 			);
 		}
@@ -1014,19 +1101,19 @@ const styles = StyleSheet.create({
 	},
 });
 
-export default Match;
+export default GameScoringScreen;
 
-// const matchResultDTO = {
+// const gameResultDTO = {
 //         achievements : achievementsState,
 //         game : {
-//           tournamentId: match.match.id,
-//           matchId: match.match.id,
+//           tournamentId: activeGame.tournamentId,
+//           id: activeGame.id,
 //           winnerId: winner.id,
 //           loserId: loser.id,
-//           markup: match.match.markup,
-//           winnerDestinationMarkup: match.match.winnerDestinationMarkup,
-//           loserDestinationMarkup: match.match.loserDestinationMarkup,
-//           points: match.match.points
+//           markup: activeGame.markup,
+//           winnerDestinationMarkup: activeGame.winnerDestinationMarkup,
+//           loserDestinationMarkup: activeGame.loserDestinationMarkup,
+//           points: activeGame.points
 //         }
 //       };
 

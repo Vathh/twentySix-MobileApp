@@ -7,19 +7,19 @@ import {
 	normalizePusherPayload,
 } from '../helpers/reverbWsLog';
 
-const MATCH_STATE_EVENT = 'match.state';
-const MATCH_STATE_EVENT_ALT = '.match.state';
+const GAME_STATE_EVENT = 'game.state';
+const GAME_STATE_EVENT_ALT = '.game.state';
 
 /**
  * Publiczny kanał stanu meczu (quick-game.{id}, group-game.{id}, playoff-game.{id}).
  */
-export function useMatchScoringRealtime({
+export function useGameScoringRealtime({
 	channelName,
 	enabled,
-	onMatchState,
+	onGameState,
 }) {
-	const onMatchStateRef = useRef(onMatchState);
-	onMatchStateRef.current = onMatchState;
+	const onGameStateRef = useRef(onGameState);
+	onGameStateRef.current = onGameState;
 
 	useEffect(() => {
 		if (!enabled || !channelName) {
@@ -38,27 +38,27 @@ export function useMatchScoringRealtime({
 		});
 
 		const unbindDebug = attachPusherReverbDebugLogging(pusher, {
-			scope: 'match-scoring',
+			scope: 'game-scoring',
 			wsHost: cfg.wsHost,
 			wsPort: cfg.wsPort,
 		});
 
 		const channel = pusher.subscribe(channelName);
 		channel.bind('pusher:subscription_succeeded', () => {
-			logReverbWs('info', 'match-scoring', `subskrypcja OK: ${channelName}`);
+			logReverbWs('info', 'game-scoring', `subskrypcja OK: ${channelName}`);
 		});
 		channel.bind('pusher:subscription_error', (status) => {
-			console.warn('[WS/Reverb:match-scoring] subscription_error', status);
+			console.warn('[WS/Reverb:game-scoring] subscription_error', status);
 		});
 
 		const onState = (payload) => {
 			const data = normalizePusherPayload(payload);
 			if (data) {
-				onMatchStateRef.current?.(data);
+				onGameStateRef.current?.(data);
 			}
 		};
-		channel.bind(MATCH_STATE_EVENT, onState);
-		channel.bind(MATCH_STATE_EVENT_ALT, onState);
+		channel.bind(GAME_STATE_EVENT, onState);
+		channel.bind(GAME_STATE_EVENT_ALT, onState);
 
 		return () => {
 			unbindDebug();

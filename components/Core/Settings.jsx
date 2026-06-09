@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
-import { SCORING_MODES } from '../../hooks/useMatchSettings';
+import { SCORING_MODES } from '../../hooks/useGameSettings';
 
 const Settings = ({ scoringMode, setScoringMode, loaded = true }) => {
   if (!loaded) {

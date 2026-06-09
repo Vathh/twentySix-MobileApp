@@ -1,9 +1,9 @@
 import {
-	getMatchScoringCloseLegUrl,
-	getMatchScoringStartLegUrl,
-	getMatchScoringStateUrl,
-	getMatchScoringUndoUrl,
-	getMatchScoringVisitUrl,
+	getGameScoringCloseLegUrl,
+	getGameScoringStartLegUrl,
+	getGameScoringStateUrl,
+	getGameScoringUndoUrl,
+	getGameScoringVisitUrl,
 } from './apiConfig';
 
 const jsonHeaders = (accessToken) => ({
@@ -20,8 +20,8 @@ async function parseJsonResponse(res) {
 	}
 }
 
-export async function fetchMatchScoringState(baseUrl, accessToken) {
-	const res = await fetch(getMatchScoringStateUrl(baseUrl), {
+export async function fetchGameScoringState(baseUrl, accessToken) {
+	const res = await fetch(getGameScoringStateUrl(baseUrl), {
 		headers: jsonHeaders(accessToken),
 	});
 	const { data, text } = await parseJsonResponse(res);
@@ -31,13 +31,13 @@ export async function fetchMatchScoringState(baseUrl, accessToken) {
 	return data;
 }
 
-export async function startMatchLeg(
+export async function startGameLeg(
 	baseUrl,
 	accessToken,
 	player1DoubleTracked,
 	player2DoubleTracked,
 ) {
-	const res = await fetch(getMatchScoringStartLegUrl(baseUrl), {
+	const res = await fetch(getGameScoringStartLegUrl(baseUrl), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify({ player1DoubleTracked, player2DoubleTracked }),
@@ -49,8 +49,8 @@ export async function startMatchLeg(
 	return data;
 }
 
-export async function recordMatchVisit(baseUrl, legId, accessToken, payload) {
-	const res = await fetch(getMatchScoringVisitUrl(baseUrl, legId), {
+export async function recordGameVisit(baseUrl, legId, accessToken, payload) {
+	const res = await fetch(getGameScoringVisitUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify(payload),
@@ -62,8 +62,8 @@ export async function recordMatchVisit(baseUrl, legId, accessToken, payload) {
 	return data;
 }
 
-export async function undoMatchVisit(baseUrl, legId, accessToken) {
-	const res = await fetch(getMatchScoringUndoUrl(baseUrl, legId), {
+export async function undoGameVisit(baseUrl, legId, accessToken) {
+	const res = await fetch(getGameScoringUndoUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 	});
@@ -74,8 +74,8 @@ export async function undoMatchVisit(baseUrl, legId, accessToken) {
 	return data;
 }
 
-export async function closeMatchLeg(baseUrl, legId, accessToken, payload) {
-	const res = await fetch(getMatchScoringCloseLegUrl(baseUrl, legId), {
+export async function closeGameLeg(baseUrl, legId, accessToken, payload) {
+	const res = await fetch(getGameScoringCloseLegUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify(payload),
