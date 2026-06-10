@@ -764,6 +764,43 @@ const GameScoringScreen = ({ route, navigation }) => {
 	};
 
 	useEffect(() => {
+		if (!gameClosed || !isTournamentGame || !useScoringApi) return;
+		if (tournamentResultSentRef.current) return;
+		tournamentResultSentRef.current = true;
+
+		const legsWonArr = playerStates.map((s) => s.legsWon);
+		const winnerIdx = legsWonArr.findIndex((l) => l >= 2);
+		const loser =
+			N === 2 && winnerIdx >= 0 ? players[1 - winnerIdx] : null;
+
+		const achievementsPayload = (achievementsState?.achievements || []).map(
+			(a) => ({
+				playerId: a.playerId,
+				tournamentId: a.tournamentId,
+				value: a.value ?? null,
+				type: a.type,
+			}),
+		);
+		if (achievementsPayload.length > 0) {
+			void sendTournamentAchievements(achievementsPayload);
+		}
+		Alert.alert(
+			'MECZ ZAKOŃCZONY',
+			`${loser?.name ?? 'Przegrany'} przegrał zatem pozostaje przy tarczy jako liczący.`,
+			[{ text: 'OK', style: 'destructive', onPress: () => {} }],
+		);
+	}, [
+		gameClosed,
+		isTournamentGame,
+		useScoringApi,
+		player1State.legsWon,
+		player2State.legsWon,
+		achievementsState?.achievements,
+	]);
+
+	useEffect(() => {
+		if (isTournamentGame && useScoringApi) return;
+
 		const legsWonArr = playerStates.map((s) => s.legsWon);
 		const legsTarget = isQuickGame ? legsToWinQuick : 2;
 		const hasWinner = legsWonArr.some((l) => l >= legsTarget);
@@ -773,28 +810,6 @@ const GameScoringScreen = ({ route, navigation }) => {
 		const winnerIdx = legsWonArr.findIndex((l) => l >= legsTarget);
 		const winner = players[winnerIdx];
 		const loser = N === 2 ? players[1 - winnerIdx] : null;
-
-		if (isTournamentGame && useScoringApi) {
-			if (tournamentResultSentRef.current) return;
-			tournamentResultSentRef.current = true;
-			const achievementsPayload = (achievementsState?.achievements || []).map(
-				(a) => ({
-					playerId: a.playerId,
-					tournamentId: a.tournamentId,
-					value: a.value ?? null,
-					type: a.type,
-				}),
-			);
-			if (achievementsPayload.length > 0) {
-				void sendTournamentAchievements(achievementsPayload);
-			}
-			Alert.alert(
-				'MECZ ZAKOŃCZONY',
-				`${loser?.name ?? 'Przegrany'} przegrał zatem pozostaje przy tarczy jako liczący.`,
-				[{ text: 'OK', style: 'destructive', onPress: () => {} }],
-			);
-			return;
-		}
 
 		if (isQuickGame) {
 			const achievementsPayload = (achievementsState?.achievements || []).map(
@@ -871,8 +886,6 @@ const GameScoringScreen = ({ route, navigation }) => {
 		player5State?.legsWon,
 		player6State?.legsWon,
 		isQuickGame,
-		isTournamentGame,
-		useScoringApi,
 		legsToWinQuick,
 	]);
 
