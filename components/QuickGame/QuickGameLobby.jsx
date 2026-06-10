@@ -22,9 +22,11 @@ import {
   getQuickGameLobbyReadyUrl,
   getQuickGameLobbyStartUrl,
   getQuickGameLobbyInviteUrl,
-  getQuickGameLobbyAddGuestUrl,
   FRIENDS_API_URL,
 } from '../../helpers/apiConfig';
+
+const DEFAULT_LEGS_TO_WIN = 2;
+const MAX_LOBBY_PLAYERS = 8;
 
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
@@ -38,7 +40,7 @@ const QuickGameLobby = ({ navigation, route }) => {
   const { auth } = useAuth();
   const GAME_TYPES = { X01: '501', CRICKET: 'cricket' };
   const [lobby, setLobby] = useState(null);
-  const [legsCount, setLegsCount] = useState(3);
+  const [legsCount, setLegsCount] = useState(DEFAULT_LEGS_TO_WIN);
   const [gameType, setGameType] = useState(GAME_TYPES.X01);
   const [scoringMode, setScoringMode] = useState(SCORING_MODES.EACH_OWN);
   const [invitations, setInvitations] = useState([]); // [{ id, name, status: 'sent'|'accepted'|'rejected' }]
@@ -48,8 +50,6 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
-  const [guestName, setGuestName] = useState('');
-  const [guestAdding, setGuestAdding] = useState(false);
   const [orderedPlayers, setOrderedPlayers] = useState([]);
 
   const resolveMyPlayerIndex = useCallback((players, fromApi) => {
@@ -69,7 +69,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         name: p.name ?? p.tempName ?? 'Gracz',
         playerId: p.playerId ?? p.player_id,
       }));
-      const legsToWin = data.legsCount ?? data.legs_count ?? 3;
+      const legsToWin = data.legsCount ?? data.legs_count ?? DEFAULT_LEGS_TO_WIN;
       const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
       const quickGameId = data.quickGameId ?? null;
       const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
@@ -96,7 +96,7 @@ const QuickGameLobby = ({ navigation, route }) => {
       ...data,
       // Pole user-specific może nie przyjść w evencie lobby; zachowaj poprzednią wartość.
       youAreHost: data.youAreHost ?? prev?.youAreHost ?? false,
-      legsCount: data.legsCount ?? prev?.legsCount ?? 3,
+      legsCount: data.legsCount ?? prev?.legsCount ?? DEFAULT_LEGS_TO_WIN,
       gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
       scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
     }));
@@ -140,7 +140,7 @@ const QuickGameLobby = ({ navigation, route }) => {
       const initial = route?.params?.initialLobby;
       if (initial?.id) {
         setLobby(initial);
-        setLegsCount(initial.legsCount ?? initial.legs_count ?? 3);
+        setLegsCount(initial.legsCount ?? initial.legs_count ?? DEFAULT_LEGS_TO_WIN);
         setGameType(initial.gameType ?? initial.game_type ?? GAME_TYPES.X01);
         setScoringMode(initial.scoringMode ?? SCORING_MODES.EACH_OWN);
         const pl = (initial.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
@@ -181,8 +181,8 @@ const QuickGameLobby = ({ navigation, route }) => {
       });
       const data = await res.json();
       if (res.ok && data?.id) {
-        setLobby({ ...data, legsCount: data.legsCount ?? 3, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
-        setLegsCount(data.legsCount ?? 3);
+        setLobby({ ...data, legsCount: data.legsCount ?? DEFAULT_LEGS_TO_WIN, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
+        setLegsCount(data.legsCount ?? DEFAULT_LEGS_TO_WIN);
         setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         setInvitations([]);
         fetchLobbyById(data.id);
@@ -247,36 +247,6 @@ const QuickGameLobby = ({ navigation, route }) => {
     }
   };
 
-  const handleAddGuest = async () => {
-    const name = guestName.trim();
-    if (!name || !lobby?.id || !auth?.accessToken || guestAdding) return;
-    setGuestAdding(true);
-    setError('');
-    try {
-      const res = await fetch(getQuickGameLobbyAddGuestUrl(lobby.id), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${auth.accessToken}`,
-        },
-        body: JSON.stringify({ tempPlayerName: name }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.id) {
-        setLobby((prev) => ({ ...data, legsCount: data.legsCount ?? prev?.legsCount ?? 3 }));
-        setGuestName('');
-        fetchLobbyById(lobby.id);
-      } else {
-        Alert.alert('Błąd', data?.message || 'Nie udało się dodać gościa');
-      }
-    } catch (e) {
-      Alert.alert('Błąd', 'Błąd połączenia');
-    } finally {
-      setGuestAdding(false);
-    }
-  };
-
   const handleLeave = async () => {
     if (!lobby?.id || !auth?.accessToken) return;
     try {
@@ -334,7 +304,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           Authorization: `Bearer ${auth.accessToken}`,
         },
         body: JSON.stringify({
-          legsCount: legsCount ?? lobby?.legsCount ?? 3,
+          legsCount: legsCount ?? lobby?.legsCount ?? DEFAULT_LEGS_TO_WIN,
           gameType: gameType ?? lobby?.gameType ?? GAME_TYPES.X01,
           scoringMode: scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN,
           playerOrder: (orderedPlayers.length ? orderedPlayers : (lobby?.players || []))
@@ -344,7 +314,7 @@ const QuickGameLobby = ({ navigation, route }) => {
       });
       const data = await res.json();
       if (res.ok && data?.players) {
-        const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? 3;
+        const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? DEFAULT_LEGS_TO_WIN;
         const gameTypeToUse = data.gameType ?? gameType ?? lobby?.gameType ?? GAME_TYPES.X01;
         const toPass = (orderedPlayers.length ? orderedPlayers : data.players).map((p) => ({
           id: p.id,
@@ -400,7 +370,7 @@ const QuickGameLobby = ({ navigation, route }) => {
 
     const listHeader = (
       <>
-        <Text style={styles.title}>Lobby: {lobby.code || lobby.id}</Text>
+        <Text style={styles.title}>Lobby quick game</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.section}>
@@ -435,23 +405,9 @@ const QuickGameLobby = ({ navigation, route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Ilość legów</Text>
-          <TextInput
-            style={styles.input}
-            value={String(legsCount)}
-            onChangeText={(t) => {
-              const n = parseInt(t.replace(/\D/g, ''), 10);
-              if (!isNaN(n)) setLegsCount(Math.min(15, Math.max(1, n)));
-              else if (t === '') setLegsCount(1);
-            }}
-            onBlur={() => isHost && handleUpdateSettings({ legsCount })}
-            keyboardType="number-pad"
-            placeholder="3"
-            maxLength={2}
-            placeholderTextColor="#a0a0a0"
-            editable={isHost}
-          />
-          <Text style={styles.hintSmall}>Mecz rozgrywany do wygranej liczby legów (1–15). Domyślnie 3.</Text>
+          <Text style={styles.label}>Format meczu</Text>
+          <Text style={styles.bo3Value}>BO3 — pierwszy do {DEFAULT_LEGS_TO_WIN} legów</Text>
+          <Text style={styles.hintSmall}>W MVP format jest stały (501 double out, BO3).</Text>
         </View>
 
         <View style={styles.section}>
@@ -487,11 +443,14 @@ const QuickGameLobby = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.label}>Zaproszenia</Text>
-          {isHost && (
+          {isHost && players.length < MAX_LOBBY_PLAYERS && (
             <Pressable style={styles.inviteButton} onPress={openInviteModal}>
               <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
               <Text style={styles.inviteButtonText}>Zaproś znajomego</Text>
             </Pressable>
+          )}
+          {isHost && players.length >= MAX_LOBBY_PLAYERS && (
+            <Text style={styles.hintSmall}>Osiągnięto limit {MAX_LOBBY_PLAYERS} graczy w lobby.</Text>
           )}
           {invitations.length === 0 ? (
             <Text style={styles.hintSmall}>Brak zaproszeń. Kliknij „Zaproś znajomego”, aby dodać.</Text>
@@ -512,44 +471,13 @@ const QuickGameLobby = ({ navigation, route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Gracze tymczasowi / goście</Text>
-          <Text style={styles.hintSmall}>
-            Dla graczy niezarejestrowanych – wpisz nazwę i dodaj jako lokalnego gracza do meczu.
-          </Text>
-          {isHost && (
-            <>
-              <TextInput
-                style={[styles.input, { marginTop: 8 }]}
-                value={guestName}
-                onChangeText={setGuestName}
-                placeholder="Nazwa gracza"
-                placeholderTextColor="#a0a0a0"
-                maxLength={50}
-                editable={!guestAdding}
-              />
-              <Pressable
-                style={[styles.inviteButton, { marginTop: 8 }, (!guestName.trim() || guestAdding) && styles.buttonDisabled]}
-                onPress={handleAddGuest}
-                disabled={!guestName.trim() || guestAdding}
-              >
-                <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
-                <Text style={styles.inviteButtonText}>{guestAdding ? 'Dodawanie…' : 'Dodaj gościa'}</Text>
-              </Pressable>
-            </>
-          )}
-          {!isHost && (
-            <Text style={styles.hintSmall}>Tylko host może dodawać gości do lobby.</Text>
-          )}
-        </View>
-
-        <View style={styles.section}>
           <Text style={styles.label}>
             {isHost ? 'Gracze w lobby (kolejność rzucania od góry)' : 'Gracze w lobby'}
           </Text>
           {listData.length === 0 ? (
             <View style={styles.emptyPlayersBox}>
               <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
-              <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gościa powyżej.</Text>
+              <Text style={styles.hintSmall}>Zaproś znajomych, aby dołączyli do lobby.</Text>
             </View>
           ) : (
             <>
@@ -762,6 +690,13 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     marginTop: 4,
     marginBottom: 8,
+  },
+  bo3Value: {
+    fontSize: 16,
+    color: '#363062',
+    fontWeight: '600',
+    marginTop: 4,
+    marginBottom: 4,
   },
   error: {
     fontSize: 14,

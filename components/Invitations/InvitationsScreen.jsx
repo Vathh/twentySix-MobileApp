@@ -240,7 +240,6 @@ const InvitationsScreen = ({ navigation }) => {
     return lobbyInvitations.map((inv) => (
       <View key={inv.id} style={styles.card}>
         <Text style={styles.cardTitle}>{inv.hostName} zaprasza do pojedynku</Text>
-        <Text style={styles.cardSub}>Kod: {inv.lobbyCode}</Text>
         <View style={styles.buttons}>
           <Pressable
             style={[styles.button, actionId && styles.buttonDisabled]}
