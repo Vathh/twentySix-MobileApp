@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import useAuth from '../../hooks/useAuth';
 import {
+  FRIENDS_ACCEPT_URL,
+  FRIENDS_INVITATIONS_RECEIVED_URL,
+  FRIENDS_REJECT_URL,
   QUICK_GAME_LOBBY_INVITATIONS_URL,
   TOURNAMENT_INVITATIONS_RECEIVED_URL,
   getQuickGameLobbyRejectInvitationUrl,
@@ -22,12 +25,14 @@ import {
 
 const TAB_TOURNAMENT = 'tournament';
 const TAB_POJEDYNEK = 'pojedynek';
+const TAB_FRIENDS = 'friends';
 
 const InvitationsScreen = ({ navigation }) => {
   const { auth } = useAuth();
   const [activeTab, setActiveTab] = useState(TAB_TOURNAMENT);
   const [tournamentInvitations, setTournamentInvitations] = useState([]);
   const [lobbyInvitations, setLobbyInvitations] = useState([]);
+  const [friendInvitations, setFriendInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -45,11 +50,14 @@ const InvitationsScreen = ({ navigation }) => {
   const fetchAll = useCallback(async () => {
     if (!auth?.accessToken) return;
     try {
-      const [tournamentRes, lobbyRes] = await Promise.all([
+      const [tournamentRes, lobbyRes, friendsRes] = await Promise.all([
         fetch(TOURNAMENT_INVITATIONS_RECEIVED_URL, {
           headers: { Authorization: `Bearer ${auth.accessToken}` },
         }),
         fetch(QUICK_GAME_LOBBY_INVITATIONS_URL, {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        }),
+        fetch(FRIENDS_INVITATIONS_RECEIVED_URL, {
           headers: { Authorization: `Bearer ${auth.accessToken}` },
         }),
       ]);
@@ -66,6 +74,15 @@ const InvitationsScreen = ({ navigation }) => {
         setLobbyInvitations(data?.invitations ?? []);
       } else {
         setLobbyInvitations([]);
+      }
+
+      if (friendsRes.ok) {
+        const data = await friendsRes.json();
+        setFriendInvitations(
+          (data?.invitations ?? []).filter((inv) => inv.status === 'pending'),
+        );
+      } else {
+        setFriendInvitations([]);
       }
 
       setError('');
@@ -130,6 +147,35 @@ const InvitationsScreen = ({ navigation }) => {
         navigation.navigate('QuickGameLobby', { initialLobby: joinData });
       } else {
         Alert.alert('Błąd', joinData?.message || 'Nie udało się dołączyć do lobby.');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleFriendAction = async (invitationId, action) => {
+    if (!auth?.accessToken || actionId) return;
+    setActionId(`${action}-friend-${invitationId}`);
+
+    const url = action === 'accept' ? FRIENDS_ACCEPT_URL : FRIENDS_REJECT_URL;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ invitationId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setFriendInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+        if (action === 'accept') {
+          Alert.alert('Gotowe', data?.message || 'Zaproszenie zaakceptowane.');
+        }
+      } else {
+        Alert.alert('Błąd', data?.message || 'Operacja nie powiodła się.');
       }
     } catch (e) {
       Alert.alert('Błąd', 'Błąd połączenia.');
@@ -232,6 +278,40 @@ const InvitationsScreen = ({ navigation }) => {
     });
   };
 
+  const renderFriendsTab = () => {
+    if (friendInvitations.length === 0) {
+      return <Text style={styles.hint}>Brak zaproszeń do znajomych.</Text>;
+    }
+
+    return friendInvitations.map((inv) => (
+      <View key={inv.id} style={styles.card}>
+        <Text style={styles.cardTitle}>
+          {inv.sender?.name ?? 'Gracz'} chce dodać Cię do znajomych
+        </Text>
+        <View style={styles.buttons}>
+          <Pressable
+            style={[styles.button, actionId && styles.buttonDisabled]}
+            onPress={() => handleFriendAction(inv.id, 'accept')}
+            disabled={!!actionId}
+          >
+            <Text style={styles.buttonText}>
+              {actionId === `accept-friend-${inv.id}` ? 'Akceptowanie…' : 'Akceptuj'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.buttonOutlined, actionId && styles.buttonDisabled]}
+            onPress={() => handleFriendAction(inv.id, 'reject')}
+            disabled={!!actionId}
+          >
+            <Text style={styles.buttonOutlinedText}>
+              {actionId === `reject-friend-${inv.id}` ? 'Odrzucanie…' : 'Odrzuć'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    ));
+  };
+
   const renderPojedynekTab = () => {
     if (lobbyInvitations.length === 0) {
       return <Text style={styles.hint}>Brak zaproszeń do pojedynku.</Text>;
@@ -283,11 +363,21 @@ const InvitationsScreen = ({ navigation }) => {
         >
           <Text style={[styles.tabText, activeTab === TAB_POJEDYNEK && styles.tabTextActive]}>Pojedynek</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_FRIENDS)}
+        >
+          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
+        </Pressable>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {activeTab === TAB_TOURNAMENT ? renderTournamentTab() : renderPojedynekTab()}
+      {activeTab === TAB_TOURNAMENT
+        ? renderTournamentTab()
+        : activeTab === TAB_POJEDYNEK
+          ? renderPojedynekTab()
+          : renderFriendsTab()}
     </ScrollView>
   );
 };

@@ -22,4 +22,10 @@ Pełna wizja produktu: **`twentysix-backend/docs/product.md`**. Przed większymi
 
 ## Mobile MVP (skrót)
 
-Tablet turniejowy, quick game (FFA, BO3, 2 tryby urządzeń), znajomi i akceptacje zaproszeń, offline/solo bez zapisu.
+Tablet turniejowy, quick game (FFA **2–8**, BO3, **oba tryby urządzeń**: jedno urządzenie + każdy na swoim — także dla 3–8 graczy), znajomi i akceptacje zaproszeń, offline/solo bez zapisu.
+
+## Quick game FFA — zawsze pamiętaj
+
+- **3–8 graczy** musi działać w **`one_device`** (wszyscy przy jednej tarczy, host wpisuje) **oraz** **`each_own`** (gracze zdalnie, każdy swój telefon, sync tur).
+- To nie jest „opcjonalnie później” — oba tryby to core MVP quick game (patrz `twentysix-backend/docs/product.md`, sekcja „FFA 3–8 graczy”).
+- **Implementacja sync 3–8:** design [`twentysix-backend/docs/design_quick_game_ffa_sync_4c2.md`](../twentysix-backend/docs/design_quick_game_ffa_sync_4c2.md) — osobny moduł FFA, nie rozszerzać H2H scoring API.

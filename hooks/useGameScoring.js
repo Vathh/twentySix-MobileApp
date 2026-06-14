@@ -33,9 +33,12 @@ export function useGameScoring({
 	gameClosed,
 	isPerDartMode,
 	inputPolicy = { type: 'tournament' },
+	useLegOpenerRotation = false,
+	legOpenerIndexRef,
 }) {
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
+	const lastLegNumberRef = useRef(null);
 	const ensureLegPromiseRef = useRef(null);
 
 	const applyState = useCallback(
@@ -48,6 +51,9 @@ export function useGameScoring({
 				setCurrentPlayerIndex,
 				setGameClosed,
 				lastStateKeyRef,
+				legOpenerIndexRef,
+				lastLegNumberRef,
+				useLegOpenerRotation,
 			});
 			currentLegIdRef.current = result.currentLegId;
 			return state;
@@ -59,6 +65,8 @@ export function useGameScoring({
 			currentPlayerIndexRef,
 			setCurrentPlayerIndex,
 			setGameClosed,
+			legOpenerIndexRef,
+			useLegOpenerRotation,
 		],
 	);
 

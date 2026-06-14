@@ -1,23 +1,32 @@
 import React from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import useAuth from '../../hooks/useAuth'
 
 const Home = ({ navigation }) => {
 
   const { auth } = useAuth()
 
-  // Turniej: uwierzytelnienie kodem (bez konta) – sędziowanie meczów w turnieju
   const tournamentModeHandler = () => {
     navigation.navigate('TournamentCode')
   }
 
-  // Szybki mecz: gdy zalogowany → lobby (tworzenie / zaproszenia); gdy nie – logowanie na konto
-  const quickGameHandler = () => {
+  const quickGameOnlineHandler = () => {
     if (auth?.accessToken) {
       navigation.navigate('QuickGameLobby')
     } else {
-      navigation.navigate('AccountLogin')
+      Alert.alert(
+        'Quick game online',
+        'Wymagane konto i internet. Zaloguj się, aby utworzyć lobby ze znajomymi.',
+        [
+          { text: 'Anuluj', style: 'cancel' },
+          { text: 'Zaloguj', onPress: () => navigation.navigate('AccountLogin') },
+        ],
+      )
     }
+  }
+
+  const trainingHandler = () => {
+    navigation.navigate('TrainingMatchSetup')
   }
 
   return (
@@ -27,8 +36,13 @@ const Home = ({ navigation }) => {
         <Pressable style={styles.button} onPress={tournamentModeHandler}>
           <Text style={styles.buttonText}>Turniej</Text>
         </Pressable>
-        <Pressable style={styles.button} onPress={quickGameHandler}>
-          <Text style={styles.buttonText}>Szybki mecz</Text>
+        <Pressable style={styles.buttonPrimary} onPress={quickGameOnlineHandler}>
+          <Text style={styles.buttonPrimaryText}>Quick game online</Text>
+          <Text style={styles.buttonHint}>Lobby, znajomi, zapis w statystykach</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={trainingHandler}>
+          <Text style={styles.buttonText}>Trening</Text>
+          <Text style={styles.buttonHintDark}>Bez internetu · wynik nie jest zapisywany</Text>
         </Pressable>
       </View>
     </View>
@@ -39,46 +53,59 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#363062',
-    alignItems: 'center'
+    alignItems: 'center',
+    paddingHorizontal: 24,
   },
   title: {
     fontSize: 24,
     color: '#c5c5c5',
-    marginBottom: 70,
-    marginTop: 100
+    marginBottom: 48,
+    marginTop: 100,
+    textAlign: 'center',
   },
   form: {
-    alignItems: 'center'
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#ff1e1e',
-    marginBottom: 20
-  },
-  input: {
-    marginBottom: 20,
-    color: '#363062',
-    backgroundColor:  '#f5f5f5cc',
-    borderRadius: 5,
-    width: 200,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    fontSize: 16
+    alignItems: 'stretch',
+    width: '100%',
+    maxWidth: 320,
   },
   button: {
     alignItems: 'center',
-    marginTop: 20,
-    marginLeft: 'auto',
-    marginRight: 'auto',
-    paddingVertical: 7,
+    marginTop: 16,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor:  '#f5f5f5cc',
-    borderRadius: 5
+    backgroundColor: '#f5f5f5cc',
+    borderRadius: 8,
+  },
+  buttonPrimary: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#F99417',
+    borderRadius: 8,
   },
   buttonText: {
     color: '#363062',
-  }
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  buttonPrimaryText: {
+    color: '#363062',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#363062aa',
+    textAlign: 'center',
+  },
+  buttonHintDark: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#36306299',
+    textAlign: 'center',
+  },
 })
 
 export default Home
-

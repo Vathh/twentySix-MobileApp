@@ -129,12 +129,8 @@ export const getQuickGameLobbyAddGuestUrl = (lobbyId) =>
 	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + LOBBY_ADD_GUEST;
 
 // Game scoring (wizyty, legi) — ten sam kontrakt dla quick / group / playoff
-const QUICK_GAMES_PREFIX = '/quick-games';
 const GROUP_GAMES_PREFIX = '/group-games';
 const PLAYOFF_GAMES_PREFIX = '/playoff-games';
-
-export const getQuickGameScoringBaseUrl = (quickGameId) =>
-	API_BASE_URL + QUICK_GAMES_PREFIX + '/' + quickGameId;
 
 export const getGroupGameScoringBaseUrl = (gameId) =>
 	API_BASE_URL + GROUP_GAMES_PREFIX + '/' + gameId;
@@ -156,6 +152,15 @@ export const getGameScoringChannelName = (kind, gameId) =>
 	kind + '-game.' + gameId;
 const FRIENDS_PREFIX = '/friends';
 export const FRIENDS_API_URL = API_BASE_URL + FRIENDS_PREFIX;
+export const FRIENDS_INVITE_URL = FRIENDS_API_URL + '/invite';
+export const FRIENDS_ACCEPT_URL = FRIENDS_API_URL + '/accept';
+export const FRIENDS_REJECT_URL = FRIENDS_API_URL + '/reject';
+export const FRIENDS_REMOVE_URL = FRIENDS_API_URL + '/remove';
+export const FRIENDS_INVITATIONS_RECEIVED_URL =
+	FRIENDS_API_URL + '/invitations/received';
+export const FRIENDS_INVITATIONS_SENT_URL =
+	FRIENDS_API_URL + '/invitations/sent';
+export const USERS_SEARCH_URL = API_BASE_URL + '/users/search';
 
 const TOURNAMENT_INVITATIONS_PREFIX = '/tournaments/invitations';
 export const TOURNAMENT_INVITATIONS_RECEIVED_URL =

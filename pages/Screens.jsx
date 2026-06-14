@@ -8,6 +8,7 @@ import TournamentLogin from '../components/Tournament/TournamentLogin';
 import TournamentCode from '../components/Tournament/TournamentCode';
 import Home from '../components/Core/Home';
 import QuickGameLobby from '../components/QuickGame/QuickGameLobby';
+import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
 import FriendsScreen from '../components/Friends/FriendsScreen';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import MenuScreen from '../components/Core/MenuScreen';
@@ -43,21 +44,31 @@ const Screens = () => {
         <Stack.Screen
           name="AccountLogin"
           component={TournamentLogin}
-          options={{ ...headerOptions, headerTitle: 'Zaloguj się' }}
+          options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="TournamentCode"
           component={TournamentCode}
-          options={{ ...headerOptions, headerTitle: 'Kod turnieju' }}
+          options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="QuickGameLobby"
           component={QuickGameLobby}
           options={{
             ...headerOptions,
-            headerTitle: 'Szybki mecz – Lobby',
+            headerTitle: (props) => <HeaderTitle {...props} />,
             headerRight: () => <LoginButton />,
           }}
+        />
+        <Stack.Screen
+          name="TrainingMatchSetup"
+          component={TrainingMatchSetup}
+          options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
+        />
+        <Stack.Screen
+          name="GameScoring"
+          component={GameScoringScreen}
+          options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
       </Stack.Navigator>
     );
@@ -88,7 +99,12 @@ const Screens = () => {
         <Stack.Screen
           name="QuickGameLobby"
           component={QuickGameLobby}
-          options={{ headerTitle: 'Szybki mecz – Lobby' }}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
+        />
+        <Stack.Screen
+          name="TrainingMatchSetup"
+          component={TrainingMatchSetup}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="GameScoring"
@@ -98,22 +114,22 @@ const Screens = () => {
         <Stack.Screen
           name="TournamentCode"
           component={TournamentCode}
-          options={{ headerTitle: 'Kod turnieju' }}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="Menu"
           component={MenuScreen}
-          options={{ headerTitle: 'Strona główna' }}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="Znajomi"
           component={FriendsScreen}
-          options={{ headerTitle: 'Znajomi' }}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen
           name="Zaproszenia"
           component={InvitationsScreen}
-          options={{ headerTitle: 'Zaproszenia' }}
+          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
       </Stack.Navigator>
     );

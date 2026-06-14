@@ -71,7 +71,6 @@ const QuickGameLobby = ({ navigation, route }) => {
       }));
       const legsToWin = data.legsCount ?? data.legs_count ?? DEFAULT_LEGS_TO_WIN;
       const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
-      const quickGameId = data.quickGameId ?? null;
       const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
       const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
       const myPlayerIndex = resolveMyPlayerIndex(players, data.myPlayerIndex);
@@ -82,7 +81,6 @@ const QuickGameLobby = ({ navigation, route }) => {
           lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
           legsCount: legsToWin,
           gameType: gameTypeToUse,
-          quickGameId,
           scoringMode: scoringModeToUse,
           isHost,
           myPlayerIndex,
@@ -321,7 +319,6 @@ const QuickGameLobby = ({ navigation, route }) => {
           name: p.name ?? p.tempName ?? 'Gracz',
           playerId: p.playerId ?? p.player_id,
         }));
-        const quickGameId = data.quickGameId ?? null;
         const scoringModeToUse = data.scoringMode ?? scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN;
         const isHost = data.isHost ?? lobby?.youAreHost ?? false;
         const myPlayerIndex = resolveMyPlayerIndex(toPass, data.myPlayerIndex);
@@ -332,7 +329,6 @@ const QuickGameLobby = ({ navigation, route }) => {
             lobbyId: lobby.id,
             legsCount: legsToWin,
             gameType: gameTypeToUse,
-            quickGameId,
             scoringMode: scoringModeToUse,
             isHost,
             myPlayerIndex,

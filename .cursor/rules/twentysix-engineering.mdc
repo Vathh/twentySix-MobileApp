@@ -1,0 +1,18 @@
+---
+description: Zasady inżynierskie TwentySix mobile — czytelność, jednolitość, FFA
+alwaysApply: true
+---
+
+# TwentySix mobile — inżynieria
+
+## Priorytety
+
+- **Czytelność, czystość, jednolitość** — wspólne hooki i helpery zamiast osobnych ścieżek H2H/FFA w quick game.
+- Quick game online: **`useQuickGameFfaScoring`** (lobbyId, sync, zapis w bazie).
+- **Trening:** `trainingGame` w nawigacji → lokalne reducery, **bez API**, wynik nie jest wysyłany.
+- Turniej: **`useGameScoring`** (group/playoff) — bez mieszania z quick game FFA.
+
+## Styl
+
+- Dopasuj się do istniejących komponentów (`GameScoringScreen`, reducery graczy).
+- Max 8 graczy w lobby; unikaj osobnych case'ów dla 2 vs 3+ w synchronizacji online.

@@ -29,14 +29,14 @@ import { useGameSettings } from '../../hooks/useGameSettings';
 import {
 	UPDATE_GAME_API_URL,
 	QUICK_GAME_UPDATE_API_URL,
-	getQuickGameLobbyUrl,
 	getGroupGameScoringBaseUrl,
 	getPlayoffGameScoringBaseUrl,
-	getQuickGameScoringBaseUrl,
 } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
 import { useGameScoring } from '../../hooks/useGameScoring';
+import { useQuickGameFfaScoring } from '../../hooks/useQuickGameFfaScoring';
 import { normalizeTournamentPlayers } from '../../helpers/normalizeTournamentPlayers';
+import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
 
 const GameScoringScreen = ({ route, navigation }) => {
 	const { auth } = useAuth();
@@ -49,18 +49,18 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const [selectedComponent, setSelectedComponent] = useState('counter');
 
-	const isQuickGame = !!route.params?.quickGame;
+	const isTrainingMatch = !!route.params?.trainingGame;
+	const trainingGame = route.params?.trainingGame;
+	const isQuickGame = !!route.params?.quickGame && !isTrainingMatch;
 	const quickGame = route.params?.quickGame;
-	const tournamentGame = route.params?.game;
+	const matchConfig = isTrainingMatch ? trainingGame : quickGame;
 
-	const [resolvedQuickGameId, setResolvedQuickGameId] = useState(
-		quickGame?.quickGameId ?? null,
-	);
-	const lobbyScoringMode = quickGame?.scoringMode ?? 'each_own';
-	const isHost = quickGame?.isHost ?? false;
+	const lobbyId = quickGame?.lobbyId ?? null;
+	const lobbyScoringMode = matchConfig?.scoringMode ?? 'each_own';
+	const isHost = matchConfig?.isHost ?? true;
 
-	const players = isQuickGame
-		? (quickGame?.players ?? []).map((p) => ({
+	const players = isTrainingMatch || isQuickGame
+		? (matchConfig?.players ?? []).map((p) => ({
 				id: p.id,
 				name: p.name ?? 'Gracz',
 				playerId: p.playerId != null ? Number(p.playerId) : null,
@@ -71,14 +71,16 @@ const GameScoringScreen = ({ route, navigation }) => {
 					tournamentGame.player2,
 				)
 			: [];
-	const N = Math.min(Math.max(players.length, 2), 6);
+	const N = Math.min(Math.max(players.length, 2), 8);
+
+	const tournamentGame = route.params?.game;
 
 	const myPlayerIndexFromLobby = useMemo(() => {
 		if (
-			quickGame?.myPlayerIndex !== undefined &&
-			quickGame?.myPlayerIndex !== null
+			matchConfig?.myPlayerIndex !== undefined &&
+			matchConfig?.myPlayerIndex !== null
 		) {
-			return quickGame.myPlayerIndex;
+			return matchConfig.myPlayerIndex;
 		}
 		if (auth?.playerId != null) {
 			const idx = players.findIndex(
@@ -87,19 +89,28 @@ const GameScoringScreen = ({ route, navigation }) => {
 			if (idx >= 0) return idx;
 		}
 		return null;
-	}, [quickGame?.myPlayerIndex, auth?.playerId, players]);
+	}, [matchConfig?.myPlayerIndex, auth?.playerId, players]);
 
 	const hasOnlineQuickGame =
 		isQuickGame &&
+		!!lobbyId &&
 		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
 	const isTournamentGame = !!tournamentGame?.id;
+	const useOnlineQuickFfa =
+		hasOnlineQuickGame && !!auth?.accessToken;
 	const useScoringApi =
-		(hasOnlineQuickGame && !!resolvedQuickGameId && !!auth?.accessToken) ||
-		(isTournamentGame && !!auth?.accessToken);
+		useOnlineQuickFfa || (isTournamentGame && !!auth?.accessToken);
 	const useOnlineSync = useScoringApi;
-	const legsToWinQuick = quickGame?.legsCount ?? 2;
+	const legsToWinQuick = matchConfig?.legsCount ?? 2;
 
-	const activeGame = isQuickGame
+	const activeGame = isTrainingMatch
+		? {
+				id: null,
+				type: 'training',
+				tournamentId: null,
+				groupNumber: null,
+			}
+		: isQuickGame
 		? {
 				id: null,
 				type: 'quick_game',
@@ -109,7 +120,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		: tournamentGame ?? null;
 
 	const [isModalVisible, setIsModalVisible] = useState(
-		!isQuickGame || useOnlineSync ? false : true,
+		isTrainingMatch || (!isQuickGame && !useOnlineSync) ? true : false,
 	);
 	const [isQFModalVisible, setIsQFModalVisible] = useState(false);
 	const [gameClosed, setGameClosed] = useState(false);
@@ -138,6 +149,14 @@ const GameScoringScreen = ({ route, navigation }) => {
 		playerResultReducer,
 		initialPlayerResultState,
 	);
+	const [player7State, player7Dispatch] = useReducer(
+		playerResultReducer,
+		initialPlayerResultState,
+	);
+	const [player8State, player8Dispatch] = useReducer(
+		playerResultReducer,
+		initialPlayerResultState,
+	);
 
 	const allStates = [
 		player1State,
@@ -146,6 +165,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 		player4State,
 		player5State,
 		player6State,
+		player7State,
+		player8State,
 	];
 	const allDispatches = [
 		player1Dispatch,
@@ -154,6 +175,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 		player4Dispatch,
 		player5Dispatch,
 		player6Dispatch,
+		player7Dispatch,
+		player8Dispatch,
 	];
 	const playerStates = allStates.slice(0, N);
 	const playerDispatches = allDispatches.slice(0, N);
@@ -165,82 +188,33 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const currentPlayerIndexRef = useRef(0);
+	/** Indeks zawodnika rozpoczynającego bieżący leg (rotacja: opener+1 po zamknięciu lega). */
+	const legOpenerIndexRef = useRef(0);
 	const okHandlingRef = useRef(false);
 	const tournamentResultSentRef = useRef(false);
+	const quickResultSentRef = useRef(false);
+	const [ffaFinishedQuickGameId, setFfaFinishedQuickGameId] = useState(null);
 	const currentPlayer = players[currentPlayerIndex] ?? null;
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
 	/** Pozostały wynik na początku bieżącej wizyty (tryb rzut po rzucie, offline). */
 	const visitStartScoreRef = useRef(null);
 
-	useEffect(() => {
-		setResolvedQuickGameId(quickGame?.quickGameId ?? null);
-	}, [quickGame?.quickGameId]);
-
-	/** Gość / WS bez quickGameId — dociągnij z lobby (host ma ID od razu po starcie). */
-	useEffect(() => {
-		if (
-			resolvedQuickGameId ||
-			!quickGame?.lobbyId ||
-			!auth?.accessToken ||
-			gameClosed
-		) {
-			return undefined;
-		}
-		let cancelled = false;
-		const fetchLobby = async () => {
-			try {
-				const res = await fetch(getQuickGameLobbyUrl(quickGame.lobbyId), {
-					headers: { Authorization: `Bearer ${auth.accessToken}` },
-				});
-				if (!res.ok || cancelled) return;
-				const data = await res.json();
-				if (cancelled) return;
-				if (data.quickGameId) {
-					setResolvedQuickGameId(data.quickGameId);
-				}
-			} catch (e) {
-				console.warn('resolve quickGameId from lobby', e);
-			}
-		};
-		fetchLobby();
-		const t = setInterval(fetchLobby, 2000);
-		return () => {
-			cancelled = true;
-			clearInterval(t);
-		};
-	}, [
-		resolvedQuickGameId,
-		quickGame?.lobbyId,
-		auth?.accessToken,
-		gameClosed,
-	]);
-
-	const scoringGameId = isTournamentGame
-		? tournamentGame.id
-		: resolvedQuickGameId;
+	const scoringGameId = isTournamentGame ? tournamentGame.id : null;
 	const scoringChannelKind = isTournamentGame
 		? tournamentGame.type === 'playoff'
 			? 'playoff'
 			: 'group'
-		: 'quick';
+		: null;
 	const scoringBaseUrl = useMemo(() => {
-		if (!useScoringApi || !scoringGameId) return null;
-		if (isTournamentGame) {
-			return tournamentGame.type === 'playoff'
-				? getPlayoffGameScoringBaseUrl(scoringGameId)
-				: getGroupGameScoringBaseUrl(scoringGameId);
-		}
-		return getQuickGameScoringBaseUrl(scoringGameId);
-	}, [
-		useScoringApi,
-		scoringGameId,
-		isTournamentGame,
-		tournamentGame?.type,
-	]);
+		if (!useScoringApi || !scoringGameId || !isTournamentGame) return null;
+		return tournamentGame.type === 'playoff'
+			? getPlayoffGameScoringBaseUrl(scoringGameId)
+			: getGroupGameScoringBaseUrl(scoringGameId);
+	}, [useScoringApi, scoringGameId, isTournamentGame, tournamentGame?.type]);
 
-	const gameScoring = useGameScoring({
-		enabled: useScoringApi && !gameClosed,
+	const tournamentScoring = useGameScoring({
+		enabled: isTournamentGame && useScoringApi && !gameClosed,
 		baseUrl: scoringBaseUrl,
 		channelKind: scoringChannelKind,
 		gameId: scoringGameId,
@@ -254,19 +228,47 @@ const GameScoringScreen = ({ route, navigation }) => {
 		setGameClosed,
 		gameClosed,
 		isPerDartMode,
-		inputPolicy: isTournamentGame
-			? { type: 'tournament' }
-			: {
-					type: 'quick',
-					lobbyScoringMode,
-					isHost,
-					myPlayerIndexFromLobby,
-				},
+		inputPolicy: { type: 'tournament' },
 	});
+
+	const ffaScoring = useQuickGameFfaScoring({
+		enabled: useOnlineQuickFfa && !gameClosed,
+		lobbyId,
+		accessToken: auth?.accessToken ?? null,
+		players,
+		N,
+		playerDispatches,
+		playerStates,
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex,
+		setGameClosed,
+		gameClosed,
+		lobbyScoringMode,
+		isHost,
+		myPlayerIndexFromLobby,
+		legOpenerIndexRef,
+		onFinishedQuickGameId: setFfaFinishedQuickGameId,
+	});
+
+	const gameScoring = isQuickGame ? ffaScoring : tournamentScoring;
 
 	const counterCanInput = useMemo(() => {
 		if (gameClosed) return false;
-		if (!useScoringApi) return true;
+		if (isTrainingMatch) return true;
+		if (!useScoringApi) {
+			if (isQuickGame && lobbyScoringMode === 'one_device' && !isHost) {
+				return false;
+			}
+			if (
+				isQuickGame &&
+				lobbyScoringMode === 'each_own' &&
+				myPlayerIndexFromLobby !== null &&
+				myPlayerIndexFromLobby !== currentPlayerIndex
+			) {
+				return false;
+			}
+			return true;
+		}
 		if (isTournamentGame) return true;
 		if (lobbyScoringMode === 'one_device' && !isHost) return false;
 		if (
@@ -279,7 +281,9 @@ const GameScoringScreen = ({ route, navigation }) => {
 		return true;
 	}, [
 		gameClosed,
+		isTrainingMatch,
 		useScoringApi,
+		isQuickGame,
 		isTournamentGame,
 		lobbyScoringMode,
 		isHost,
@@ -287,8 +291,112 @@ const GameScoringScreen = ({ route, navigation }) => {
 		currentPlayerIndex,
 	]);
 
-	// Ref jest jedynym źródłem prawdy w handleOkBtn; state currentPlayerIndex służy tylko do wyświetlania.
-	// Nie synchronizujemy ref ze state w useEffect – po ustawieniu ref i state w handlerach ref nie może być nadpisany.
+	useEffect(() => {
+		if (!gameClosed || !useOnlineQuickFfa) return;
+		if (quickResultSentRef.current) return;
+		quickResultSentRef.current = true;
+
+		const achievementsPayload = (achievementsState?.achievements || []).map(
+			(a) => ({
+				playerId: a.playerId,
+				value: a.value ?? null,
+				type: a.type,
+			}),
+		);
+		const gameId =
+			ffaFinishedQuickGameId ??
+			ffaScoring.finishedQuickGameIdRef?.current ??
+			null;
+		if (gameId) {
+			sendQuickGameAchievements(achievementsPayload, gameId);
+		}
+
+		const legsWonArr = playerStates.map((s) => s.legsWon);
+		const winnerIdx = legsWonArr.findIndex((l) => l >= legsToWinQuick);
+		const winner = players[winnerIdx >= 0 ? winnerIdx : 0];
+		const loser = N === 2 && winnerIdx >= 0 ? players[1 - winnerIdx] : null;
+		const msg =
+			N === 2 && loser
+				? `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`
+				: `${winner?.name ?? 'Zwycięzca'} wygrał mecz!`;
+		Alert.alert('MECZ ZAKOŃCZONY', msg, [
+			{ text: 'OK', style: 'destructive', onPress: () => {} },
+		]);
+	}, [
+		gameClosed,
+		useOnlineQuickFfa,
+		ffaFinishedQuickGameId,
+		achievementsState?.achievements,
+		lobbyId,
+		legsToWinQuick,
+		N,
+		players,
+		playerStates,
+	]);
+
+	useEffect(() => {
+		if (isTournamentGame && useScoringApi) return;
+		if (useOnlineQuickFfa) return;
+		if (isQuickGame) return;
+
+		const legsWonArr = playerStates.map((s) => s.legsWon);
+		const legsTarget = isTrainingMatch ? legsToWinQuick : 2;
+		const hasWinner = legsWonArr.some((l) => l >= legsTarget);
+		if (!hasWinner) return;
+
+		setGameClosed(true);
+		const winnerIdx = legsWonArr.findIndex((l) => l >= legsTarget);
+		const winner = players[winnerIdx];
+		const loser = N === 2 ? players[1 - winnerIdx] : null;
+
+		if (isTrainingMatch) {
+			const msg =
+				N === 2 && loser
+					? `Trening zakończony. ${winner?.name ?? 'Zwycięzca'} wygrywa mecz.\n\nWynik nie został zapisany.`
+					: `Trening zakończony. ${winner?.name ?? 'Zwycięzca'} wygrywa mecz.\n\nWynik nie został zapisany.`;
+			Alert.alert('Trening', msg, [
+				{ text: 'OK', style: 'default', onPress: () => {} },
+			]);
+			return;
+		}
+
+		const gameResultDTO = {
+			game: {
+				id: activeGame.id,
+				type: activeGame.type,
+				player1Id: players[0]?.playerId ?? players[0]?.id,
+				player2Id: players[1]?.playerId ?? players[1]?.id,
+				player1Score: playerStates[0]?.legsWon,
+				player2Score: playerStates[1]?.legsWon,
+				winnerId: winner.playerId ?? winner.id,
+				tournamentId: activeGame.tournamentId,
+				groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
+			},
+			achievements: achievementsState?.achievements ?? [],
+			legs: [],
+		};
+		sendGameResult(gameResultDTO);
+		Alert.alert(
+			'MECZ ZAKOŃCZONY',
+			`${loser?.name ?? 'Przegrany'} przegrał zatem pozostaje przy tarczy jako liczący.`,
+			[{ text: 'OK', style: 'destructive', onPress: () => {} }],
+		);
+	}, [
+		isTournamentGame,
+		useScoringApi,
+		useOnlineQuickFfa,
+		isQuickGame,
+		isTrainingMatch,
+		legsToWinQuick,
+		player1State?.legsWon,
+		player2State?.legsWon,
+		player3State?.legsWon,
+		player4State?.legsWon,
+		player5State?.legsWon,
+		player6State?.legsWon,
+		player7State?.legsWon,
+		player8State?.legsWon,
+	]);
 
 	const toggleModal = () => {
 		setIsModalVisible((visibility) => !visibility);
@@ -298,11 +406,19 @@ const GameScoringScreen = ({ route, navigation }) => {
 		setIsQFModalVisible((visibility) => !visibility);
 	};
 
+	const advanceToNextLegOpener = useCallback(() => {
+		const nextOpener = computeNextLegOpener(legOpenerIndexRef.current, N);
+		legOpenerIndexRef.current = nextOpener;
+		currentPlayerIndexRef.current = nextOpener;
+		setCurrentPlayerIndex(nextOpener);
+	}, [N]);
+
 	const handleBullWinnerSelection = (player) => {
 		const idx = players.findIndex(
 			(p) => p === player || (p?.id === player?.id && p?.name === player?.name),
 		);
 		if (idx >= 0) {
+			legOpenerIndexRef.current = idx;
 			currentPlayerIndexRef.current = idx;
 			setCurrentPlayerIndex(idx);
 		}
@@ -317,6 +433,16 @@ const GameScoringScreen = ({ route, navigation }) => {
 			if (lobbyScoringMode === 'one_device' && !isHost) {
 				return;
 			}
+			if (
+				lobbyScoringMode === 'each_own' &&
+				myPlayerIndexFromLobby !== null &&
+				myPlayerIndexFromLobby !== currentPlayerIndexRef.current
+			) {
+				return;
+			}
+		}
+		if (!useScoringApi && isQuickGame) {
+			if (lobbyScoringMode === 'one_device' && !isHost) return;
 			if (
 				lobbyScoringMode === 'each_own' &&
 				myPlayerIndexFromLobby !== null &&
@@ -631,9 +757,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		for (let j = 0; j < N; j++) {
 			if (j !== idx) playerDispatches[j](legLose());
 		}
-		const nextIdx = (idx + 1) % N;
-		currentPlayerIndexRef.current = nextIdx;
-		setCurrentPlayerIndex(nextIdx);
+		advanceToNextLegOpener();
 	};
 
 	const sendTournamentAchievements = async (achievements) => {
@@ -685,45 +809,30 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 	};
 
-	const sendQuickGameResult = async (
-		playersPayload,
-		achievementsPayload,
-		lobbyId,
-		gameId = null,
-	) => {
+	const sendQuickGameAchievements = async (achievementsPayload, gameId) => {
+		if (!gameId || !auth?.accessToken) {
+			return;
+		}
 		try {
-			const body = {
-				achievements: achievementsPayload || [],
-				lobbyId: lobbyId ?? undefined,
-			};
-			if (gameId) {
-				body.gameId = gameId;
-				if (playersPayload?.length) {
-					body.players = playersPayload;
-				}
-			} else {
-				body.players = playersPayload;
-			}
 			const response = await fetch(QUICK_GAME_UPDATE_API_URL, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					...(auth?.accessToken
-						? { Authorization: `Bearer ${auth.accessToken}` }
-						: {}),
+					Authorization: `Bearer ${auth.accessToken}`,
 				},
-				body: JSON.stringify(body),
+				body: JSON.stringify({
+					gameId,
+					achievements: achievementsPayload || [],
+				}),
 			});
-			if (response.ok) {
-				console.log('Zaktualizowano wynik szybkiego meczu');
-			} else {
+			if (!response.ok) {
 				console.error(
-					'Blad podczas aktualizacji szybkiego meczu',
+					'Blad podczas wysylania achievementow quick game',
 					await response.text(),
 				);
 			}
 		} catch (error) {
-			console.error('Blad przy wysylaniu wyniku szybkiego meczu', error);
+			console.error('Blad przy wysylaniu achievementow quick game', error);
 		}
 	};
 
@@ -743,9 +852,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		for (let j = 0; j < N; j++) {
 			if (j !== idx) playerDispatches[j](legLose());
 		}
-		const nextIdx = (idx + 1) % N;
-		currentPlayerIndexRef.current = nextIdx;
-		setCurrentPlayerIndex(nextIdx);
+		advanceToNextLegOpener();
 		toggleQFModal();
 	};
 
@@ -796,97 +903,6 @@ const GameScoringScreen = ({ route, navigation }) => {
 		player1State.legsWon,
 		player2State.legsWon,
 		achievementsState?.achievements,
-	]);
-
-	useEffect(() => {
-		if (isTournamentGame && useScoringApi) return;
-
-		const legsWonArr = playerStates.map((s) => s.legsWon);
-		const legsTarget = isQuickGame ? legsToWinQuick : 2;
-		const hasWinner = legsWonArr.some((l) => l >= legsTarget);
-		if (!hasWinner) return;
-
-		setGameClosed(true);
-		const winnerIdx = legsWonArr.findIndex((l) => l >= legsTarget);
-		const winner = players[winnerIdx];
-		const loser = N === 2 ? players[1 - winnerIdx] : null;
-
-		if (isQuickGame) {
-			const achievementsPayload = (achievementsState?.achievements || []).map(
-				(a) => ({
-					playerId: a.playerId,
-					value: a.value ?? null,
-					type: a.type,
-				}),
-			);
-			if (useScoringApi && resolvedQuickGameId) {
-				sendQuickGameResult(
-					null,
-					achievementsPayload,
-					quickGame?.lobbyId,
-					resolvedQuickGameId,
-				);
-			} else {
-				const withPlace = players
-					.map((p, i) => ({ player: p, state: playerStates[i], idx: i }))
-					.filter((x) => x.player?.playerId)
-					.sort((a, b) => b.state.legsWon - a.state.legsWon);
-				if (withPlace.length >= 2) {
-					const playersPayload = withPlace.map((x, place) => ({
-						playerId: x.player.playerId,
-						score: x.state.legsWon,
-						place: place + 1,
-						average: parseFloat(x.state.gameAverage) || null,
-						dartsThrown: x.state.totalDartsThrown || null,
-						pointsEarned: x.state.totalPointsEarned || null,
-					}));
-					sendQuickGameResult(
-						playersPayload,
-						achievementsPayload,
-						quickGame?.lobbyId,
-					);
-				}
-			}
-			const msg =
-				N === 2 && loser
-					? `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`
-					: `${winner?.name ?? 'Zwycięzca'} wygrał mecz!`;
-			Alert.alert('MECZ ZAKOŃCZONY', msg, [
-				{ text: 'OK', style: 'destructive', onPress: () => {} },
-			]);
-			return;
-		}
-
-		const gameResultDTO = {
-			game: {
-				id: activeGame.id,
-				type: activeGame.type,
-				player1Id: players[0]?.playerId ?? players[0]?.id,
-				player2Id: players[1]?.playerId ?? players[1]?.id,
-				player1Score: playerStates[0]?.legsWon,
-				player2Score: playerStates[1]?.legsWon,
-				winnerId: winner.playerId ?? winner.id,
-				tournamentId: activeGame.tournamentId,
-				groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
-			},
-			achievements: achievementsState?.achievements ?? [],
-			legs: [],
-		};
-		sendGameResult(gameResultDTO);
-		Alert.alert(
-			'MECZ ZAKOŃCZONY',
-			`${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`,
-			[{ text: 'OK', style: 'destructive', onPress: () => {} }],
-		);
-	}, [
-		player1State.legsWon,
-		player2State.legsWon,
-		player3State?.legsWon,
-		player4State?.legsWon,
-		player5State?.legsWon,
-		player6State?.legsWon,
-		isQuickGame,
-		legsToWinQuick,
 	]);
 
 	useEffect(

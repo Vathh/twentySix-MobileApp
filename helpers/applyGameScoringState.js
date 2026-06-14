@@ -1,4 +1,5 @@
 import { syncFromServer } from './reducers/playerResultActions';
+import { computeNextLegOpener } from './computeNextLegOpener';
 
 /**
  * Mapuje stan z API scoringu na reducery graczy.
@@ -13,6 +14,9 @@ export function applyGameScoringState(state, ctx) {
 		setCurrentPlayerIndex,
 		setGameClosed,
 		lastStateKeyRef,
+		legOpenerIndexRef,
+		lastLegNumberRef,
+		useLegOpenerRotation = false,
 	} = ctx;
 
 	if (!state) {
@@ -48,6 +52,26 @@ export function applyGameScoringState(state, ctx) {
 	});
 
 	const visits = state.visits || [];
+	const legNumber = state.currentLeg?.legNumber ?? null;
+
+	if (
+		useLegOpenerRotation &&
+		legOpenerIndexRef &&
+		lastLegNumberRef &&
+		legNumber != null &&
+		lastLegNumberRef.current !== legNumber
+	) {
+		if (lastLegNumberRef.current != null) {
+			legOpenerIndexRef.current = computeNextLegOpener(
+				legOpenerIndexRef.current,
+				N,
+			);
+		} else {
+			legOpenerIndexRef.current = 0;
+		}
+		lastLegNumberRef.current = legNumber;
+	}
+
 	let nextPlayerIndex = currentPlayerIndexRef?.current ?? 0;
 	if (visits.length > 0) {
 		const last = visits[visits.length - 1];
@@ -62,6 +86,12 @@ export function applyGameScoringState(state, ctx) {
 				nextPlayerIndex = (lastIdx + 1) % N;
 			}
 		}
+	} else if (
+		useLegOpenerRotation &&
+		legOpenerIndexRef &&
+		state.currentLeg?.open
+	) {
+		nextPlayerIndex = legOpenerIndexRef.current ?? 0;
 	}
 	if (currentPlayerIndexRef) {
 		currentPlayerIndexRef.current = nextPlayerIndex;
