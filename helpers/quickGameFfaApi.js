@@ -1,20 +1,18 @@
-import { API_BASE_URL } from './apiConfig';
+import {
+	getQuickGameFfaStateUrl,
+	getQuickGameFfaUndoUrl,
+	getQuickGameFfaVisitUrl,
+} from './apiConfig';
 
-const lobbyFfaPath = (lobbyId) =>
-	`${API_BASE_URL}/quick-game/lobby/${lobbyId}/ffa`;
-
-export const getQuickGameFfaStateUrl = (lobbyId) =>
-	`${lobbyFfaPath(lobbyId)}/state`;
-
-export const getQuickGameFfaVisitUrl = (lobbyId) =>
-	`${lobbyFfaPath(lobbyId)}/visits`;
-
-export const getQuickGameFfaUndoUrl = (lobbyId) =>
-	`${lobbyFfaPath(lobbyId)}/visits/undo`;
+export { getQuickGameFfaStateUrl, getQuickGameFfaVisitUrl, getQuickGameFfaUndoUrl };
 
 export async function fetchFfaScoringState(lobbyId, accessToken) {
-	const res = await fetch(getQuickGameFfaStateUrl(lobbyId), {
-		headers: { Authorization: `Bearer ${accessToken}` },
+	const url = getQuickGameFfaStateUrl(lobbyId);
+	const res = await fetch(url, {
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+			Accept: 'application/json',
+		},
 	});
 	const data = await res.json();
 	if (!res.ok) {
@@ -28,6 +26,7 @@ export async function recordFfaVisit(lobbyId, accessToken, payload) {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
+			Accept: 'application/json',
 			Authorization: `Bearer ${accessToken}`,
 		},
 		body: JSON.stringify(payload),
@@ -43,6 +42,7 @@ export async function undoFfaVisit(lobbyId, accessToken) {
 	const res = await fetch(getQuickGameFfaUndoUrl(lobbyId), {
 		method: 'POST',
 		headers: {
+			Accept: 'application/json',
 			Authorization: `Bearer ${accessToken}`,
 		},
 	});

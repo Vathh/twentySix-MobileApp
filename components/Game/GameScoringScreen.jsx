@@ -314,14 +314,11 @@ const GameScoringScreen = ({ route, navigation }) => {
 		const legsWonArr = playerStates.map((s) => s.legsWon);
 		const winnerIdx = legsWonArr.findIndex((l) => l >= legsToWinQuick);
 		const winner = players[winnerIdx >= 0 ? winnerIdx : 0];
-		const loser = N === 2 && winnerIdx >= 0 ? players[1 - winnerIdx] : null;
-		const msg =
-			N === 2 && loser
-				? `${loser.name} przegrał zatem pozostaje przy tarczy jako liczący.`
-				: `${winner?.name ?? 'Zwycięzca'} wygrał mecz!`;
-		Alert.alert('MECZ ZAKOŃCZONY', msg, [
-			{ text: 'OK', style: 'destructive', onPress: () => {} },
-		]);
+		Alert.alert(
+			'Mecz zakończony',
+			`${winner?.name ?? 'Zwycięzca'} wygrywa mecz.`,
+			[{ text: 'OK', style: 'default', onPress: () => {} }],
+		);
 	}, [
 		gameClosed,
 		useOnlineQuickFfa,
@@ -517,6 +514,13 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 	};
 
+	const checkoutLegPrompt = (player) => {
+		if (isQuickGame && lobbyScoringMode === 'each_own') {
+			return 'Czy wygrałeś lega?';
+		}
+		return `Czy ${player?.name ?? 'Gracz'} wygrał lega?`;
+	};
+
 	/** Wizyta przez scoring API — `resultToApply` to punkty z całej wizyty (1–180). */
 	const submitOnlineVisitCore = async (resultToApply, dartsInVisit = 3) => {
 		if (gameClosed || !useScoringApi) return false;
@@ -534,7 +538,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		const overshoot = resultToApply > state.score;
 		if (!overshoot && resultToApply === state.score) {
 			okHandlingRef.current = true;
-			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
+			Alert.alert('UWAGA', checkoutLegPrompt(player), [
 				{
 					text: 'NIE',
 					style: 'cancel',
@@ -630,7 +634,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 
 		if (resultToApply === visitStart) {
-			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
+			Alert.alert('UWAGA', checkoutLegPrompt(player), [
 				{
 					text: 'NIE',
 					style: 'cancel',
@@ -716,7 +720,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 
 		if (resultToApply === state.score) {
-			Alert.alert('UWAGA', `Czy ${player?.name ?? 'Gracz'} wygrał lega?`, [
+			Alert.alert('UWAGA', checkoutLegPrompt(player), [
 				{
 					text: 'NIE',
 					style: 'cancel',

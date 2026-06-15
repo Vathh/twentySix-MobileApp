@@ -1,0 +1,45 @@
+import React from 'react';
+import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import useAuth from '../../hooks/useAuth';
+
+const AccountMenuButton = () => {
+  const { auth, setAuth } = useAuth();
+
+  const displayName = auth?.playerName?.trim() || 'Konto';
+
+  const logOut = () => {
+    setAuth({});
+  };
+
+  const handlePress = () => {
+    Alert.alert(displayName, 'Wybierz akcję', [
+      { text: 'Anuluj', style: 'cancel' },
+      {
+        text: 'Wyloguj',
+        style: 'destructive',
+        onPress: logOut,
+      },
+    ]);
+  };
+
+  return (
+    <Pressable style={styles.button} onPress={handlePress}>
+      <Text style={styles.text} numberOfLines={1}>
+        {displayName}
+      </Text>
+    </Pressable>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    paddingHorizontal: 8,
+    maxWidth: 140,
+  },
+  text: {
+    color: '#c5c5c5',
+    fontWeight: 'bold',
+  },
+});
+
+export default AccountMenuButton;

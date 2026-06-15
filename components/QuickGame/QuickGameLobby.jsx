@@ -22,8 +22,10 @@ import {
   getQuickGameLobbyReadyUrl,
   getQuickGameLobbyStartUrl,
   getQuickGameLobbyInviteUrl,
+  getQuickGameLobbyAddGuestUrl,
   FRIENDS_API_URL,
 } from '../../helpers/apiConfig';
+import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerCache';
 
 const DEFAULT_LEGS_TO_WIN = 2;
 const MAX_LOBBY_PLAYERS = 8;
@@ -47,6 +49,10 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [guestModalVisible, setGuestModalVisible] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [cachedGuestNames, setCachedGuestNames] = useState([]);
+  const [addingGuest, setAddingGuest] = useState(false);
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
@@ -219,6 +225,49 @@ const QuickGameLobby = ({ navigation, route }) => {
     fetchFriends();
   };
 
+  const openGuestModal = async () => {
+    setGuestName('');
+    setGuestModalVisible(true);
+    const names = await getCachedTempNames();
+    setCachedGuestNames(names);
+  };
+
+  const handleAddGuest = async () => {
+    const name = guestName.trim();
+    if (!lobby?.id || !auth?.accessToken || !name) {
+      Alert.alert('Błąd', 'Podaj imię gracza tymczasowego');
+      return;
+    }
+    setAddingGuest(true);
+    try {
+      const res = await fetch(getQuickGameLobbyAddGuestUrl(lobby.id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({ tempPlayerName: name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await addCachedTempName(name);
+        applyLobbyData(data, lobby.id);
+        setGuestModalVisible(false);
+        if (scoringMode === SCORING_MODES.EACH_OWN) {
+          setScoringMode(SCORING_MODES.ONE_DEVICE);
+          handleUpdateSettings({ scoringMode: SCORING_MODES.ONE_DEVICE });
+        }
+      } else {
+        Alert.alert('Błąd', data?.message || 'Nie udało się dodać gracza');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia');
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
   const handleInviteFriend = async (friend) => {
     if (!lobby?.id || !auth?.accessToken) return;
     const playerId = friend.playerId ?? friend.id ?? friend.player_id;
@@ -359,6 +408,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           ? orderedPlayers
           : players;
     const isHost = lobby.youAreHost === true;
+    const hasTempGuests = players.some((p) => p.isRegistered === false && !p.isHost);
     // Gotowość tylko zarejestrowanych; host jest zawsze uznawany za gotowego, goście nie liczą się
     const allRegisteredReady =
       players.length >= 2 &&
@@ -408,7 +458,10 @@ const QuickGameLobby = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.label}>Liczenie</Text>
-          <Text style={styles.hintSmall}>Kto wpisuje punkty: na jednym urządzeniu tylko host; każdy na swoim – tylko aktualnie rzucający (tylko host może zmieniać).</Text>
+          <Text style={styles.hintSmall}>
+            Kto wpisuje punkty: na jednym urządzeniu tylko host; każdy na swoim – tylko aktualnie rzucający (tylko host może zmieniać).
+            {hasTempGuests ? ' Gracze tymczasowi wymagają trybu „na 1 urządzeniu”.' : ''}
+          </Text>
           <View style={styles.gameTypeRow}>
             <Pressable
               style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnActive]}
@@ -423,14 +476,18 @@ const QuickGameLobby = ({ navigation, route }) => {
               <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnTextActive]}>Na 1 urządzeniu</Text>
             </Pressable>
             <Pressable
-              style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnActive]}
+              style={[
+                styles.gameTypeBtn,
+                scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnActive,
+                hasTempGuests && styles.gameTypeBtnDisabled,
+              ]}
               onPress={() => {
-                if (isHost) {
+                if (isHost && !hasTempGuests) {
                   setScoringMode(SCORING_MODES.EACH_OWN);
                   handleUpdateSettings({ scoringMode: SCORING_MODES.EACH_OWN });
                 }
               }}
-              disabled={!isHost}
+              disabled={!isHost || hasTempGuests}
             >
               <Text style={[styles.gameTypeBtnText, scoringMode === SCORING_MODES.EACH_OWN && styles.gameTypeBtnTextActive]}>Każdy na swoim</Text>
             </Pressable>
@@ -438,31 +495,41 @@ const QuickGameLobby = ({ navigation, route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Zaproszenia</Text>
+          <Text style={styles.label}>Gracze</Text>
           {isHost && players.length < MAX_LOBBY_PLAYERS && (
-            <Pressable style={styles.inviteButton} onPress={openInviteModal}>
-              <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
-              <Text style={styles.inviteButtonText}>Zaproś znajomego</Text>
-            </Pressable>
+            <>
+              <Pressable style={styles.inviteButton} onPress={openInviteModal}>
+                <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
+                <Text style={styles.inviteButtonText}>Zaproś znajomego</Text>
+              </Pressable>
+              <Pressable style={styles.inviteButtonSecondary} onPress={openGuestModal}>
+                <FontAwesomeIcon icon={faUserPlus} size={18} color="#F99417" style={{ marginRight: 8 }} />
+                <Text style={styles.inviteButtonTextSecondary}>Dodaj gracza tymczasowego</Text>
+              </Pressable>
+            </>
           )}
           {isHost && players.length >= MAX_LOBBY_PLAYERS && (
             <Text style={styles.hintSmall}>Osiągnięto limit {MAX_LOBBY_PLAYERS} graczy w lobby.</Text>
           )}
-          {invitations.length === 0 ? (
-            <Text style={styles.hintSmall}>Brak zaproszeń. Kliknij „Zaproś znajomego”, aby dodać.</Text>
-          ) : (
-            invitations.map((inv) => {
-              const statusInfo = INVITATION_STATUS[inv.status] ?? INVITATION_STATUS.sent;
-              return (
-                <View key={inv.id} style={styles.invitationRow}>
-                  <Text style={styles.invitationName}>{inv.name}</Text>
-                  <View style={styles.invitationStatus}>
-                    <FontAwesomeIcon icon={statusInfo.icon} size={18} color={statusInfo.color} style={styles.invitationStatusIcon} />
-                    <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+          {invitations.length > 0 && (
+            <>
+              <Text style={styles.subLabel}>Zaproszenia</Text>
+              {invitations.map((inv) => {
+                const statusInfo = INVITATION_STATUS[inv.status] ?? INVITATION_STATUS.sent;
+                return (
+                  <View key={inv.id} style={styles.invitationRow}>
+                    <Text style={styles.invitationName}>{inv.name}</Text>
+                    <View style={styles.invitationStatus}>
+                      <FontAwesomeIcon icon={statusInfo.icon} size={18} color={statusInfo.color} style={styles.invitationStatusIcon} />
+                      <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })
+                );
+              })}
+            </>
+          )}
+          {isHost && invitations.length === 0 && players.length < 2 && (
+            <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego (bez konta).</Text>
           )}
         </View>
 
@@ -473,7 +540,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           {listData.length === 0 ? (
             <View style={styles.emptyPlayersBox}>
               <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
-              <Text style={styles.hintSmall}>Zaproś znajomych, aby dołączyli do lobby.</Text>
+              <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego.</Text>
             </View>
           ) : (
             <>
@@ -492,7 +559,9 @@ const QuickGameLobby = ({ navigation, route }) => {
                       renderItem={({ item, drag, isActive }) => (
                         <View style={[styles.playerTile, isActive && styles.playerTileActive]}>
                           <Text style={styles.playerTileName} numberOfLines={1}>
-                            {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                            {item.name || item.tempName || 'Gracz'}
+                            {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
+                            {item.ready ? ' ✓ Gotowy' : ''}
                           </Text>
                           <Pressable style={styles.dragHandle} onLongPress={drag} delayLongPress={150}>
                             <FontAwesomeIcon icon={faGripVertical} size={18} color="#F99417" />
@@ -507,7 +576,9 @@ const QuickGameLobby = ({ navigation, route }) => {
                   {players.map((item, index) => (
                     <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)} style={styles.playerTile}>
                       <Text style={styles.playerTileName} numberOfLines={1}>
-                        {item.name || item.tempName || 'Gracz'} {item.ready ? '✓ Gotowy' : ''}
+                        {item.name || item.tempName || 'Gracz'}
+                        {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
+                        {item.ready ? ' ✓ Gotowy' : ''}
                       </Text>
                     </View>
                   ))}
@@ -603,6 +674,52 @@ const QuickGameLobby = ({ navigation, route }) => {
               )}
               <Pressable style={styles.buttonSecondary} onPress={() => setInviteModalVisible(false)}>
                 <Text style={styles.buttonTextSecondary}>Zamknij</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+        <Modal
+          visible={guestModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setGuestModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setGuestModalVisible(false)}>
+            <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Gracz tymczasowy</Text>
+              <Text style={styles.hintSmall}>
+                Osoba bez konta — host wpisuje jej rzuty (tryb na 1 urządzeniu).
+              </Text>
+              <TextInput
+                style={styles.guestInput}
+                value={guestName}
+                onChangeText={setGuestName}
+                placeholder="Imię zawodnika"
+                placeholderTextColor="#999"
+                maxLength={50}
+                autoCapitalize="words"
+              />
+              {cachedGuestNames.length > 0 && (
+                <View style={styles.cachedNamesWrap}>
+                  <Text style={styles.hintSmall}>Ostatnio używane:</Text>
+                  <View style={styles.cachedNamesRow}>
+                    {cachedGuestNames.slice(0, 6).map((n) => (
+                      <Pressable key={n} style={styles.cachedNameChip} onPress={() => setGuestName(n)}>
+                        <Text style={styles.cachedNameChipText}>{n}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+              <Pressable
+                style={[styles.button, addingGuest && styles.buttonDisabled]}
+                onPress={handleAddGuest}
+                disabled={addingGuest}
+              >
+                <Text style={styles.buttonText}>{addingGuest ? 'Dodawanie…' : 'Dodaj do lobby'}</Text>
+              </Pressable>
+              <Pressable style={styles.buttonSecondary} onPress={() => setGuestModalVisible(false)}>
+                <Text style={styles.buttonTextSecondary}>Anuluj</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -802,6 +919,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#363062',
     fontWeight: 'bold',
+  },
+  inviteButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#F99417',
+    backgroundColor: 'transparent',
+  },
+  inviteButtonTextSecondary: {
+    fontSize: 16,
+    color: '#F99417',
+    fontWeight: 'bold',
+  },
+  subLabel: {
+    fontSize: 14,
+    color: '#c5c5c5',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  gameTypeBtnDisabled: {
+    opacity: 0.45,
+  },
+  guestInput: {
+    backgroundColor: '#f5f5f5cc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#363062',
+    marginBottom: 12,
+  },
+  cachedNamesWrap: {
+    marginBottom: 12,
+  },
+  cachedNamesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  cachedNameChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: '#4a4580',
+  },
+  cachedNameChipText: {
+    color: '#f5f5f5',
+    fontSize: 13,
   },
   button: {
     backgroundColor: '#F99417',

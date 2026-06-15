@@ -29,7 +29,7 @@ const TAB_FRIENDS = 'friends';
 
 const InvitationsScreen = ({ navigation }) => {
   const { auth } = useAuth();
-  const [activeTab, setActiveTab] = useState(TAB_TOURNAMENT);
+  const [activeTab, setActiveTab] = useState(TAB_FRIENDS);
   const [tournamentInvitations, setTournamentInvitations] = useState([]);
   const [lobbyInvitations, setLobbyInvitations] = useState([]);
   const [friendInvitations, setFriendInvitations] = useState([]);
@@ -352,10 +352,10 @@ const InvitationsScreen = ({ navigation }) => {
     >
       <View style={styles.tabs}>
         <Pressable
-          style={[styles.tab, activeTab === TAB_TOURNAMENT && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_TOURNAMENT)}
+          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_FRIENDS)}
         >
-          <Text style={[styles.tabText, activeTab === TAB_TOURNAMENT && styles.tabTextActive]}>Turniej</Text>
+          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, activeTab === TAB_POJEDYNEK && styles.tabActive]}
@@ -364,20 +364,20 @@ const InvitationsScreen = ({ navigation }) => {
           <Text style={[styles.tabText, activeTab === TAB_POJEDYNEK && styles.tabTextActive]}>Pojedynek</Text>
         </Pressable>
         <Pressable
-          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_FRIENDS)}
+          style={[styles.tab, activeTab === TAB_TOURNAMENT && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_TOURNAMENT)}
         >
-          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
+          <Text style={[styles.tabText, activeTab === TAB_TOURNAMENT && styles.tabTextActive]}>Turniej</Text>
         </Pressable>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {activeTab === TAB_TOURNAMENT
-        ? renderTournamentTab()
+      {activeTab === TAB_FRIENDS
+        ? renderFriendsTab()
         : activeTab === TAB_POJEDYNEK
           ? renderPojedynekTab()
-          : renderFriendsTab()}
+          : renderTournamentTab()}
     </ScrollView>
   );
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import Pusher from 'pusher-js';
 import { getReverbConfig } from '../helpers/apiConfig';
@@ -43,6 +43,14 @@ export function useQuickGameFfaScoring({
 	const lastStateKeyRef = useRef('');
 	const lastLegNumberRef = useRef(null);
 	const finishedQuickGameIdRef = useRef(null);
+	const applyStateRef = useRef(null);
+	const wsHealthyRef = useRef(false);
+	const [wsHealthy, setWsHealthy] = useState(false);
+
+	const setWsHealth = useCallback((healthy) => {
+		wsHealthyRef.current = healthy;
+		setWsHealthy(healthy);
+	}, []);
 
 	const applyState = useCallback(
 		(state) => {
@@ -77,46 +85,42 @@ export function useQuickGameFfaScoring({
 		],
 	);
 
+	applyStateRef.current = applyState;
+
 	const loadState = useCallback(async () => {
 		if (!enabled || !lobbyId || !accessToken) {
 			return null;
 		}
 		try {
 			const state = await fetchFfaScoringState(lobbyId, accessToken);
-			applyState(state);
+			applyStateRef.current?.(state);
 			return state;
 		} catch (e) {
 			console.warn('loadFfaScoringState', e);
 			return null;
 		}
-	}, [enabled, lobbyId, accessToken, applyState]);
+	}, [enabled, lobbyId, accessToken]);
 
 	useEffect(() => {
-		if (!enabled || gameClosed) {
-			return undefined;
-		}
-		loadState();
-		return undefined;
-	}, [enabled, lobbyId, gameClosed, loadState]);
-
-	useEffect(() => {
-		if (!enabled || gameClosed || !lobbyId || !accessToken) {
+		if (!enabled || gameClosed || !lobbyId || !accessToken || wsHealthy) {
 			return undefined;
 		}
 		let cancelled = false;
 		const tick = async () => {
-			if (cancelled) return;
+			if (cancelled || wsHealthyRef.current) return;
 			await loadState();
 		};
+		void tick();
 		const t = setInterval(tick, BACKUP_POLL_MS);
 		return () => {
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [enabled, gameClosed, lobbyId, accessToken, loadState]);
+	}, [enabled, gameClosed, lobbyId, accessToken, loadState, wsHealthy]);
 
 	useEffect(() => {
 		if (!enabled || !lobbyId || !accessToken || gameClosed) {
+			setWsHealth(false);
 			return undefined;
 		}
 
@@ -146,27 +150,40 @@ export function useQuickGameFfaScoring({
 
 		const channelName = `private-quick-game-lobby.${lobbyId}`;
 		const channel = pusher.subscribe(channelName);
+
+		const markWsDown = () => setWsHealth(false);
+
+		pusher.connection.bind('disconnected', markWsDown);
+		pusher.connection.bind('unavailable', markWsDown);
+		pusher.connection.bind('failed', markWsDown);
+
 		channel.bind('pusher:subscription_succeeded', () => {
+			setWsHealth(true);
 			logReverbWs('info', 'quick-game-ffa', `subskrypcja OK: ${channelName}`);
 		});
+		channel.bind('pusher:subscription_error', markWsDown);
 
 		const onFfaState = (payload) => {
 			const data = normalizePusherPayload(payload);
 			const state = data?.state ?? data;
 			if (state?.session) {
-				applyState(state);
+				applyStateRef.current?.(state);
 			}
 		};
 		channel.bind(FFA_STATE_EVENT, onFfaState);
 		channel.bind(FFA_STATE_EVENT_ALT, onFfaState);
 
 		return () => {
+			setWsHealth(false);
+			pusher.connection.unbind('disconnected', markWsDown);
+			pusher.connection.unbind('unavailable', markWsDown);
+			pusher.connection.unbind('failed', markWsDown);
 			unbindDebug();
 			channel.unbind_all();
 			pusher.unsubscribe(channelName);
 			pusher.disconnect();
 		};
-	}, [enabled, lobbyId, accessToken, gameClosed, applyState]);
+	}, [enabled, lobbyId, accessToken, gameClosed, setWsHealth]);
 
 	const assertCanInput = useCallback(
 		(playerIndex) => {
@@ -226,7 +243,7 @@ export function useQuickGameFfaScoring({
 					bust,
 					clientVisitId: newFfaClientVisitId(),
 				});
-				applyState(state);
+				applyStateRef.current?.(state);
 				return state;
 			} catch (e) {
 				Alert.alert('Błąd', e.message || 'Nie udało się zapisać wizyty');
@@ -240,7 +257,6 @@ export function useQuickGameFfaScoring({
 			players,
 			playerStates,
 			assertCanInput,
-			applyState,
 		],
 	);
 
@@ -267,13 +283,13 @@ export function useQuickGameFfaScoring({
 		}
 		try {
 			const state = await undoFfaVisit(lobbyId, accessToken);
-			applyState(state);
+			applyStateRef.current?.(state);
 			return state;
 		} catch (e) {
 			Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
 			return null;
 		}
-	}, [enabled, lobbyId, accessToken, lobbyScoringMode, isHost, applyState]);
+	}, [enabled, lobbyId, accessToken, lobbyScoringMode, isHost]);
 
 	return {
 		submitVisit,

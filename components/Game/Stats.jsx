@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet, Text, View, ScrollView } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
+import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 
 const Stats = ({ players, playerStates }) => {
   const N = players?.length ?? 0;
@@ -24,10 +25,14 @@ const Stats = ({ players, playerStates }) => {
   if (isTwoPlayer && N >= 2) {
     const s0 = playerStates[0];
     const s1 = playerStates[1];
-    const player1BestLegAverage = s0?.legsAverages?.length > 0 ? Math.max(...s0.legsAverages) : s0?.currentLegAverage;
-    const player2BestLegAverage = s1?.legsAverages?.length > 0 ? Math.max(...s1.legsAverages) : s1?.currentLegAverage;
-    const player1BestLegThrows = s0?.dartsPerLeg?.length > 0 ? Math.min(...s0.dartsPerLeg) : '-';
-    const player2BestLegThrows = s1?.dartsPerLeg?.length > 0 ? Math.min(...s1.dartsPerLeg) : '-';
+    const player1BestLegAverage =
+      s0?.legsAverages?.length > 0 ? Math.max(...s0.legsAverages) : null;
+    const player2BestLegAverage =
+      s1?.legsAverages?.length > 0 ? Math.max(...s1.legsAverages) : null;
+    const player1BestLegThrows =
+      s0?.dartsPerLeg?.length > 0 ? Math.min(...s0.dartsPerLeg) : null;
+    const player2BestLegThrows =
+      s1?.dartsPerLeg?.length > 0 ? Math.min(...s1.dartsPerLeg) : null;
 
     const player1Stats = {
       plus60: getThrowsBetween([...(s0?.legByLegScores ?? []), s0?.currentLegScores ?? []], 60, 80),
@@ -58,17 +63,25 @@ const Stats = ({ players, playerStates }) => {
 
         <StatsTitleRow title="Średnia (3 lotki)" />
 
-        <StatsRow title="Cała gra" player1Value={s0?.matchAverage} player2Value={s1?.matchAverage} />
-        <StatsRow title="Najlepszy leg" player1Value={player1BestLegAverage} player2Value={player2BestLegAverage} />
+        <StatsRow title="Cała gra" player1Value={formatAverage(s0?.matchAverage)} player2Value={formatAverage(s1?.matchAverage)} />
+        <StatsRow
+          title="Najlepszy leg"
+          player1Value={hasAverage(player1BestLegAverage) ? formatAverage(player1BestLegAverage) : '-'}
+          player2Value={hasAverage(player2BestLegAverage) ? formatAverage(player2BestLegAverage) : '-'}
+        />
         <StatsRow
           title="Aktualny leg"
-          player1Value={isNaN(s0?.currentLegAverage) ? '-' : s0?.currentLegAverage}
-          player2Value={isNaN(s1?.currentLegAverage) ? '-' : s1?.currentLegAverage}
+          player1Value={hasAverage(s0?.currentLegAverage) ? formatAverage(s0.currentLegAverage) : '-'}
+          player2Value={hasAverage(s1?.currentLegAverage) ? formatAverage(s1.currentLegAverage) : '-'}
         />
 
         <StatsTitleRow title="Osiągi" />
 
-        <StatsRow title="Najlepszy leg" player1Value={player1BestLegThrows} player2Value={player2BestLegThrows} />
+        <StatsRow
+          title="Najlepszy leg"
+          player1Value={player1BestLegThrows ?? '-'}
+          player2Value={player2BestLegThrows ?? '-'}
+        />
         <StatsRow title="60+" player1Value={player1Stats.plus60} player2Value={player2Stats.plus60} />
         <StatsRow title="80+" player1Value={player1Stats.plus80} player2Value={player2Stats.plus80} />
         <StatsRow title="100+" player1Value={player1Stats.plus100} player2Value={player2Stats.plus100} />
@@ -84,14 +97,22 @@ const Stats = ({ players, playerStates }) => {
       {players?.map((p, i) => {
         const s = playerStates?.[i];
         if (!s) return null;
-        const bestLeg = s.legsAverages?.length > 0 ? Math.max(...s.legsAverages) : s.currentLegAverage;
+        const bestLeg =
+          s.legsAverages?.length > 0 ? Math.max(...s.legsAverages) : null;
+        const bestLegDarts =
+          s.dartsPerLeg?.length > 0 ? Math.min(...s.dartsPerLeg) : null;
         return (
           <View key={i} style={[styles.row, styles.darkRow, styles.multiRow]}>
             <Text style={styles.multiName}>{p?.name ?? 'Gracz'}</Text>
             <View style={styles.multiValues}>
-              <Text style={styles.multiValue}>ms: {s.totalPointsEarned ? s.matchAverage : '-'}</Text>
+              <Text style={styles.multiValue}>ms: {formatAverage(s.matchAverage)}</Text>
               <Text style={styles.multiValue}>legi: {s.legsWon}</Text>
-              <Text style={styles.multiValue}>naj. leg: {bestLeg ?? '-'}</Text>
+              <Text style={styles.multiValue}>
+                naj. leg: {hasAverage(bestLeg) ? formatAverage(bestLeg) : '-'}
+              </Text>
+              <Text style={styles.multiValue}>
+                naj. lotki: {bestLegDarts ?? '-'}
+              </Text>
             </View>
           </View>
         );

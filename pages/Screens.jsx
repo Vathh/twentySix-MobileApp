@@ -13,6 +13,7 @@ import FriendsScreen from '../components/Friends/FriendsScreen';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import MenuScreen from '../components/Core/MenuScreen';
 import HeaderTitle from '../components/Common/HeaderTitle';
+import AccountMenuButton from '../components/Common/AccountMenuButton';
 import LogoutButton from '../components/Common/LogoutButton';
 import LoginButton from '../components/Common/LoginButton';
 
@@ -87,8 +88,9 @@ const Screens = () => {
         initialRouteName="Home"
         screenOptions={({ navigation }) => ({
           ...headerOptions,
+          headerBackVisible: false,
           headerLeft: () => menuHeaderLeft(navigation),
-          headerRight: () => <LogoutButton />,
+          headerRight: () => <AccountMenuButton />,
         })}
       >
         <Stack.Screen
@@ -119,7 +121,10 @@ const Screens = () => {
         <Stack.Screen
           name="Menu"
           component={MenuScreen}
-          options={{ headerTitle: (props) => <HeaderTitle {...props} /> }}
+          options={{
+            headerTitle: (props) => <HeaderTitle {...props} />,
+            headerLeft: () => null,
+          }}
         />
         <Stack.Screen
           name="Znajomi"

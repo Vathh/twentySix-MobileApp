@@ -37,6 +37,7 @@ const TournamentLogin = () => {
         tournamentId: null,
         userId: data?.user?.id ?? null,
         playerId: data?.user?.playerId ?? null,
+        playerName: data?.user?.name ?? null,
       });
     } catch (err) {
       setErrorMsg('Nieprawidłowy email lub hasło');

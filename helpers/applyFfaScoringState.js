@@ -33,16 +33,36 @@ export function applyFfaScoringState(state, ctx) {
 
 	const pid = (id) => (id != null ? Number(id) : null);
 
+	const visits = state.visits || [];
+
 	(state.players || []).forEach((sp) => {
 		const spId = pid(sp.playerId);
 		const idx = players.findIndex(
 			(p) => pid(p.playerId ?? p.id) === spId,
 		);
 		if (idx >= 0 && idx < N) {
+			const playerVisits = visits.filter(
+				(v) => pid(v.playerId) === spId && !v.bust,
+			);
+			const currentLegScores = playerVisits.map((v) => v.score);
+			const dartsThrown = playerVisits.reduce(
+				(sum, v) => sum + (v.dartsInVisit ?? 3),
+				0,
+			);
+
 			dispatches[idx](
 				syncFromServer({
 					score: sp.remaining ?? 501,
 					legsWon: sp.legsWon ?? 0,
+					matchAverage: sp.gameAverage ?? null,
+					currentLegAverage: sp.legAverage ?? null,
+					currentLegScores,
+					dartsThrown,
+					totalPointsEarned: sp.matchPointsEarned ?? 0,
+					totalDartsThrown: sp.matchDartsThrown ?? 0,
+					legByLegScores: sp.legByLegScores ?? [],
+					legsAverages: sp.legsAverages ?? [],
+					dartsPerLeg: sp.dartsPerLeg ?? [],
 				}),
 			);
 		}
@@ -63,7 +83,6 @@ export function applyFfaScoringState(state, ctx) {
 
 	let nextPlayerIndex = state.session?.currentPlayerIndex ?? 0;
 	if (state.session?.currentPlayerIndex == null) {
-		const visits = state.visits || [];
 		if (visits.length > 0) {
 			const last = visits[visits.length - 1];
 			const lastPid = pid(last.playerId);

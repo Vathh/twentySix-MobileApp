@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
 import { SCORING_MODES } from '../../hooks/useGameSettings'
+import { formatAverage, hasAverage } from '../../helpers/formatAverage'
 
 const Counter = ({
   players,
@@ -247,10 +248,10 @@ const Counter = ({
             </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
-                ms: {s0?.totalPointsEarned ? s0.matchAverage : '-'}
+                ms: {hasAverage(s0?.matchAverage) ? formatAverage(s0.matchAverage) : '-'}
               </Text>
               <Text style={styles.averageText}>
-                ls: {raw0 !== 501 ? s0.currentLegAverage : '-'}
+                ls: {(s0?.dartsThrown > 0 || hasAverage(s0?.currentLegAverage)) ? formatAverage(s0.currentLegAverage) : '-'}
               </Text>
             </View>
           </View>
@@ -263,10 +264,10 @@ const Counter = ({
             </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
-                ms: {s1?.totalPointsEarned ? s1.matchAverage : '-'}
+                ms: {hasAverage(s1?.matchAverage) ? formatAverage(s1.matchAverage) : '-'}
               </Text>
               <Text style={styles.averageText}>
-                ls: {raw1 !== 501 ? s1.currentLegAverage : '-'}
+                ls: {(s1?.dartsThrown > 0 || hasAverage(s1?.currentLegAverage)) ? formatAverage(s1.currentLegAverage) : '-'}
               </Text>
             </View>
           </View>
@@ -306,8 +307,8 @@ const Counter = ({
               <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
             </View>
             <View style={styles.multiRowRight}>
-              <Text style={styles.multiAvg}>ms: {st?.totalPointsEarned ? st.matchAverage : '-'}</Text>
-              <Text style={styles.multiAvg}>ls: {rawS !== 501 ? st.currentLegAverage : '-'}</Text>
+              <Text style={styles.multiAvg}>ms: {hasAverage(st?.matchAverage) ? formatAverage(st.matchAverage) : '-'}</Text>
+              <Text style={styles.multiAvg}>ls: {(st?.dartsThrown > 0 || hasAverage(st?.currentLegAverage)) ? formatAverage(st.currentLegAverage) : '-'}</Text>
             </View>
           </View>
           );

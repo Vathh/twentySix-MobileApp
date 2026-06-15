@@ -6,10 +6,31 @@ export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
 export const UNDO = 'UNDO';
 
-export const syncFromServer = ({ score, legsWon }) => ({
+export const syncFromServer = ({
+  score,
+  legsWon,
+  matchAverage,
+  currentLegAverage,
+  currentLegScores,
+  dartsThrown,
+  totalPointsEarned,
+  totalDartsThrown,
+  legByLegScores,
+  legsAverages,
+  dartsPerLeg,
+}) => ({
   type: SYNC_FROM_SERVER,
   score,
   legsWon,
+  matchAverage,
+  currentLegAverage,
+  currentLegScores,
+  dartsThrown,
+  totalPointsEarned,
+  totalDartsThrown,
+  legByLegScores,
+  legsAverages,
+  dartsPerLeg,
 });
 
 export const updateStats = (points) => ({

@@ -3,13 +3,49 @@ import { LEG_LOSE, LEG_WIN, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SIN
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
     case SYNC_FROM_SERVER: {
+      const legClosed = action.legsWon > state.legsWon;
+      const legsAverages =
+        action.legsAverages != null
+          ? action.legsAverages
+          : legClosed && state.currentLegAverage
+            ? [...state.legsAverages, state.currentLegAverage]
+            : state.legsAverages;
+      const dartsPerLeg =
+        action.dartsPerLeg != null
+          ? action.dartsPerLeg
+          : legClosed && state.dartsThrown
+            ? [...state.dartsPerLeg, state.dartsThrown]
+            : state.dartsPerLeg;
+
       return {
         ...state,
         score: action.score,
         legsWon: action.legsWon,
-        dartsThrown: 0,
-        currentLegScores: [],
-        currentLegAverage: 0,
+        matchAverage:
+          action.matchAverage != null ? action.matchAverage : state.matchAverage,
+        currentLegAverage:
+          action.currentLegAverage != null
+            ? action.currentLegAverage
+            : legClosed
+              ? 0
+              : state.currentLegAverage,
+        currentLegScores: legClosed
+          ? (action.currentLegScores ?? [])
+          : (action.currentLegScores ?? state.currentLegScores),
+        dartsThrown: legClosed
+          ? (action.dartsThrown ?? 0)
+          : (action.dartsThrown ?? state.dartsThrown),
+        totalPointsEarned:
+          action.totalPointsEarned != null
+            ? action.totalPointsEarned
+            : state.totalPointsEarned,
+        totalDartsThrown:
+          action.totalDartsThrown != null
+            ? action.totalDartsThrown
+            : state.totalDartsThrown,
+        legByLegScores: action.legByLegScores ?? state.legByLegScores,
+        legsAverages,
+        dartsPerLeg,
       };
     }
     case UPDATE_SINGLE_DART: {
@@ -109,7 +145,7 @@ export const playerResultReducer = (state, action) => {
         currentLegScores: [],
         currentLegAverage: 0,
         legsAverages: [...state.legsAverages, currentLegAverage],
-        legByLegScores: [...state.legByLegScores,currentLegScores]
+        legByLegScores: [...state.legByLegScores, currentLegScores],
       };
     };
     case UNDO: {
