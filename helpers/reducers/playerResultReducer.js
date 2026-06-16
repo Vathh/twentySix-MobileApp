@@ -1,4 +1,4 @@
-import { LEG_LOSE, LEG_WIN, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
+import { COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, REOPEN_LAST_VISIT, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
@@ -46,6 +46,26 @@ export const playerResultReducer = (state, action) => {
         legByLegScores: action.legByLegScores ?? state.legByLegScores,
         legsAverages,
         dartsPerLeg,
+        currentVisitDartLabels: legClosed ? [] : (state.currentVisitDartLabels ?? []),
+      };
+    }
+    case COMPLETE_CURRENT_VISIT: {
+      const labels = state.currentVisitDartLabels ?? [];
+      return {
+        ...state,
+        lastVisitDartLabels: labels.length > 0 ? [...labels] : state.lastVisitDartLabels,
+        currentVisitDartLabels: [],
+      };
+    }
+    case REOPEN_LAST_VISIT: {
+      const labels = state.lastVisitDartLabels ?? [];
+      if (labels.length === 0) {
+        return state;
+      }
+      return {
+        ...state,
+        currentVisitDartLabels: [...labels],
+        lastVisitDartLabels: [],
       };
     }
     case UPDATE_SINGLE_DART: {
@@ -57,6 +77,9 @@ export const playerResultReducer = (state, action) => {
       const dartsThrown = state.dartsThrown + 1;
       const currentLegScores = [...state.currentLegScores, points];
       const currentLegAverage = dartsThrown > 0 ? (((501 - score) / dartsThrown) * 3).toFixed(2) : 0;
+      const nextLabels = action.label
+        ? [...(state.currentVisitDartLabels ?? []), action.label]
+        : (state.currentVisitDartLabels ?? []);
       return {
         ...state,
         score,
@@ -65,7 +88,8 @@ export const playerResultReducer = (state, action) => {
         matchAverage,
         dartsThrown,
         currentLegScores,
-        currentLegAverage
+        currentLegAverage,
+        currentVisitDartLabels: nextLabels,
       };
     }
     case UNDO_SINGLE_DART: {
@@ -78,6 +102,8 @@ export const playerResultReducer = (state, action) => {
       const totalDartsThrown = state.totalDartsThrown - 1;
       const matchAverage = totalDartsThrown > 0 ? (totalPointsEarned / totalDartsThrown * 3).toFixed(2) : 0;
       const currentLegAverage = dartsThrown > 0 ? ((501 - score) / dartsThrown * 3).toFixed(2) : 0;
+      const visitLabels = [...(state.currentVisitDartLabels ?? [])];
+      visitLabels.pop();
       return {
         ...state,
         score,
@@ -86,7 +112,8 @@ export const playerResultReducer = (state, action) => {
         matchAverage,
         dartsThrown,
         currentLegScores: scores,
-        currentLegAverage
+        currentLegAverage,
+        currentVisitDartLabels: visitLabels,
       };
     }
     case UPDATE_STATS: {
@@ -131,7 +158,11 @@ export const playerResultReducer = (state, action) => {
         currentLegAverage: 0,
         dartsPerLeg: [...state.dartsPerLeg, dartsThrown],
         legsAverages: [...state.legsAverages, currentLegAverage],
-        legByLegScores: [...state.legByLegScores,currentLegScores]
+        legByLegScores: [...state.legByLegScores,currentLegScores],
+        currentVisitDartLabels: [],
+        lastVisitDartLabels: state.currentVisitDartLabels?.length
+          ? [...state.currentVisitDartLabels]
+          : state.lastVisitDartLabels,
       };
     };
     case LEG_LOSE: {
@@ -146,6 +177,7 @@ export const playerResultReducer = (state, action) => {
         currentLegAverage: 0,
         legsAverages: [...state.legsAverages, currentLegAverage],
         legByLegScores: [...state.legByLegScores, currentLegScores],
+        currentVisitDartLabels: [],
       };
     };
     case UNDO: {

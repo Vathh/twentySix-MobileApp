@@ -1,6 +1,8 @@
 export const SYNC_FROM_SERVER = 'SYNC_FROM_SERVER';
 export const UPDATE_STATS = 'UPDATE_STATS';
 export const UPDATE_SINGLE_DART = 'UPDATE_SINGLE_DART';
+export const COMPLETE_CURRENT_VISIT = 'COMPLETE_CURRENT_VISIT';
+export const REOPEN_LAST_VISIT = 'REOPEN_LAST_VISIT';
 export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
@@ -38,9 +40,18 @@ export const updateStats = (points) => ({
   points: points
 });
 
-export const updateSingleDart = (points) => ({
+export const updateSingleDart = (points, label = null) => ({
   type: UPDATE_SINGLE_DART,
-  points
+  points,
+  label,
+});
+
+export const completeCurrentVisit = () => ({
+  type: COMPLETE_CURRENT_VISIT,
+});
+
+export const reopenLastVisit = () => ({
+  type: REOPEN_LAST_VISIT,
 });
 
 export const undoSingleDart = () => ({
@@ -71,5 +82,7 @@ export const initialPlayerResultState = {
   currentLegAverage: 0,
   dartsPerLeg: [],
   legsAverages: [],
-  legByLegScores: []
+  legByLegScores: [],
+  currentVisitDartLabels: [],
+  lastVisitDartLabels: [],
 };

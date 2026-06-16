@@ -9,9 +9,11 @@ import React, {
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
+	completeCurrentVisit,
 	initialPlayerResultState,
 	legLose,
 	legWin,
+	reopenLastVisit,
 	undo,
 	undoSingleDart,
 	updateSingleDart,
@@ -35,6 +37,7 @@ import {
 import useAuth from '../../hooks/useAuth';
 import { useGameScoring } from '../../hooks/useGameScoring';
 import { useQuickGameFfaScoring } from '../../hooks/useQuickGameFfaScoring';
+import { newFfaClientVisitId } from '../../helpers/quickGameFfaApi';
 import { normalizeTournamentPlayers } from '../../helpers/normalizeTournamentPlayers';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
 
@@ -199,6 +202,34 @@ const GameScoringScreen = ({ route, navigation }) => {
 	const [qfHelperDart, setQfHelperDart] = useState(0);
 	/** Pozostały wynik na początku bieżącej wizyty (tryb rzut po rzucie, offline). */
 	const visitStartScoreRef = useRef(null);
+	/** Id wizyty online (per-dart) — ten sam clientVisitId przez całą wizytę. */
+	const visitClientIdRef = useRef(null);
+	/** Kolejność rzutów wpisanych na jednym urządzeniu (tryb per-dart, lokalnie). */
+	const dartHistoryRef = useRef([]);
+
+	const pushDartToHistory = (playerIndex, points, label) => {
+		dartHistoryRef.current.push({
+			playerIndex,
+			points,
+			label,
+			completedVisit: false,
+		});
+	};
+
+	const popDartHistory = (count = 1) => {
+		for (let i = 0; i < count; i += 1) {
+			if (dartHistoryRef.current.length > 0) {
+				dartHistoryRef.current.pop();
+			}
+		}
+	};
+
+	const markLastDartCompletedVisit = () => {
+		const hist = dartHistoryRef.current;
+		if (hist.length > 0) {
+			hist[hist.length - 1].completedVisit = true;
+		}
+	};
 
 	const scoringGameId = isTournamentGame ? tournamentGame.id : null;
 	const scoringChannelKind = isTournamentGame
@@ -251,6 +282,14 @@ const GameScoringScreen = ({ route, navigation }) => {
 	});
 
 	const gameScoring = isQuickGame ? ffaScoring : tournamentScoring;
+
+	const counterOneDeviceSpectator = useMemo(
+		() =>
+			!isTrainingMatch &&
+			lobbyScoringMode === 'one_device' &&
+			(isQuickGame ? !isHost : false),
+		[isTrainingMatch, lobbyScoringMode, isQuickGame, isHost],
+	);
 
 	const counterCanInput = useMemo(() => {
 		if (gameClosed) return false;
@@ -404,6 +443,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 	};
 
 	const advanceToNextLegOpener = useCallback(() => {
+		dartHistoryRef.current = [];
+		visitClientIdRef.current = null;
 		const nextOpener = computeNextLegOpener(legOpenerIndexRef.current, N);
 		legOpenerIndexRef.current = nextOpener;
 		currentPlayerIndexRef.current = nextOpener;
@@ -535,8 +576,13 @@ const GameScoringScreen = ({ route, navigation }) => {
 		) {
 			return false;
 		}
-		const overshoot = resultToApply > state.score;
-		if (!overshoot && resultToApply === state.score) {
+		const visitStart = visitStartScoreRef.current ?? state?.score ?? 501;
+		const visitOpts = {
+			clientVisitId: visitClientIdRef.current,
+			remainingBefore: visitStart,
+		};
+		const overshoot = resultToApply > visitStart;
+		if (!overshoot && resultToApply === visitStart) {
 			okHandlingRef.current = true;
 			Alert.alert('UWAGA', checkoutLegPrompt(player), [
 				{
@@ -554,7 +600,13 @@ const GameScoringScreen = ({ route, navigation }) => {
 						if (resultToApply >= 100) {
 							handleHf(resultToApply, player);
 						}
-						await gameScoring.closeLegWithWinner(idx, resultToApply, 3);
+						await gameScoring.closeLegWithWinner(
+							idx,
+							resultToApply,
+							dartsInVisit,
+							visitOpts,
+						);
+						visitClientIdRef.current = null;
 						okHandlingRef.current = false;
 						setCurrentResult(0);
 					},
@@ -571,6 +623,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 				visitScore: 0,
 				bust: true,
 				dartsInVisit,
+				...visitOpts,
 			});
 		} else {
 			await gameScoring.submitVisit({
@@ -578,38 +631,67 @@ const GameScoringScreen = ({ route, navigation }) => {
 				visitScore: resultToApply,
 				bust: false,
 				dartsInVisit,
+				...visitOpts,
 			});
 		}
+		visitClientIdRef.current = null;
 		okHandlingRef.current = false;
 		setCurrentResult(0);
 		return true;
 	};
 
+	const submitOnlineDartPartial = async (roundTotal, dartsInVisit) => {
+		if (gameClosed || !useScoringApi) return;
+		const idx = currentPlayerIndexRef.current;
+		const visitStart = visitStartScoreRef.current ?? playerStates[idx]?.score ?? 501;
+		if (!visitClientIdRef.current) {
+			visitClientIdRef.current = newFfaClientVisitId();
+		}
+		await gameScoring.submitVisit({
+			playerIndex: idx,
+			visitScore: roundTotal,
+			bust: false,
+			dartsInVisit,
+			closedLeg: false,
+			remainingBefore: visitStart,
+			clientVisitId: visitClientIdRef.current,
+		});
+	};
+
 	const handleOnlineOkBtn = async () => submitOnlineVisitCore(currentResult);
 
-	const handleDartSubmit = (points, roundTotal, isLastDart, dartIndex) => {
+	const handleDartSubmit = (points, roundTotal, isLastDart, dartIndex, dartLabel) => {
 		if (gameClosed) return;
 		if (!counterCanInput) return;
 
 		const idx = currentPlayerIndexRef.current;
 
-		if (!isLastDart) {
-			if (dartIndex === 0) {
-				visitStartScoreRef.current = playerStates[idx]?.score ?? 501;
+		if (dartIndex === 0) {
+			visitStartScoreRef.current = playerStates[idx]?.score ?? 501;
+			if (useScoringApi) {
+				visitClientIdRef.current = newFfaClientVisitId();
 			}
-			playerDispatches[idx](updateSingleDart(points));
+		}
+
+		playerDispatches[idx](updateSingleDart(points, dartLabel));
+
+		if (useScoringApi) {
+			if (!isLastDart) {
+				void submitOnlineDartPartial(roundTotal, dartIndex + 1);
+			} else {
+				void submitOnlineVisitCore(roundTotal, dartIndex + 1);
+			}
 			return;
 		}
 
-		if (useScoringApi) {
-			void submitOnlineVisitCore(roundTotal, dartIndex + 1);
+		if (!isLastDart) {
+			pushDartToHistory(idx, points, dartLabel);
 			return;
 		}
 
 		const dispatch = playerDispatches[idx];
 		const player = players[idx];
-
-		dispatch(updateSingleDart(points));
+		pushDartToHistory(idx, points, dartLabel);
 
 		const visitStart = visitStartScoreRef.current ?? 501;
 		const resultToApply = roundTotal;
@@ -621,11 +703,14 @@ const GameScoringScreen = ({ route, navigation }) => {
 			dispatch(undoSingleDart());
 			dispatch(undoSingleDart());
 			dispatch(undoSingleDart());
+			popDartHistory(3);
 			okHandlingRef.current = false;
 			return;
 		}
 
 		if (resultToApply < visitStart - 1) {
+			markLastDartCompletedVisit();
+			dispatch(completeCurrentVisit());
 			const nextIdx = (idx + 1) % N;
 			currentPlayerIndexRef.current = nextIdx;
 			setCurrentPlayerIndex(nextIdx);
@@ -642,6 +727,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 						dispatch(undoSingleDart());
 						dispatch(undoSingleDart());
 						dispatch(undoSingleDart());
+						popDartHistory(3);
 						okHandlingRef.current = false;
 					},
 				},
@@ -661,29 +747,35 @@ const GameScoringScreen = ({ route, navigation }) => {
 		dispatch(undoSingleDart());
 		dispatch(undoSingleDart());
 		dispatch(undoSingleDart());
+		popDartHistory(3);
 		okHandlingRef.current = false;
 	};
 
 	const handleUndoSingleDart = () => {
 		if (gameClosed) return;
-		if (useOnlineSync) return;
-		const idx = currentPlayerIndexRef.current;
-		playerDispatches[idx](undoSingleDart());
-	};
-
-	const handleUndoLastDartAfterSwitch = () => {
-		if (gameClosed) return;
 		if (useScoringApi) {
+			visitClientIdRef.current = null;
 			void gameScoring.undoVisit();
 			return;
 		}
-		const prevIdx = (currentPlayerIndexRef.current - 1 + N) % N;
-		currentPlayerIndexRef.current = prevIdx;
-		setCurrentPlayerIndex(prevIdx);
-		const d = playerDispatches[prevIdx];
-		d(undoSingleDart());
-		d(undoSingleDart());
-		d(undoSingleDart());
+		if (!isPerDartMode) {
+			const idx = currentPlayerIndexRef.current;
+			playerDispatches[idx](undoSingleDart());
+			return;
+		}
+
+		const history = dartHistoryRef.current;
+		if (history.length === 0) return;
+
+		const last = history.pop();
+		const { playerIndex, completedVisit } = last;
+
+		if (completedVisit) {
+			playerDispatches[playerIndex](reopenLastVisit());
+		}
+		playerDispatches[playerIndex](undoSingleDart());
+		currentPlayerIndexRef.current = playerIndex;
+		setCurrentPlayerIndex(playerIndex);
 	};
 
 	const handleOkBtn = () => {
@@ -940,14 +1032,9 @@ const GameScoringScreen = ({ route, navigation }) => {
 					handleClearBtn={handleClearBtn}
 					scoringMode={scoringMode}
 					canInput={counterCanInput}
-					frozenVisitStartScore={
-						useOnlineSync
-							? (playerStates[currentPlayerIndex]?.score ?? 501)
-							: null
-					}
+					oneDeviceSpectator={counterOneDeviceSpectator}
 					handleDartSubmit={handleDartSubmit}
 					handleUndoSingleDart={handleUndoSingleDart}
-					handleUndoLastDartAfterSwitch={handleUndoLastDartAfterSwitch}
 				/>
 			);
 		}

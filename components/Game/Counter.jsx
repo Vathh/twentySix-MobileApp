@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
 import { SCORING_MODES } from '../../hooks/useGameSettings'
 import { formatAverage, hasAverage } from '../../helpers/formatAverage'
+import { formatDartLabel } from '../../helpers/formatDartLabel'
 
 const Counter = ({
   players,
@@ -14,101 +15,153 @@ const Counter = ({
   handleClearBtn,
   handleDartSubmit,
   handleUndoSingleDart,
-  handleUndoLastDartAfterSwitch,
   scoringMode = SCORING_MODES.SUM,
   canInput = true,
-  /** Sesja online: punktacja na początek bieżącej wizyty (duży licznik zamrożony do końca 3 lotek). */
-  frozenVisitStartScore = null,
+  /** Tryb jednego urządzenia — widok tylko do odczytu (bez komunikatu o kolejce). */
+  oneDeviceSpectator = false,
 }) => {
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
   const inputDisabled = !canInput;
+  const multiScrollRef = useRef(null);
+  const rowOffsetsRef = useRef({});
+
+  useEffect(() => {
+    if (isTwoPlayer || N < 3) return;
+    const y = rowOffsetsRef.current[currentPlayerIndex];
+    if (y != null && multiScrollRef.current) {
+      multiScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+    }
+  }, [currentPlayerIndex, isTwoPlayer, N]);
+  const padDisabledStyle = oneDeviceSpectator
+    ? { opacity: 0.35 }
+    : inputDisabled
+      ? { opacity: 0.6 }
+      : null;
 
   const [dartScores, setDartScores] = useState([0, 0, 0]);
   const [dartIndex, setDartIndex] = useState(0);
   const [modifier, setModifier] = useState(null);
-  /** Przed powrotem API — lokalny początek wizyty do podglądu wirtualnego wyniku. */
-  const [visitSnapBaseline, setVisitSnapBaseline] = useState(null);
-  const lastSubmittedRef = useRef(null);
+  const [currentVisitLabels, setCurrentVisitLabels] = useState([]);
 
   useEffect(() => {
     if (!isPerDart || !canInput) {
       setDartScores([0, 0, 0]);
       setDartIndex(0);
       setModifier(null);
-      setVisitSnapBaseline(null);
+      return;
     }
-  }, [isPerDart, canInput]);
 
-  useEffect(() => {
-    if (!isPerDart) setVisitSnapBaseline(null);
-  }, [isPerDart]);
+    const st = playerStates[currentPlayerIndex];
+    const labels = st?.currentVisitDartLabels ?? [];
+    const allScores = st?.currentLegScores ?? [];
+    const visitScores = allScores.slice(-labels.length);
+
+    setCurrentVisitLabels([...labels]);
+    setDartIndex(labels.length);
+    const pad = [0, 0, 0];
+    for (let i = 0; i < visitScores.length; i += 1) {
+      pad[i] = visitScores[i];
+    }
+    setDartScores(pad);
+    setModifier(null);
+  }, [
+    currentPlayerIndex,
+    isPerDart,
+    canInput,
+    playerStates[currentPlayerIndex]?.currentVisitDartLabels?.join('|'),
+    playerStates[currentPlayerIndex]?.currentLegScores?.length,
+  ]);
 
   const applyDartValue = (baseValue) => {
     if (inputDisabled) return;
-    if (dartIndex === 0) lastSubmittedRef.current = null;
-    if (dartIndex === 0) {
-      setVisitSnapBaseline(playerStates[currentPlayerIndex]?.score ?? 501);
-    }
     const mult = baseValue === 25
       ? (modifier === 'double' ? 2 : 1)
       : (modifier === 'double' ? 2 : modifier === 'triple' ? 3 : 1);
     const points = baseValue * mult;
     /* Na tarczy stalowej max za jedną lotkę to T20 = 60; inne segmenty są ≤ 60. */
     if (points > 60) return;
+    const dartLabel = formatDartLabel(baseValue, modifier);
     const nextScores = [...dartScores];
     nextScores[dartIndex] = points;
     setDartScores(nextScores);
     setModifier(null);
+    const nextLabels = [...currentVisitLabels, dartLabel];
+    setCurrentVisitLabels(nextLabels);
     const isLastDart = dartIndex >= 2;
     const roundTotal = nextScores[0] + nextScores[1] + nextScores[2];
-    handleDartSubmit?.(points, roundTotal, isLastDart, dartIndex);
+    handleDartSubmit?.(points, roundTotal, isLastDart, dartIndex, dartLabel);
     if (isLastDart) {
-      lastSubmittedRef.current = [nextScores[0], nextScores[1]];
       setDartScores([0, 0, 0]);
       setDartIndex(0);
+      setCurrentVisitLabels([]);
     } else {
       setDartIndex((i) => i + 1);
     }
   };
 
-  const handleUndoLastDart = () => {
-    if (lastSubmittedRef.current) {
-      const [d1, d2] = lastSubmittedRef.current;
-      lastSubmittedRef.current = null;
-      handleUndoLastDartAfterSwitch?.();
-      setDartScores([d1, d2, 0]);
-      setDartIndex(2);
-    } else if (dartIndex > 0) {
-      const nextScores = [...dartScores];
-      nextScores[dartIndex - 1] = 0;
-      setDartScores(nextScores);
-      setDartIndex((i) => i - 1);
-      handleUndoSingleDart?.();
-    } else {
-      handleUndoSingleDart?.();
+  const getVisitDartsText = (playerIndex) => {
+    if (!isPerDart) return '';
+    const st = playerStates[playerIndex];
+    const isActive = playerIndex === currentPlayerIndex;
+    if (isActive && canInput) {
+      return currentVisitLabels.length ? currentVisitLabels.join(', ') : '';
     }
+    if (isActive) {
+      const current = st?.currentVisitDartLabels ?? [];
+      if (current.length) return current.join(', ');
+    }
+    const last = st?.lastVisitDartLabels ?? [];
+    return last.length ? last.join(', ') : '';
+  };
+
+  const renderVisitDartsLine = (playerIndex, alignRight = false) => {
+    if (!isPerDart) return null;
+    const text = getVisitDartsText(playerIndex);
+    return (
+      <Text
+        style={[styles.visitDartsText, alignRight && styles.visitDartsTextRight]}
+        numberOfLines={1}
+      >
+        {text || ' '}
+      </Text>
+    );
   };
 
   const dartPad = (
-    <View style={[styles.dartPad, inputDisabled && { opacity: 0.6 }]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
+    <View style={[styles.dartPad, padDisabledStyle]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
       <View style={styles.dartModRow}>
-        <Pressable
-          style={[styles.dartModBtn, modifier === 'double' && styles.dartModBtnActive]}
-          onPress={() => setModifier((m) => (m === 'double' ? null : 'double'))}
-        >
-          <Text style={[styles.dartModText, modifier === 'double' && styles.dartModTextActive]}>D</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.dartModBtn, modifier === 'triple' && styles.dartModBtnActive]}
-          onPress={() => setModifier((m) => (m === 'triple' ? null : 'triple'))}
-        >
-          <Text style={[styles.dartModText, modifier === 'triple' && styles.dartModTextActive]}>T</Text>
-        </Pressable>
-        <View style={styles.dartInfo}>
-          <Text style={styles.dartInfoText}>Rzut {dartIndex + 1}/3</Text>
+        <View style={styles.dartModLeft}>
+          <Pressable
+            style={[styles.dartModBtn, modifier === 'double' && styles.dartModBtnActive]}
+            onPress={() => setModifier((m) => (m === 'double' ? null : 'double'))}
+          >
+            <Text style={[styles.dartModText, modifier === 'double' && styles.dartModTextActive]}>D</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.dartModBtn, modifier === 'triple' && styles.dartModBtnActive]}
+            onPress={() => setModifier((m) => (m === 'triple' ? null : 'triple'))}
+          >
+            <Text style={[styles.dartModText, modifier === 'triple' && styles.dartModTextActive]}>T</Text>
+          </Pressable>
         </View>
+        <View style={styles.dartBullCenter}>
+          <Pressable
+            style={[styles.dartBullBtn, modifier === 'triple' && styles.dartBullBtnDisabled]}
+            onPress={modifier === 'triple' ? undefined : () => applyDartValue(25)}
+            disabled={modifier === 'triple'}
+          >
+            <Text style={[styles.dartBullText, modifier === 'triple' && styles.dartBullTextDisabled]}>Bull</Text>
+          </Pressable>
+        </View>
+        <Pressable
+          style={[styles.dartUndoBtn, inputDisabled && styles.dartUndoBtnDisabled]}
+          onPress={handleUndoSingleDart}
+          disabled={inputDisabled}
+        >
+          <Text style={styles.dartUndoText}>Cofnij</Text>
+        </Pressable>
       </View>
       <View style={styles.dartNumbersRow}>
         {[20, 19, 18, 17, 16].map((n) => (
@@ -138,21 +191,11 @@ const Counter = ({
           </Pressable>
         ))}
       </View>
-      <View style={styles.dartBottomRow}>
-        <Pressable
-          style={[styles.dartBullBtn, modifier === 'triple' && styles.dartBullBtnDisabled]}
-          onPress={modifier === 'triple' ? undefined : () => applyDartValue(25)}
-          disabled={modifier === 'triple'}
-        >
-          <Text style={[styles.dartBullText, modifier === 'triple' && styles.dartBullTextDisabled]}>Bull</Text>
-          <Text style={[styles.dartBullSub, modifier === 'triple' && styles.dartBullTextDisabled]}>(25)</Text>
-        </Pressable>
-      </View>
     </View>
   );
 
   const numPad = (
-    <View style={[styles.countContainer, inputDisabled && { opacity: 0.6 }]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
+    <View style={[styles.countContainer, padDisabledStyle]} pointerEvents={inputDisabled ? 'none' : 'auto'}>
       <View style={styles.countRow}>
         {[1, 2, 3].map((n) => (
           <Pressable key={n} style={styles.countNumber} onPress={() => handleNumberBtn(String(n))}>
@@ -188,45 +231,31 @@ const Counter = ({
     </View>
   );
 
-  const scoreDisplayText = isPerDart
-    ? `Rzut ${dartIndex + 1}/3`
-    : (currentResult > 0 ? currentResult : 'Wprowadź wynik');
+  const scoreDisplayText = currentResult > 0 ? currentResult : 'Wprowadź wynik';
   const scoreSection = (
     <View style={styles.scoreContainer}>
       <View style={styles.score}>
         <Text style={styles.scoreText}>{scoreDisplayText}</Text>
       </View>
       <View style={styles.undoContainer}>
-        <Pressable style={styles.undoBtn} onPress={isPerDart && !inputDisabled ? handleUndoLastDart : handleUndoBtn}>
+        <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
           <Text style={styles.undoText}>Cofnij</Text>
         </Pressable>
       </View>
     </View>
   );
 
-  const roundLocalSum = dartScores[0] + dartScores[1] + dartScores[2];
-  const virtualBaseline =
-    frozenVisitStartScore ??
-    visitSnapBaseline ??
-    playerStates[currentPlayerIndex]?.score ??
-    501;
-  const virtualScorePreview =
-    isPerDart && canInput && roundLocalSum > 0
-      ? Math.max(0, virtualBaseline - roundLocalSum)
-      : null;
-
   if (isTwoPlayer && N >= 2) {
     const p0 = players[0];
     const p1 = players[1];
     const s0 = playerStates[0];
     const s1 = playerStates[1];
-    const raw0 = s0?.syncedRawScore ?? s0?.score;
-    const raw1 = s1?.syncedRawScore ?? s1?.score;
     return (
       <View style={styles.container}>
         <View style={styles.resultContainer}>
           <View style={styles.player1Container}>
             <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
+            {renderVisitDartsLine(0)}
           </View>
           <View style={styles.legsContainer}>
             <Text style={styles.legsResultText}>{s0?.legsWon ?? 0}</Text>
@@ -235,6 +264,7 @@ const Counter = ({
           </View>
           <View style={styles.player2Container}>
             <Text style={styles.playerText}>({s1?.dartsThrown ?? 0}) {p1?.name ?? 'Gracz'}</Text>
+            {renderVisitDartsLine(1, true)}
           </View>
         </View>
 
@@ -242,9 +272,6 @@ const Counter = ({
           <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
             <View style={styles.counterScoreStack}>
               <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}>{s0?.score ?? 501}</Text>
-              {isPerDart && canInput && currentPlayerIndex === 0 && virtualScorePreview != null && (
-                <Text style={styles.virtualScoreText}>{virtualScorePreview}</Text>
-              )}
             </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
@@ -258,9 +285,6 @@ const Counter = ({
           <View style={styles.counterContainer}>
             <View style={styles.counterScoreStack}>
               <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}>{s1?.score ?? 501}</Text>
-              {isPerDart && canInput && currentPlayerIndex === 1 && virtualScorePreview != null && (
-                <Text style={styles.virtualScoreText}>{virtualScorePreview}</Text>
-              )}
             </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
@@ -273,8 +297,8 @@ const Counter = ({
           </View>
         </View>
 
-        {scoreSection}
-        {inputDisabled && (
+        {!isPerDart && scoreSection}
+        {inputDisabled && !oneDeviceSpectator && (
           <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
         )}
         {isPerDart ? dartPad : numPad}
@@ -284,26 +308,36 @@ const Counter = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.resultContainer}>
-        <Text style={styles.multiLegsLabel}>Legi</Text>
-      </View>
-      <ScrollView style={styles.multiList} contentContainerStyle={styles.multiListContent}>
+      <ScrollView
+        ref={multiScrollRef}
+        style={styles.multiList}
+        contentContainerStyle={styles.multiListContent}
+      >
         {players.map((p, i) => {
           const st = playerStates[i];
-          const rawS = st?.syncedRawScore ?? st?.score;
           return (
-          <View key={i} style={[styles.multiRow, i === currentPlayerIndex && styles.multiRowActive]}>
+          <View
+            key={i}
+            style={[styles.multiRow, i === currentPlayerIndex && styles.multiRowActive]}
+            onLayout={(e) => {
+              rowOffsetsRef.current[i] = e.nativeEvent.layout.y;
+              if (i === currentPlayerIndex && !isTwoPlayer && N >= 3) {
+                const y = e.nativeEvent.layout.y;
+                requestAnimationFrame(() => {
+                  multiScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+                });
+              }
+            }}
+          >
             <View style={styles.multiRowLeft}>
               <Text style={styles.multiPlayerName} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
+              {renderVisitDartsLine(i)}
               <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
             </View>
             <View style={styles.multiRowCenter}>
               <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
                 {st?.score ?? 501}
               </Text>
-              {isPerDart && canInput && i === currentPlayerIndex && virtualScorePreview != null && (
-                <Text style={styles.virtualScoreTextMulti}>{virtualScorePreview}</Text>
-              )}
               <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
             </View>
             <View style={styles.multiRowRight}>
@@ -314,8 +348,8 @@ const Counter = ({
           );
         })}
       </ScrollView>
-      {scoreSection}
-      {inputDisabled && (
+      {!isPerDart && scoreSection}
+      {inputDisabled && !oneDeviceSpectator && (
         <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
       )}
       {isPerDart ? dartPad : numPad}
@@ -346,6 +380,15 @@ const styles = StyleSheet.create({
   playerText: {
     fontSize: 18,
     color: '#c5c5c5'
+  },
+  visitDartsText: {
+    fontSize: 11,
+    color: '#8a8a9a',
+    marginTop: 2,
+    minHeight: 14,
+  },
+  visitDartsTextRight: {
+    textAlign: 'right',
   },
   legsContainer: {
     flex: 1,
@@ -381,18 +424,6 @@ const styles = StyleSheet.create({
   },
   counterTextNoFlex: {
     flex: 0,
-  },
-  virtualScoreText: {
-    fontSize: 40,
-    fontWeight: '600',
-    color: '#7a8a9e',
-    marginTop: 4,
-  },
-  virtualScoreTextMulti: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#7a8a9e',
-    marginTop: 4,
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
@@ -480,14 +511,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#c5c5c5'
   },
-  multiLegsLabel: {
-    color: '#c5c5c5',
-    fontSize: 16,
-    textAlign: 'center',
-    paddingVertical: 6,
-  },
   multiList: {
     flex: 1,
+    paddingTop: 8,
   },
   multiListContent: {
     paddingHorizontal: 12,
@@ -553,11 +579,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  dartModLeft: {
+    flexDirection: 'row',
     gap: 8,
+  },
+  dartBullCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dartModBtn: {
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.3)',
     borderRadius: 8,
@@ -575,15 +609,21 @@ const styles = StyleSheet.create({
   dartModTextActive: {
     color: '#F99417',
   },
-  dartInfo: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  dartUndoBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  dartInfoText: {
-    color: '#888',
-    fontSize: 14,
+  dartUndoBtnDisabled: {
+    opacity: 0.45,
+  },
+  dartUndoText: {
+    color: '#c5c5c5',
+    fontSize: 16,
+    fontWeight: '600',
   },
   dartNumbersRow: {
     flexDirection: 'row',
@@ -600,35 +640,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  dartNumText: {
-    color: '#c5c5c5',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  dartBottomRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 8,
-  },
   dartBullBtn: {
-    flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   dartBullText: {
     color: '#c5c5c5',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
   },
-  dartBullSub: {
-    color: '#888',
-    fontSize: 11,
-    marginTop: 2,
+  dartNumText: {
+    color: '#c5c5c5',
+    fontSize: 18,
+    fontWeight: '600',
   },
   dartBullBtnDisabled: {
     opacity: 0.4,

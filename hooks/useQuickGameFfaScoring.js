@@ -217,6 +217,8 @@ export function useQuickGameFfaScoring({
 			bust = false,
 			dartsInVisit = 3,
 			closedLeg = false,
+			remainingBefore = null,
+			clientVisitId = null,
 		}) => {
 			if (!enabled || !lobbyId || !accessToken) {
 				return null;
@@ -229,19 +231,19 @@ export function useQuickGameFfaScoring({
 				return null;
 			}
 			try {
-				const remainingBefore = playerStates[playerIndex]?.score ?? 501;
+				const baseline = remainingBefore ?? playerStates[playerIndex]?.score ?? 501;
 				const remainingAfter = bust
-					? remainingBefore
-					: Math.max(0, remainingBefore - visitScore);
+					? baseline
+					: Math.max(0, baseline - visitScore);
 				const state = await recordFfaVisit(lobbyId, accessToken, {
 					playerId: player.playerId,
 					score: bust ? 0 : visitScore,
-					remainingBefore,
+					remainingBefore: baseline,
 					remainingAfter: closedLeg ? 0 : remainingAfter,
 					dartsInVisit,
 					closedLeg,
 					bust,
-					clientVisitId: newFfaClientVisitId(),
+					clientVisitId: clientVisitId ?? newFfaClientVisitId(),
 				});
 				applyStateRef.current?.(state);
 				return state;
@@ -261,13 +263,15 @@ export function useQuickGameFfaScoring({
 	);
 
 	const closeLegWithWinner = useCallback(
-		async (playerIndex, visitScore, checkoutDart = 3) => {
+		async (playerIndex, visitScore, checkoutDart = 3, options = {}) => {
 			return submitVisit({
 				playerIndex,
 				visitScore,
 				bust: false,
 				dartsInVisit: checkoutDart,
 				closedLeg: true,
+				remainingBefore: options.remainingBefore ?? null,
+				clientVisitId: options.clientVisitId ?? null,
 			});
 		},
 		[submitVisit],

@@ -44,7 +44,10 @@ export function applyFfaScoringState(state, ctx) {
 			const playerVisits = visits.filter(
 				(v) => pid(v.playerId) === spId && !v.bust,
 			);
-			const currentLegScores = playerVisits.map((v) => v.score);
+			const completeVisits = playerVisits.filter(
+				(v) => v.closedLeg || (v.dartsInVisit ?? 3) >= 3,
+			);
+			const currentLegScores = completeVisits.map((v) => v.score);
 			const dartsThrown = playerVisits.reduce(
 				(sum, v) => sum + (v.dartsInVisit ?? 3),
 				0,
