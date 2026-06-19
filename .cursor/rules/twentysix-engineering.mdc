@@ -1,5 +1,5 @@
 ---
-description: Zasady inżynierskie TwentySix mobile — czytelność, jednolitość, FFA
+description: twentySix mobile — inżynieria scoringu
 alwaysApply: true
 ---
 
@@ -7,12 +7,19 @@ alwaysApply: true
 
 ## Priorytety
 
-- **Czytelność, czystość, jednolitość** — wspólne hooki i helpery zamiast osobnych ścieżek H2H/FFA w quick game.
-- Quick game online: **`useQuickGameFfaScoring`** (lobbyId, sync, zapis w bazie).
-- **Trening:** `trainingGame` w nawigacji → lokalne reducery, **bez API**, wynik nie jest wysyłany.
-- Turniej: **`useGameScoring`** (group/playoff) — bez mieszania z quick game FFA.
+- **Czytelność, czystość, jednolitość** — jeden silnik rozgrywki (`useGameScoring` + transport).
+- **Online sync:** `useGameScoring` + `createFfaTransport` (quick) lub `createTournamentTransport` (tablet).
+- **Trening:** `resolveGameContext` → `mode: training`, lokalne reducery, **bez API**.
+- **Nie** dodawaj równoległych hooków scoringu — rozszerz transport lub `helpers/gameScoring/`.
+
+## Nazewnictwo
+
+- ✅ `useGameScoring`, `helpers/gameScoring/`, `resolveGameContext`, `GAME_MODE`
+- ❌ `useMatchScoring`, `matchScoring/`, `resolveMatchContext`, `MATCH_MODE`
+- Tekst UI może mówić „mecz”; **identyfikatory w kodzie** = `Game` (patrz `CONVENTIONS.md` w backendzie).
 
 ## Styl
 
-- Dopasuj się do istniejących komponentów (`GameScoringScreen`, reducery graczy).
+- Dopasuj się do `GameScoringScreen`, `helpers/gameScoring/`.
 - Max 8 graczy w lobby; unikaj osobnych case'ów dla 2 vs 3+ w synchronizacji online.
+- Refactor = zastąpienie starego kodu, nie opakowywanie w adaptery.

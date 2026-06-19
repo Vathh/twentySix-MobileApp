@@ -1,28 +1,19 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import { getGameScoringChannelName } from '../helpers/apiConfig';
-import { applyGameScoringState } from '../helpers/applyGameScoringState';
 import {
-	closeGameLeg,
-	fetchGameScoringState,
-	newClientVisitId,
-	recordGameVisit,
-	startGameLeg,
-	undoGameVisit,
-} from '../helpers/gameScoringApi';
+	applyGameScoringState,
+	computeStateRevision,
+} from '../helpers/gameScoring/index.js';
 import { useGameScoringRealtime } from './useGameScoringRealtime';
 
 const BACKUP_POLL_MS = 2500;
 
 /**
- * Wspólny hook synchronizacji meczu przez scoring API (quick / group / playoff).
+ * Wspólny hook synchronizacji rozgrywki (turniej H2H, quick FFA, trening local).
  */
 export function useGameScoring({
 	enabled,
-	baseUrl,
-	channelKind,
-	gameId,
-	accessToken,
+	transport,
 	players,
 	N,
 	playerDispatches,
@@ -31,17 +22,36 @@ export function useGameScoring({
 	setCurrentPlayerIndex,
 	setGameClosed,
 	gameClosed,
-	isPerDartMode,
-	inputPolicy = { type: 'tournament' },
+	isPerDartMode = false,
 	useLegOpenerRotation = false,
 	legOpenerIndexRef,
+	onFinishedQuickGameId,
+	reloadKey = null,
 }) {
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
 	const lastLegNumberRef = useRef(null);
 	const ensureLegPromiseRef = useRef(null);
+	const lastPlayerSnapRef = useRef({});
+	const lastRevisionRef = useRef(-1);
+	const pendingWritesRef = useRef(0);
+	const visitChainRef = useRef(Promise.resolve());
+	const finishedQuickGameIdRef = useRef(null);
+	const wsHealthyRef = useRef(false);
+	const [wsHealthy, setWsHealthy] = useState(false);
 
-	const applyState = useCallback(
+	const isH2h = transport?.format === 'h2h';
+	const realtimeConfig = useMemo(
+		() => transport?.getRealtimeConfig?.() ?? null,
+		[transport],
+	);
+
+	const setWsHealth = useCallback((healthy) => {
+		wsHealthyRef.current = healthy;
+		setWsHealthy(healthy);
+	}, []);
+
+	const applyStateInternal = useCallback(
 		(state) => {
 			const result = applyGameScoringState(state, {
 				players,
@@ -53,10 +63,19 @@ export function useGameScoring({
 				lastStateKeyRef,
 				legOpenerIndexRef,
 				lastLegNumberRef,
-				useLegOpenerRotation,
+				useLegOpenerRotation: isH2h && useLegOpenerRotation,
+				lastPlayerSnapRef: isH2h ? lastPlayerSnapRef : undefined,
+				onFinishedQuickGameId: (id) => {
+					if (id) {
+						finishedQuickGameIdRef.current = id;
+					}
+					onFinishedQuickGameId?.(id);
+				},
 			});
-			currentLegIdRef.current = result.currentLegId;
-			return state;
+			if (isH2h) {
+				currentLegIdRef.current = result.currentLegId;
+			}
+			return result;
 		},
 		[
 			players,
@@ -67,25 +86,60 @@ export function useGameScoring({
 			setGameClosed,
 			legOpenerIndexRef,
 			useLegOpenerRotation,
+			isH2h,
+			onFinishedQuickGameId,
 		],
 	);
 
+	const applyStateSafe = useCallback(
+		(state, source = 'external') => {
+			if (!state) {
+				return false;
+			}
+
+			const revision = computeStateRevision(state);
+
+			if (source === 'external') {
+				if (pendingWritesRef.current > 0) {
+					return false;
+				}
+				if (revision <= lastRevisionRef.current) {
+					return false;
+				}
+			} else if (revision < lastRevisionRef.current) {
+				return false;
+			}
+
+			lastRevisionRef.current = revision;
+			lastStateKeyRef.current = String(revision);
+			applyStateInternal(state);
+			return true;
+		},
+		[applyStateInternal],
+	);
+
+	const runSerialized = useCallback((task) => {
+		const next = visitChainRef.current.then(() => task());
+		visitChainRef.current = next.catch(() => {});
+		return next;
+	}, []);
+
 	const loadState = useCallback(async () => {
-		if (!enabled || !baseUrl || !accessToken) {
+		if (!enabled || !transport?.fetchState) {
 			return null;
 		}
 		try {
-			const state = await fetchGameScoringState(baseUrl, accessToken);
-			applyState(state);
+			const state = await transport.fetchState();
+			applyStateSafe(state, 'external');
 			return state;
 		} catch (e) {
 			console.warn('loadGameScoringState', e);
 			return null;
 		}
-	}, [enabled, baseUrl, accessToken, applyState]);
+	}, [enabled, transport, applyStateSafe]);
 
 	const ensureLegStarted = useCallback(async () => {
-		if (!enabled || !baseUrl || !accessToken) {
+		if (!enabled || !transport?.startLeg) {
 			return null;
 		}
 		if (currentLegIdRef.current) {
@@ -96,24 +150,24 @@ export function useGameScoring({
 		}
 		ensureLegPromiseRef.current = (async () => {
 			try {
-				let state = await fetchGameScoringState(baseUrl, accessToken);
+				let state = await transport.fetchState();
 				if (state.currentLeg?.id) {
 					currentLegIdRef.current = state.currentLeg.id;
-					applyState(state);
+					applyStateSafe(state, 'submit');
 					return currentLegIdRef.current;
 				}
 				const tracked = !!isPerDartMode;
 				try {
-					state = await startGameLeg(baseUrl, accessToken, tracked, tracked);
+					state = await transport.startLeg({ tracked });
 				} catch (startErr) {
 					const msg = startErr?.message ?? '';
 					if (msg.includes('otwarty leg') || msg.includes('już otwarty')) {
-						state = await fetchGameScoringState(baseUrl, accessToken);
+						state = await transport.fetchState();
 					} else {
 						throw startErr;
 					}
 				}
-				applyState(state);
+				applyStateSafe(state, 'submit');
 				currentLegIdRef.current = state.currentLeg?.id ?? null;
 				return currentLegIdRef.current;
 			} finally {
@@ -121,7 +175,7 @@ export function useGameScoring({
 			}
 		})();
 		return ensureLegPromiseRef.current;
-	}, [enabled, baseUrl, accessToken, isPerDartMode, applyState]);
+	}, [enabled, transport, isPerDartMode, applyStateSafe]);
 
 	useEffect(() => {
 		if (!enabled || gameClosed) {
@@ -129,61 +183,36 @@ export function useGameScoring({
 		}
 		loadState();
 		return undefined;
-	}, [enabled, gameId, gameClosed, loadState]);
+	}, [enabled, gameClosed, reloadKey, loadState]);
 
 	useEffect(() => {
-		if (!enabled || gameClosed || !baseUrl || !accessToken) {
+		if (!enabled || gameClosed || !transport || wsHealthy) {
 			return undefined;
 		}
 		let cancelled = false;
 		const tick = async () => {
-			if (cancelled) return;
+			if (cancelled || wsHealthyRef.current) return;
 			await loadState();
 		};
+		void tick();
 		const t = setInterval(tick, BACKUP_POLL_MS);
 		return () => {
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [enabled, gameClosed, baseUrl, accessToken, loadState]);
+	}, [enabled, gameClosed, transport, loadState, wsHealthy]);
 
 	useGameScoringRealtime({
-		channelName:
-			enabled && channelKind && gameId
-				? getGameScoringChannelName(channelKind, gameId)
-				: null,
-		enabled: enabled && !gameClosed,
-		onGameState: applyState,
+		channelName: realtimeConfig?.channelName ?? null,
+		enabled: enabled && !gameClosed && !!realtimeConfig,
+		channelType: realtimeConfig?.channelType ?? 'public',
+		accessToken: realtimeConfig?.accessToken ?? null,
+		events: realtimeConfig?.events,
+		scope: realtimeConfig?.scope ?? 'game-scoring',
+		unwrapPayload: realtimeConfig?.unwrapPayload,
+		onGameState: (state) => applyStateSafe(state, 'external'),
+		onWsHealthChange: setWsHealth,
 	});
-
-	const assertCanInput = useCallback(
-		(playerIndex) => {
-			if (inputPolicy.type === 'tournament') {
-				return true;
-			}
-			const { lobbyScoringMode, isHost, myPlayerIndexFromLobby } = inputPolicy;
-			if (lobbyScoringMode === 'one_device' && !isHost) {
-				Alert.alert(
-					'Info',
-					'W trybie „jedno urządzenie” punkty wpisuje tylko host.',
-				);
-				return false;
-			}
-			if (
-				lobbyScoringMode === 'each_own' &&
-				myPlayerIndexFromLobby !== null &&
-				myPlayerIndexFromLobby !== playerIndex
-			) {
-				Alert.alert(
-					'Info',
-					'Teraz rzuca drugi gracz — wpisz wizytę na urządzeniu rzucającego.',
-				);
-				return false;
-			}
-			return true;
-		},
-		[inputPolicy],
-	);
 
 	const buildCloseLegPlayers = useCallback(
 		(winnerPlayerId, checkoutDart) => {
@@ -215,133 +244,198 @@ export function useGameScoring({
 	);
 
 	const submitVisit = useCallback(
-		async ({
-			playerIndex,
-			visitScore,
-			bust = false,
-			dartsInVisit = 3,
-			closedLeg = false,
-		}) => {
-			if (!enabled || !baseUrl || !accessToken) {
-				return null;
-			}
-			if (!assertCanInput(playerIndex)) {
-				return null;
-			}
-			const player = players[playerIndex];
-			if (!player?.playerId) {
-				return null;
-			}
-			try {
-				const legId = await ensureLegStarted();
-				if (!legId) {
-					throw new Error('Brak otwartego lega');
+		(params) =>
+			runSerialized(async () => {
+				const {
+					playerIndex,
+					visitScore,
+					bust = false,
+					dartsInVisit = 3,
+					closedLeg = false,
+					clientVisitId,
+					remainingBefore: remainingBeforeOverride,
+				} = params;
+
+				if (!enabled || !transport?.recordVisit) {
+					return null;
 				}
-				const remainingBefore = playerStates[playerIndex]?.score ?? 501;
-				const remainingAfter = bust
-					? remainingBefore
-					: Math.max(0, remainingBefore - visitScore);
-				const state = await recordGameVisit(baseUrl, legId, accessToken, {
-					playerId: player.playerId,
-					score: bust ? 0 : visitScore,
-					remainingBefore,
-					remainingAfter,
-					dartsInVisit,
-					closedLeg,
-					bust,
-					clientVisitId: newClientVisitId(),
-				});
-				applyState(state);
-				return state;
-			} catch (e) {
-				Alert.alert('Błąd', e.message || 'Nie udało się zapisać wizyty');
-				return null;
-			}
-		},
+				if (!transport.assertCanInput(playerIndex)) {
+					return null;
+				}
+				const player = players[playerIndex];
+				if (!player?.playerId) {
+					return null;
+				}
+
+				pendingWritesRef.current += 1;
+				try {
+					const remainingBefore =
+						remainingBeforeOverride ??
+						playerStates[playerIndex]?.score ??
+						501;
+					const remainingAfter = bust
+						? remainingBefore
+						: Math.max(0, remainingBefore - visitScore);
+
+					const payload = {
+						playerId: player.playerId,
+						score: bust ? 0 : visitScore,
+						remainingBefore,
+						remainingAfter: closedLeg ? 0 : remainingAfter,
+						dartsInVisit,
+						closedLeg,
+						bust,
+						clientVisitId:
+							clientVisitId ?? transport.newClientVisitId(),
+					};
+
+					let legId = null;
+					if (transport.requiresLegId) {
+						legId = await ensureLegStarted();
+						if (!legId) {
+							throw new Error('Brak otwartego lega');
+						}
+					}
+
+					const state = await transport.recordVisit(legId, payload);
+
+					applyStateSafe(state, 'submit');
+					return state;
+				} catch (e) {
+					Alert.alert('Błąd', e.message || 'Nie udało się zapisać wizyty');
+					return null;
+				} finally {
+					pendingWritesRef.current -= 1;
+				}
+			}),
 		[
+			runSerialized,
 			enabled,
-			baseUrl,
-			accessToken,
+			transport,
 			players,
 			playerStates,
-			assertCanInput,
 			ensureLegStarted,
-			applyState,
+			applyStateSafe,
 		],
 	);
 
 	const closeLegWithWinner = useCallback(
-		async (playerIndex, visitScore, checkoutDart = 3) => {
-			if (!enabled || !baseUrl || !accessToken) {
-				return null;
-			}
-			const player = players[playerIndex];
-			if (!player?.playerId) {
-				return null;
-			}
-			try {
-				const legId = await ensureLegStarted();
-				if (!legId) {
-					throw new Error('Brak otwartego lega');
-				}
-				const remainingBefore = playerStates[playerIndex]?.score ?? 501;
-				await recordGameVisit(baseUrl, legId, accessToken, {
-					playerId: player.playerId,
-					score: visitScore,
-					remainingBefore,
-					remainingAfter: 0,
-					dartsInVisit: checkoutDart,
-					closedLeg: true,
-					bust: false,
-					clientVisitId: newClientVisitId(),
+		(playerIndex, visitScore, checkoutDart = 3, visitOpts = {}) => {
+			if (transport?.closeLeg && transport.requiresLegId) {
+				return runSerialized(async () => {
+					if (!enabled || !transport) {
+						return null;
+					}
+					const player = players[playerIndex];
+					if (!player?.playerId) {
+						return null;
+					}
+
+					pendingWritesRef.current += 1;
+					try {
+						const legId = await ensureLegStarted();
+						if (!legId) {
+							throw new Error('Brak otwartego lega');
+						}
+						const remainingBefore =
+							visitOpts.remainingBefore ??
+							playerStates[playerIndex]?.score ??
+							501;
+						await transport.recordVisit(legId, {
+							playerId: player.playerId,
+							score: visitScore,
+							remainingBefore,
+							remainingAfter: 0,
+							dartsInVisit: checkoutDart,
+							closedLeg: true,
+							bust: false,
+							clientVisitId:
+								visitOpts.clientVisitId ??
+								transport.newClientVisitId(),
+						});
+						const state = await transport.closeLeg(legId, {
+							winnerId: player.playerId,
+							players: buildCloseLegPlayers(
+								player.playerId,
+								checkoutDart,
+							),
+						});
+						currentLegIdRef.current = null;
+						applyStateSafe(state, 'submit');
+						return state;
+					} catch (e) {
+						Alert.alert(
+							'Błąd',
+							e.message || 'Nie udało się zamknąć lega',
+						);
+						return null;
+					} finally {
+						pendingWritesRef.current -= 1;
+					}
 				});
-				const state = await closeGameLeg(baseUrl, legId, accessToken, {
-					winnerId: player.playerId,
-					players: buildCloseLegPlayers(player.playerId, checkoutDart),
-				});
-				currentLegIdRef.current = null;
-				applyState(state);
-				return state;
-			} catch (e) {
-				Alert.alert('Błąd', e.message || 'Nie udało się zamknąć lega');
-				return null;
 			}
+
+			return submitVisit({
+				playerIndex,
+				visitScore,
+				bust: false,
+				dartsInVisit: checkoutDart,
+				closedLeg: true,
+				remainingBefore: visitOpts.remainingBefore ?? null,
+				clientVisitId: visitOpts.clientVisitId ?? null,
+			});
 		},
 		[
+			transport,
+			runSerialized,
 			enabled,
-			baseUrl,
-			accessToken,
 			players,
 			playerStates,
 			ensureLegStarted,
 			buildCloseLegPlayers,
-			applyState,
+			applyStateSafe,
+			submitVisit,
 		],
 	);
 
-	const undoVisit = useCallback(async () => {
-		if (!enabled || !baseUrl || !accessToken) {
-			return null;
-		}
-		const legId = currentLegIdRef.current;
-		if (!legId) {
-			Alert.alert('Info', 'Brak aktywnego lega.');
-			return null;
-		}
-		try {
-			const state = await undoGameVisit(baseUrl, legId, accessToken);
-			applyState(state);
-			return state;
-		} catch (e) {
-			Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
-			return null;
-		}
-	}, [enabled, baseUrl, accessToken, applyState]);
+	const undoVisit = useCallback(
+		() =>
+			runSerialized(async () => {
+				if (!enabled || !transport?.undoVisit) {
+					return null;
+				}
+				if (!transport.assertCanUndo()) {
+					return null;
+				}
+
+				const legId = transport.requiresLegId
+					? currentLegIdRef.current
+					: null;
+				if (transport.requiresLegId && !legId) {
+					Alert.alert('Info', 'Brak aktywnego lega.');
+					return null;
+				}
+
+				pendingWritesRef.current += 1;
+				try {
+					const state = await transport.undoVisit(legId);
+					applyStateSafe(state, 'submit');
+					return state;
+				} catch (e) {
+					Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
+					return null;
+				} finally {
+					pendingWritesRef.current -= 1;
+				}
+			}),
+		[runSerialized, enabled, transport, applyStateSafe],
+	);
 
 	return {
 		submitVisit,
 		closeLegWithWinner,
 		undoVisit,
 		ensureLegStarted,
+		finishedQuickGameIdRef,
 	};
 }

@@ -1,4 +1,4 @@
-import { GAME_IN_PROGRESS_API_URL } from './apiConfig';
+import { GAME_IN_PROGRESS_API_URL, GAME_RELEASE_API_URL } from './apiConfig';
 
 /**
  * Blokuje grę turniejową (status in_progress) przed wejściem w scoring.
@@ -33,4 +33,32 @@ export async function lockTournamentGame({ gameId, type, accessToken }) {
 	}
 
 	return { ok: false, message, status: res.status };
+}
+
+/**
+ * Odblokowuje mecz bez wyniku (status scheduled) po opuszczeniu scoringu.
+ */
+export async function releaseTournamentGame({ gameId, type, accessToken }) {
+	try {
+		const res = await fetch(GAME_RELEASE_API_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json',
+				Authorization: `Bearer ${accessToken}`,
+			},
+			body: JSON.stringify({
+				gameId,
+				type,
+			}),
+		});
+
+		if (res.ok) {
+			return { ok: true };
+		}
+	} catch {
+		// ignore — wyjście z ekranu i tak dozwolone
+	}
+
+	return { ok: false };
 }

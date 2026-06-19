@@ -9,8 +9,8 @@ alwaysApply: true
 
 ## W mobile
 
-- ✅ `lockTournamentGame`, `UPDATE_GAME_API_URL`, `getGroupGameScoringBaseUrl`
-- ❌ Nowe pliki/funkcje: `lockTournamentMatch`, `MatchLockService` itp.
+- ✅ `lockTournamentGame`, `UPDATE_GAME_API_URL`, `getGroupGameScoringBaseUrl`, `helpers/gameScoring/`, `useGameScoring`
+- ❌ Nowe pliki/funkcje: `lockTournamentMatch`, `helpers/matchScoring/`, `useMatchScoring` itp.
 
 ## Wyjątki
 

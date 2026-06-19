@@ -1,6 +1,8 @@
 export const SYNC_FROM_SERVER = 'SYNC_FROM_SERVER';
 export const UPDATE_STATS = 'UPDATE_STATS';
 export const UPDATE_SINGLE_DART = 'UPDATE_SINGLE_DART';
+export const APPEND_DART_LABEL = 'APPEND_DART_LABEL';
+export const RESET_VISIT_DART_LABELS = 'RESET_VISIT_DART_LABELS';
 export const COMPLETE_CURRENT_VISIT = 'COMPLETE_CURRENT_VISIT';
 export const REOPEN_LAST_VISIT = 'REOPEN_LAST_VISIT';
 export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
@@ -44,6 +46,15 @@ export const updateSingleDart = (points, label = null) => ({
   type: UPDATE_SINGLE_DART,
   points,
   label,
+});
+
+export const appendDartLabel = (label) => ({
+  type: APPEND_DART_LABEL,
+  label,
+});
+
+export const resetVisitDartLabels = () => ({
+  type: RESET_VISIT_DART_LABELS,
 });
 
 export const completeCurrentVisit = () => ({

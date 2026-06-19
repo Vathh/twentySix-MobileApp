@@ -1,4 +1,4 @@
-import { COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, REOPEN_LAST_VISIT, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
+import { APPEND_DART_LABEL, COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, REOPEN_LAST_VISIT, RESET_VISIT_DART_LABELS, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
@@ -47,6 +47,21 @@ export const playerResultReducer = (state, action) => {
         legsAverages,
         dartsPerLeg,
         currentVisitDartLabels: legClosed ? [] : (state.currentVisitDartLabels ?? []),
+      };
+    }
+    case RESET_VISIT_DART_LABELS: {
+      return {
+        ...state,
+        currentVisitDartLabels: [],
+      };
+    }
+    case APPEND_DART_LABEL: {
+      return {
+        ...state,
+        currentVisitDartLabels: [
+          ...(state.currentVisitDartLabels ?? []),
+          action.label,
+        ],
       };
     }
     case COMPLETE_CURRENT_VISIT: {
