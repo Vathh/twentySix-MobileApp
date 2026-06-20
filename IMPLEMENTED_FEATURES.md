@@ -5,7 +5,7 @@ Mapa zgodności z [`../twentysix-backend/docs/product.md`](../twentysix-backend/
 
 Backend: [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-backend/IMPLEMENTED_FEATURES.md)
 
-Ostatnia aktualizacja: czerwiec 2026 (krok 4E).
+Ostatnia aktualizacja: czerwiec 2026 (unifikacja scoringu).
 
 ---
 
@@ -39,6 +39,7 @@ Ostatnia aktualizacja: czerwiec 2026 (krok 4E).
 | Tylko znajomi, invite-only | ✅ | API + lobby |
 | Max 8 graczy | ✅ | `GameScoringScreen` N≤8 |
 | `one_device` / `each_own` + sync FFA | ✅ | `useGameScoring` + `createFfaTransport` |
+| Ujednolicony moduł scoringu | ✅ | `helpers/gameScoring/` — normalize, apply, transporty |
 | BO3 — pierwszy do 2 legów | ✅ | domyślnie 2 |
 | Rotacja openera lega | ✅ | `computeNextLegOpener.js` |
 | Achievementy po meczu | ✅ | `POST /api/quick-game/update` + `gameId` |

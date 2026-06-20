@@ -11,6 +11,7 @@ alwaysApply: true
 - **Online sync:** `useGameScoring` + `createFfaTransport` (quick) lub `createTournamentTransport` (tablet).
 - **Trening:** `resolveGameContext` → `mode: training`, lokalne reducery, **bez API**.
 - **Nie** dodawaj równoległych hooków scoringu — rozszerz transport lub `helpers/gameScoring/`.
+- Backend waliduje wizyty przez `VisitRecorder`; mobile wysyła spójne `remainingBefore/After`, `bust`, `closedLeg`.
 
 ## Nazewnictwo
 
