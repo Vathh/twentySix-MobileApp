@@ -9,16 +9,16 @@ import React, {
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
-	appendDartLabel,
-	completeCurrentVisit,
-	initialPlayerResultState,
-	legLose,
-	legWin,
-	reopenLastVisit,
+  appendDartLabel,
+  completeCurrentVisit,
+  initialPlayerResultState,
+  legLose,
+  legWin,
+  popDartLabel,
+  reopenLastVisit,
 	resetVisitDartLabels,
 	undo,
 	undoSingleDart,
-	updateSingleDart,
 	updateStats,
 } from '../../helpers/reducers/playerResultActions';
 import { achievementsReducer } from '../../helpers/reducers/achievementsReducer';
@@ -49,6 +49,7 @@ import {
 	showTrainingFinishedAlert,
 	tournamentLegsToWin,
 } from '../../helpers/gameScoring';
+import { createFfaTransport } from '../../helpers/gameScoring/transports/createFfaTransport.js';
 import { releaseTournamentGame } from '../../helpers/lockTournamentGame';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
 
@@ -82,6 +83,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		myPlayerIndex,
 		tournamentGame,
 		activeGame,
+		lobbyId,
 	} = gameCtx;
 
 	const [isModalVisible, setIsModalVisible] = useState(showStartModal);
@@ -161,12 +163,29 @@ const GameScoringScreen = ({ route, navigation }) => {
 	const [currentResult, setCurrentResult] = useState(0);
 	const [qfHelperDart, setQfHelperDart] = useState(0);
 	const [scoringBusy, setScoringBusy] = useState(false);
+	/** Pozostały wynik w bieżącej wizycie (per-dart, tylko lokalnie — nad głównym licznikiem). */
+	const [localVisitRemaining, setLocalVisitRemainingState] = useState(null);
+	const localVisitRemainingRef = useRef(null);
+	const setLocalRemaining = useCallback((value) => {
+		if (typeof value === 'function') {
+			setLocalVisitRemainingState((prev) => {
+				const next = value(prev);
+				localVisitRemainingRef.current = next;
+				return next;
+			});
+			return;
+		}
+		localVisitRemainingRef.current = value;
+		setLocalVisitRemainingState(value);
+	}, []);
 	/** Pozostały wynik na początku bieżącej wizyty (tryb rzut po rzucie, offline). */
 	const visitStartScoreRef = useRef(null);
 	/** Id wizyty online (per-dart) — ten sam clientVisitId przez całą wizytę. */
 	const visitClientIdRef = useRef(null);
 	/** Kolejność rzutów wpisanych na jednym urządzeniu (tryb per-dart, lokalnie). */
 	const dartHistoryRef = useRef([]);
+	/** Suma punktów w bieżącej wizycie per-dart (zerowana na początku każdej wizyty). */
+	const visitPointsTotalRef = useRef(0);
 
 	const pushDartToHistory = (playerIndex, points, label) => {
 		dartHistoryRef.current.push({
@@ -183,18 +202,53 @@ const GameScoringScreen = ({ route, navigation }) => {
 				dartHistoryRef.current.pop();
 			}
 		}
-	};
-
-	const markLastDartCompletedVisit = () => {
-		const hist = dartHistoryRef.current;
-		if (hist.length > 0) {
-			hist[hist.length - 1].completedVisit = true;
+		if (count >= 3) {
+			visitPointsTotalRef.current = 0;
 		}
 	};
 
+	const markCurrentVisitCompleted = (playerIndex) => {
+		const hist = dartHistoryRef.current;
+		let marked = 0;
+		for (let i = hist.length - 1; i >= 0 && marked < 3; i -= 1) {
+			if (hist[i].playerIndex !== playerIndex || hist[i].completedVisit) {
+				continue;
+			}
+			hist[i].completedVisit = true;
+			marked += 1;
+		}
+	};
+
+	const scoringTransport = useMemo(() => {
+		if (
+			mode === GAME_MODE.QUICK_FFA &&
+			lobbyScoringMode === 'each_own' &&
+			lobbyId &&
+			auth?.accessToken
+		) {
+			return createFfaTransport({
+				lobbyId,
+				accessToken: auth.accessToken,
+				lobbyScoringMode,
+				isHost,
+				myPlayerIndexFromLobby: myPlayerIndex,
+				getCurrentPlayerIndex: () => currentPlayerIndexRef.current,
+			});
+		}
+		return transport;
+	}, [
+		mode,
+		lobbyScoringMode,
+		lobbyId,
+		auth?.accessToken,
+		isHost,
+		myPlayerIndex,
+		transport,
+	]);
+
 	const gameScoring = useGameScoring({
 		enabled: syncEnabled && !gameClosed,
-		transport,
+		transport: scoringTransport,
 		players,
 		N,
 		playerDispatches,
@@ -214,12 +268,12 @@ const GameScoringScreen = ({ route, navigation }) => {
 		[mode, lobbyScoringMode, isHost],
 	);
 
-	const counterCanInput = useMemo(
+	const counterTurnAllowed = useMemo(
 		() =>
 			canCounterInput({
 				mode,
 				gameClosed,
-				scoringBusy,
+				scoringBusy: false,
 				lobbyScoringMode,
 				isHost,
 				myPlayerIndex,
@@ -228,13 +282,19 @@ const GameScoringScreen = ({ route, navigation }) => {
 		[
 			mode,
 			gameClosed,
-			scoringBusy,
 			lobbyScoringMode,
 			isHost,
 			myPlayerIndex,
 			currentPlayerIndex,
 		],
 	);
+
+	const counterCanInput = counterTurnAllowed && !scoringBusy;
+
+	useEffect(() => {
+		if (!isPerDartMode || counterCanInput) return;
+		setLocalRemaining(null);
+	}, [isPerDartMode, counterCanInput, currentPlayerIndex]);
 
 	useEffect(() => {
 		if (!gameClosed || mode !== GAME_MODE.QUICK_FFA) return;
@@ -312,12 +372,14 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const advanceToNextLegOpener = useCallback(() => {
 		dartHistoryRef.current = [];
+		visitPointsTotalRef.current = 0;
 		visitClientIdRef.current = null;
+		setLocalRemaining(null);
 		const nextOpener = computeNextLegOpener(legOpenerIndexRef.current, N);
 		legOpenerIndexRef.current = nextOpener;
 		currentPlayerIndexRef.current = nextOpener;
 		setCurrentPlayerIndex(nextOpener);
-	}, [N]);
+	}, [N, setLocalRemaining]);
 
 	const handleBullWinnerSelection = (player) => {
 		const idx = players.findIndex(
@@ -436,6 +498,11 @@ const GameScoringScreen = ({ route, navigation }) => {
 					style: 'cancel',
 					onPress: () => {
 						okHandlingRef.current = false;
+						if (isPerDartMode) {
+							popDartHistory(3);
+							playerDispatches[idx](resetVisitDartLabels());
+							setLocalRemaining(visitStart);
+						}
 					},
 				},
 				{
@@ -454,6 +521,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 						);
 						visitClientIdRef.current = null;
 						okHandlingRef.current = false;
+						setLocalRemaining(null);
 						setCurrentResult(0);
 					},
 				},
@@ -486,24 +554,6 @@ const GameScoringScreen = ({ route, navigation }) => {
 		return true;
 	};
 
-	const submitOnlineDartPartial = async (roundTotal, dartsInVisit) => {
-		if (gameClosed || !syncEnabled) return;
-		const idx = currentPlayerIndexRef.current;
-		const visitStart = visitStartScoreRef.current ?? playerStates[idx]?.score ?? 501;
-		if (!visitClientIdRef.current) {
-			visitClientIdRef.current = newClientVisitId();
-		}
-		await gameScoring.submitVisit({
-			playerIndex: idx,
-			visitScore: roundTotal,
-			bust: false,
-			dartsInVisit,
-			closedLeg: false,
-			remainingBefore: visitStart,
-			clientVisitId: visitClientIdRef.current,
-		});
-	};
-
 	const handleOnlineOkBtn = async () => {
 		setScoringBusy(true);
 		try {
@@ -513,67 +563,29 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 	};
 
-	const handleDartSubmit = async (points, roundTotal, isLastDart, dartIndex, dartLabel) => {
-		if (gameClosed) return;
-		if (!counterCanInput) return;
-
-		const idx = currentPlayerIndexRef.current;
-
-		if (dartIndex === 0) {
-			visitStartScoreRef.current = playerStates[idx]?.score ?? 501;
-			if (syncEnabled) {
-				visitClientIdRef.current = newClientVisitId();
-				playerDispatches[idx](resetVisitDartLabels());
-			}
-		}
-
-		if (syncEnabled) {
-			playerDispatches[idx](appendDartLabel(dartLabel));
-			setScoringBusy(true);
-			try {
-				if (!isLastDart) {
-					await submitOnlineDartPartial(roundTotal, dartIndex + 1);
-				} else {
-					await submitOnlineVisitCore(roundTotal, dartIndex + 1);
-				}
-			} finally {
-				setScoringBusy(false);
-			}
-			return;
-		}
-
-		playerDispatches[idx](updateSingleDart(points, dartLabel));
-
-		if (!isLastDart) {
-			pushDartToHistory(idx, points, dartLabel);
-			return;
-		}
-
+	const finishOfflinePerDartVisit = (idx, visitStart, resultToApply) => {
 		const dispatch = playerDispatches[idx];
 		const player = players[idx];
-		pushDartToHistory(idx, points, dartLabel);
-
-		const visitStart = visitStartScoreRef.current ?? 501;
-		const resultToApply = roundTotal;
 
 		okHandlingRef.current = true;
 		handleMaxAndOneSeventy(player, resultToApply);
 
 		if (resultToApply > visitStart) {
-			dispatch(undoSingleDart());
-			dispatch(undoSingleDart());
-			dispatch(undoSingleDart());
 			popDartHistory(3);
+			playerDispatches[idx](resetVisitDartLabels());
+			setLocalRemaining(visitStart);
 			okHandlingRef.current = false;
 			return;
 		}
 
 		if (resultToApply < visitStart - 1) {
-			markLastDartCompletedVisit();
+			dispatch(updateStats(resultToApply));
+			markCurrentVisitCompleted(idx);
 			dispatch(completeCurrentVisit());
 			const nextIdx = (idx + 1) % N;
 			currentPlayerIndexRef.current = nextIdx;
 			setCurrentPlayerIndex(nextIdx);
+			setLocalRemaining(null);
 			okHandlingRef.current = false;
 			return;
 		}
@@ -584,10 +596,9 @@ const GameScoringScreen = ({ route, navigation }) => {
 					text: 'NIE',
 					style: 'cancel',
 					onPress: () => {
-						dispatch(undoSingleDart());
-						dispatch(undoSingleDart());
-						dispatch(undoSingleDart());
 						popDartHistory(3);
+						playerDispatches[idx](resetVisitDartLabels());
+						setLocalRemaining(visitStart);
 						okHandlingRef.current = false;
 					},
 				},
@@ -598,26 +609,111 @@ const GameScoringScreen = ({ route, navigation }) => {
 						okHandlingRef.current = false;
 						handleHf(resultToApply, player);
 						handleCheckout(idx);
+						setLocalRemaining(null);
 					},
 				},
 			]);
 			return;
 		}
 
-		dispatch(undoSingleDart());
-		dispatch(undoSingleDart());
-		dispatch(undoSingleDart());
 		popDartHistory(3);
+		playerDispatches[idx](resetVisitDartLabels());
+		setLocalRemaining(visitStart);
 		okHandlingRef.current = false;
+	};
+
+	const handleDartSubmit = async (points, roundTotal, isLastDart, dartIndex, dartLabel) => {
+		if (gameClosed) return;
+		if (!counterCanInput) return;
+
+		const idx = currentPlayerIndexRef.current;
+
+		if (dartIndex === 0) {
+			const visitStart = playerStates[idx]?.score ?? 501;
+			visitStartScoreRef.current = visitStart;
+			visitPointsTotalRef.current = 0;
+			setLocalRemaining(visitStart);
+			playerDispatches[idx](resetVisitDartLabels());
+			if (syncEnabled) {
+				visitClientIdRef.current = newClientVisitId();
+			}
+		}
+
+		const baseRemaining =
+			localVisitRemainingRef.current ??
+			visitStartScoreRef.current ??
+			playerStates[idx]?.score ??
+			501;
+		const nextRemaining = Math.max(0, baseRemaining - points);
+		setLocalRemaining(nextRemaining);
+		playerDispatches[idx](appendDartLabel(dartLabel));
+		pushDartToHistory(idx, points, dartLabel);
+		visitPointsTotalRef.current += points;
+
+		if (!isLastDart) {
+			return;
+		}
+
+		const visitStart = visitStartScoreRef.current ?? playerStates[idx]?.score ?? 501;
+		const resultToApply = visitPointsTotalRef.current;
+		visitPointsTotalRef.current = 0;
+
+		if (syncEnabled) {
+			setScoringBusy(true);
+			try {
+				markCurrentVisitCompleted(idx);
+				await submitOnlineVisitCore(resultToApply, 3);
+				if (!okHandlingRef.current) {
+					playerDispatches[idx](completeCurrentVisit());
+					setLocalRemaining(null);
+				}
+			} finally {
+				setScoringBusy(false);
+			}
+			return;
+		}
+
+		finishOfflinePerDartVisit(idx, visitStart, resultToApply);
 	};
 
 	const handleUndoSingleDart = () => {
 		if (gameClosed) return;
+
+		if (isPerDartMode) {
+			const history = dartHistoryRef.current;
+			if (history.length > 0) {
+				const last = history[history.length - 1];
+				if (!last.completedVisit) {
+					history.pop();
+					const { playerIndex, points } = last;
+					visitPointsTotalRef.current = Math.max(
+						0,
+						visitPointsTotalRef.current - points,
+					);
+					playerDispatches[playerIndex](popDartLabel());
+					setLocalRemaining((prev) =>
+						prev != null ? prev + points : null,
+					);
+					if (history.length === 0) {
+						visitStartScoreRef.current = null;
+						visitPointsTotalRef.current = 0;
+						if (syncEnabled) {
+							visitClientIdRef.current = null;
+						}
+						setLocalRemaining(null);
+					}
+					return;
+				}
+			}
+		}
+
 		if (syncEnabled) {
 			visitClientIdRef.current = null;
+			setLocalRemaining(null);
 			void gameScoring.undoVisit();
 			return;
 		}
+
 		if (!isPerDartMode) {
 			const idx = currentPlayerIndexRef.current;
 			playerDispatches[idx](undoSingleDart());
@@ -632,10 +728,10 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 		if (completedVisit) {
 			playerDispatches[playerIndex](reopenLastVisit());
+			playerDispatches[playerIndex](undo());
+			currentPlayerIndexRef.current = playerIndex;
+			setCurrentPlayerIndex(playerIndex);
 		}
-		playerDispatches[playerIndex](undoSingleDart());
-		currentPlayerIndexRef.current = playerIndex;
-		setCurrentPlayerIndex(playerIndex);
 	};
 
 	const handleOkBtn = () => {
@@ -826,10 +922,12 @@ const GameScoringScreen = ({ route, navigation }) => {
 					handleUndoBtn={handleUndoBtn}
 					handleClearBtn={handleClearBtn}
 					scoringMode={scoringMode}
-					canInput={counterCanInput}
+					canInput={counterTurnAllowed}
+					submitting={scoringBusy}
 					oneDeviceSpectator={counterOneDeviceSpectator}
 					handleDartSubmit={handleDartSubmit}
 					handleUndoSingleDart={handleUndoSingleDart}
+					localVisitRemaining={localVisitRemaining}
 				/>
 			);
 		}

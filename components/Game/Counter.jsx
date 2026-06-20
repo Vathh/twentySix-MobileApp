@@ -17,13 +17,15 @@ const Counter = ({
   handleUndoSingleDart,
   scoringMode = SCORING_MODES.SUM,
   canInput = true,
+  submitting = false,
+  localVisitRemaining = null,
   /** Tryb jednego urządzenia — widok tylko do odczytu (bez komunikatu o kolejce). */
   oneDeviceSpectator = false,
 }) => {
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
-  const inputDisabled = !canInput;
+  const inputDisabled = !canInput || submitting;
   const multiScrollRef = useRef(null);
   const rowOffsetsRef = useRef({});
 
@@ -41,37 +43,43 @@ const Counter = ({
       : null;
 
   const [dartScores, setDartScores] = useState([0, 0, 0]);
+  const dartScoresRef = useRef([0, 0, 0]);
   const [dartIndex, setDartIndex] = useState(0);
   const [modifier, setModifier] = useState(null);
   const [currentVisitLabels, setCurrentVisitLabels] = useState([]);
 
   useEffect(() => {
     if (!isPerDart || !canInput) {
+      dartScoresRef.current = [0, 0, 0];
       setDartScores([0, 0, 0]);
       setDartIndex(0);
       setModifier(null);
+      setCurrentVisitLabels([]);
       return;
     }
 
     const st = playerStates[currentPlayerIndex];
     const labels = st?.currentVisitDartLabels ?? [];
-    const allScores = st?.currentLegScores ?? [];
-    const visitScores = allScores.slice(-labels.length);
 
     setCurrentVisitLabels([...labels]);
-    setDartIndex(labels.length);
-    const pad = [0, 0, 0];
-    for (let i = 0; i < visitScores.length; i += 1) {
-      pad[i] = visitScores[i];
+    setDartIndex(Math.min(labels.length, 2));
+    if (labels.length === 0) {
+      dartScoresRef.current = [0, 0, 0];
+      setDartScores([0, 0, 0]);
+    } else if (labels.length < dartScoresRef.current.filter((s) => s > 0).length) {
+      const next = [0, 0, 0];
+      for (let i = 0; i < labels.length; i += 1) {
+        next[i] = dartScoresRef.current[i];
+      }
+      dartScoresRef.current = next;
+      setDartScores(next);
     }
-    setDartScores(pad);
     setModifier(null);
   }, [
     currentPlayerIndex,
     isPerDart,
     canInput,
     playerStates[currentPlayerIndex]?.currentVisitDartLabels?.join('|'),
-    playerStates[currentPlayerIndex]?.currentLegScores?.length,
   ]);
 
   const applyDartValue = (baseValue) => {
@@ -83,8 +91,9 @@ const Counter = ({
     /* Na tarczy stalowej max za jedną lotkę to T20 = 60; inne segmenty są ≤ 60. */
     if (points > 60) return;
     const dartLabel = formatDartLabel(baseValue, modifier);
-    const nextScores = [...dartScores];
+    const nextScores = [...dartScoresRef.current];
     nextScores[dartIndex] = points;
+    dartScoresRef.current = nextScores;
     setDartScores(nextScores);
     setModifier(null);
     const nextLabels = [...currentVisitLabels, dartLabel];
@@ -93,6 +102,7 @@ const Counter = ({
     const roundTotal = nextScores[0] + nextScores[1] + nextScores[2];
     handleDartSubmit?.(points, roundTotal, isLastDart, dartIndex, dartLabel);
     if (isLastDart) {
+      dartScoresRef.current = [0, 0, 0];
       setDartScores([0, 0, 0]);
       setDartIndex(0);
       setCurrentVisitLabels([]);
@@ -114,6 +124,15 @@ const Counter = ({
     }
     const last = st?.lastVisitDartLabels ?? [];
     return last.length ? last.join(', ') : '';
+  };
+
+  const renderLocalVisitRemaining = (playerIndex) => {
+    if (!isPerDart) return null;
+    if (playerIndex !== currentPlayerIndex || !canInput) return null;
+    if (localVisitRemaining == null) return null;
+    return (
+      <Text style={styles.localVisitRemainingText}>{localVisitRemaining}</Text>
+    );
   };
 
   const renderVisitDartsLine = (playerIndex, alignRight = false) => {
@@ -271,6 +290,7 @@ const Counter = ({
         <View style={styles.countersContainer}>
           <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
             <View style={styles.counterScoreStack}>
+              {renderLocalVisitRemaining(0)}
               <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}>{s0?.score ?? 501}</Text>
             </View>
             <View style={styles.averagesContainer}>
@@ -284,6 +304,7 @@ const Counter = ({
           </View>
           <View style={styles.counterContainer}>
             <View style={styles.counterScoreStack}>
+              {renderLocalVisitRemaining(1)}
               <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}>{s1?.score ?? 501}</Text>
             </View>
             <View style={styles.averagesContainer}>
@@ -335,6 +356,7 @@ const Counter = ({
               <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
             </View>
             <View style={styles.multiRowCenter}>
+              {renderLocalVisitRemaining(i)}
               <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
                 {st?.score ?? 501}
               </Text>
@@ -421,6 +443,11 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  localVisitRemainingText: {
+    fontSize: 28,
+    color: '#8a8a9a',
+    marginBottom: 4,
   },
   counterTextNoFlex: {
     flex: 0,

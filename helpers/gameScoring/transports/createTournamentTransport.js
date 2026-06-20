@@ -1,12 +1,12 @@
 import { Alert } from 'react-native';
-import { getGameScoringChannelName } from '../apiConfig';
+import { getGameScoringChannelName } from '../../apiConfig';
 import {
 	closeGameLeg,
 	fetchGameScoringState,
 	recordGameVisit,
 	startGameLeg,
 	undoGameVisit,
-} from '../gameScoringApi';
+} from '../../gameScoringApi';
 import { newClientVisitId } from '../newClientVisitId.js';
 
 function unwrapTournamentPayload(data) {

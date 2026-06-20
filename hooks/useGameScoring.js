@@ -111,7 +111,6 @@ export function useGameScoring({
 			}
 
 			lastRevisionRef.current = revision;
-			lastStateKeyRef.current = String(revision);
 			applyStateInternal(state);
 			return true;
 		},

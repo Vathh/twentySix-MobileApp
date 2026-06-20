@@ -10,6 +10,7 @@ import {
 } from '../normalizeScoringState.js';
 import { tournamentMidLeg } from './fixtures/tournamentMidLeg.js';
 import { ffaAfterVisit } from './fixtures/ffaAfterVisit.js';
+import { ffaPartialVisit } from './fixtures/ffaPartialVisit.js';
 
 function assert(condition, message) {
 	if (!condition) {
@@ -136,12 +137,40 @@ function testUnifiedApiPayload() {
 	assert(normalized.meta.lobbyId === 5, 'unified meta from API');
 }
 
+function testApplyFfaPartialVisitPreservesLocalLegScores() {
+	const dispatches = [[], []];
+	const dispatchFns = [
+		(action) => dispatches[0].push(action),
+		(action) => dispatches[1].push(action),
+	];
+	const currentPlayerIndexRef = { current: 0 };
+
+	applyGameScoringState(ffaPartialVisit, {
+		players: [{ playerId: 10 }, { playerId: 20 }],
+		N: 2,
+		dispatches: dispatchFns,
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex: () => {},
+		setGameClosed: () => {},
+		lastStateKeyRef: { current: '' },
+		legOpenerIndexRef: { current: 0 },
+		lastLegNumberRef: { current: null },
+	});
+
+	const sync = dispatches[0][0];
+	assert(sync.type === 'SYNC_FROM_SERVER', 'sync action');
+	assert(sync.score === 481, 'remaining from server');
+	assert(sync.currentLegScores === undefined, 'partial visit preserves local leg scores');
+	assert(currentPlayerIndexRef.current === 0, 'still player 0 turn');
+}
+
 const tests = [
 	['normalize tournament', testNormalizeTournament],
 	['normalize ffa', testNormalizeFfa],
 	['auto detect format', testAutoDetect],
 	['apply h2h', testApplyH2h],
 	['apply ffa', testApplyFfa],
+	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],
 	['unified API payload', testUnifiedApiPayload],
 ];
 

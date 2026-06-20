@@ -40,9 +40,8 @@ function buildFfaPlayerSync(sp, visits) {
 	const playerVisits = visits.filter(
 		(v) => pid(v.playerId) === spId && !v.bust,
 	);
-	const completeVisits = playerVisits.filter(
-		(v) => v.closedLeg || (v.dartsInVisit ?? 3) >= 3,
-	);
+	const partialVisit = playerVisits.find((v) => !isVisitComplete(v));
+	const completeVisits = playerVisits.filter(isVisitComplete);
 	const currentLegScores = completeVisits.map((v) => v.score);
 	const dartsThrown = playerVisits.reduce(
 		(sum, v) => sum + (v.dartsInVisit ?? 3),
@@ -54,8 +53,8 @@ function buildFfaPlayerSync(sp, visits) {
 		legsWon: sp.legsWon ?? 0,
 		matchAverage: sp.gameAverage ?? null,
 		currentLegAverage: sp.legAverage ?? null,
-		currentLegScores,
-		dartsThrown,
+		currentLegScores: partialVisit ? undefined : currentLegScores,
+		dartsThrown: partialVisit ? undefined : dartsThrown,
 		totalPointsEarned: sp.matchPointsEarned ?? 0,
 		totalDartsThrown: sp.matchDartsThrown ?? 0,
 		legByLegScores: sp.legByLegScores ?? [],

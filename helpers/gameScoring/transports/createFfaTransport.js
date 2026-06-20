@@ -20,6 +20,7 @@ export function createFfaTransport({
 	lobbyScoringMode,
 	isHost,
 	myPlayerIndexFromLobby,
+	getCurrentPlayerIndex = null,
 }) {
 	const assertHostForOneDevice = (actionLabel) => {
 		if (lobbyScoringMode === 'one_device' && !isHost) {
@@ -49,16 +50,23 @@ export function createFfaTransport({
 			if (!assertHostForOneDevice('punkty wpisuje')) {
 				return false;
 			}
-			if (
-				lobbyScoringMode === 'each_own' &&
-				myPlayerIndexFromLobby !== null &&
-				myPlayerIndexFromLobby !== playerIndex
-			) {
-				Alert.alert(
-					'Info',
-					'Teraz rzuca inny gracz — wpisz wizytę na urządzeniu rzucającego.',
-				);
-				return false;
+			if (lobbyScoringMode === 'each_own' && myPlayerIndexFromLobby !== null) {
+				if (playerIndex !== myPlayerIndexFromLobby) {
+					Alert.alert(
+						'Info',
+						'Możesz wpisywać tylko własne rzuty.',
+					);
+					return false;
+				}
+				const turnIdx = getCurrentPlayerIndex?.();
+				if (
+					turnIdx !== null &&
+					turnIdx !== undefined &&
+					turnIdx !== myPlayerIndexFromLobby
+				) {
+					Alert.alert('Info', 'Czekaj na swoją kolejkę.');
+					return false;
+				}
 			}
 			return true;
 		},
