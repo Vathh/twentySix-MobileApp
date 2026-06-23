@@ -115,13 +115,14 @@ const Counter = ({
     if (!isPerDart) return '';
     const st = playerStates[playerIndex];
     const isActive = playerIndex === currentPlayerIndex;
-    if (isActive && canInput) {
-      return currentVisitLabels.length ? currentVisitLabels.join(', ') : '';
+
+    const current = isActive && canInput
+      ? currentVisitLabels
+      : (st?.currentVisitDartLabels ?? []);
+    if (current.length) {
+      return current.join(', ');
     }
-    if (isActive) {
-      const current = st?.currentVisitDartLabels ?? [];
-      if (current.length) return current.join(', ');
-    }
+
     const last = st?.lastVisitDartLabels ?? [];
     return last.length ? last.join(', ') : '';
   };

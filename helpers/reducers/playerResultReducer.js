@@ -1,4 +1,4 @@
-import { APPEND_DART_LABEL, COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, POP_DART_LABEL, REOPEN_LAST_VISIT, RESET_VISIT_DART_LABELS, SYNC_FROM_SERVER, UNDO, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
+import { APPEND_DART_LABEL, COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, POP_DART_LABEL, REOPEN_LAST_VISIT, RESET_VISIT_DART_LABELS, SYNC_FROM_SERVER, UNDO, UNDO_COMMITTED_VISIT_DART, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
@@ -206,6 +206,39 @@ export const playerResultReducer = (state, action) => {
         currentVisitDartLabels: [],
       };
     };
+    case UNDO_COMMITTED_VISIT_DART: {
+      const points = action.points;
+      const scores = [...state.currentLegScores];
+      if (scores.length > 0) {
+        const lastVisitTotal = scores[scores.length - 1];
+        const newTotal = lastVisitTotal - points;
+        if (newTotal > 0) {
+          scores[scores.length - 1] = newTotal;
+        } else {
+          scores.pop();
+        }
+      }
+      const score = state.score + points;
+      const dartsThrown = Math.max(0, state.dartsThrown - 1);
+      const totalDartsThrown = Math.max(0, state.totalDartsThrown - 1);
+      const totalPointsEarned = state.totalPointsEarned - points;
+      const matchAverage = totalDartsThrown > 0
+        ? ((totalPointsEarned / totalDartsThrown) * 3).toFixed(2)
+        : 0;
+      const currentLegAverage = dartsThrown > 0
+        ? (((501 - score) / dartsThrown) * 3).toFixed(2)
+        : 0;
+      return {
+        ...state,
+        score,
+        totalPointsEarned,
+        totalDartsThrown,
+        matchAverage,
+        dartsThrown,
+        currentLegScores: scores,
+        currentLegAverage,
+      };
+    }
     case UNDO: {
       const scores = state.currentLegScores;
       const lastScore = scores.pop();

@@ -18,6 +18,7 @@ import {
   reopenLastVisit,
 	resetVisitDartLabels,
 	undo,
+	undoCommittedVisitDart,
 	undoSingleDart,
 	updateStats,
 } from '../../helpers/reducers/playerResultActions';
@@ -219,6 +220,32 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 	};
 
+	const hasActivePerDartVisit = () =>
+		isPerDartMode &&
+		(visitClientIdRef.current != null ||
+			visitPointsTotalRef.current > 0 ||
+			localVisitRemainingRef.current != null);
+
+	const resetPerDartEphemeralState = useCallback(
+		({ clearDartHistory = true, resetCurrentPlayerLabels = true } = {}) => {
+			visitStartScoreRef.current = null;
+			visitClientIdRef.current = null;
+			visitPointsTotalRef.current = 0;
+			localVisitRemainingRef.current = null;
+			setLocalRemaining(null);
+			if (clearDartHistory) {
+				dartHistoryRef.current = [];
+			}
+			if (resetCurrentPlayerLabels) {
+				const idx = currentPlayerIndexRef.current;
+				playerDispatches[idx](resetVisitDartLabels());
+			}
+		},
+		[playerDispatches, setLocalRemaining],
+	);
+
+	const prevPerDartModeRef = useRef(isPerDartMode);
+
 	const scoringTransport = useMemo(() => {
 		if (
 			mode === GAME_MODE.QUICK_FFA &&
@@ -292,9 +319,27 @@ const GameScoringScreen = ({ route, navigation }) => {
 	const counterCanInput = counterTurnAllowed && !scoringBusy;
 
 	useEffect(() => {
-		if (!isPerDartMode || counterCanInput) return;
+		if (prevPerDartModeRef.current === isPerDartMode) {
+			return;
+		}
+		prevPerDartModeRef.current = isPerDartMode;
+		okHandlingRef.current = false;
+		setCurrentResult(0);
+		if (isPerDartMode) {
+			return;
+		}
+		resetPerDartEphemeralState();
+	}, [isPerDartMode, resetPerDartEphemeralState]);
+
+	useEffect(() => {
+		if (!isPerDartMode) {
+			localVisitRemainingRef.current = null;
+			setLocalRemaining(null);
+			return;
+		}
+		if (counterCanInput) return;
 		setLocalRemaining(null);
-	}, [isPerDartMode, counterCanInput, currentPlayerIndex]);
+	}, [isPerDartMode, counterCanInput, currentPlayerIndex, setLocalRemaining]);
 
 	useEffect(() => {
 		if (!gameClosed || mode !== GAME_MODE.QUICK_FFA) return;
@@ -484,9 +529,13 @@ const GameScoringScreen = ({ route, navigation }) => {
 		) {
 			return false;
 		}
-		const visitStart = visitStartScoreRef.current ?? state?.score ?? 501;
+		const visitStart = hasActivePerDartVisit()
+			? (visitStartScoreRef.current ?? state?.score ?? 501)
+			: (state?.score ?? 501);
 		const visitOpts = {
-			clientVisitId: visitClientIdRef.current,
+			clientVisitId: hasActivePerDartVisit()
+				? visitClientIdRef.current
+				: null,
 			remainingBefore: visitStart,
 		};
 		const overshoot = resultToApply > visitStart;
@@ -724,13 +773,47 @@ const GameScoringScreen = ({ route, navigation }) => {
 		if (history.length === 0) return;
 
 		const last = history.pop();
-		const { playerIndex, completedVisit } = last;
+		const { playerIndex, points, completedVisit } = last;
 
 		if (completedVisit) {
-			playerDispatches[playerIndex](reopenLastVisit());
-			playerDispatches[playerIndex](undo());
+			const st = playerStates[playerIndex];
+			const needsReopen =
+				(st?.currentVisitDartLabels?.length ?? 0) === 0 &&
+				(st?.lastVisitDartLabels?.length ?? 0) > 0;
+			if (needsReopen) {
+				playerDispatches[playerIndex](reopenLastVisit());
+			}
+			playerDispatches[playerIndex](undoCommittedVisitDart(points));
+			playerDispatches[playerIndex](popDartLabel());
+
+			const samePlayerHistory = history.filter(
+				(entry) => entry.playerIndex === playerIndex,
+			);
+			visitPointsTotalRef.current = samePlayerHistory.reduce(
+				(sum, entry) => sum + entry.points,
+				0,
+			);
+
+			if (samePlayerHistory.length === 0) {
+				setLocalRemaining(null);
+				visitStartScoreRef.current = null;
+				visitPointsTotalRef.current = 0;
+				if (history.length === 0) {
+					currentPlayerIndexRef.current = playerIndex;
+					setCurrentPlayerIndex(playerIndex);
+				} else {
+					const prevIdx = (playerIndex - 1 + N) % N;
+					currentPlayerIndexRef.current = prevIdx;
+					setCurrentPlayerIndex(prevIdx);
+				}
+				return;
+			}
+
 			currentPlayerIndexRef.current = playerIndex;
 			setCurrentPlayerIndex(playerIndex);
+			const newScore = (st?.score ?? 501) + points;
+			visitStartScoreRef.current = newScore + visitPointsTotalRef.current;
+			setLocalRemaining(newScore);
 		}
 	};
 

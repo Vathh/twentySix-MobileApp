@@ -7,6 +7,7 @@ export const RESET_VISIT_DART_LABELS = 'RESET_VISIT_DART_LABELS';
 export const COMPLETE_CURRENT_VISIT = 'COMPLETE_CURRENT_VISIT';
 export const REOPEN_LAST_VISIT = 'REOPEN_LAST_VISIT';
 export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
+export const UNDO_COMMITTED_VISIT_DART = 'UNDO_COMMITTED_VISIT_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
 export const UNDO = 'UNDO';
@@ -72,6 +73,11 @@ export const reopenLastVisit = () => ({
 
 export const undoSingleDart = () => ({
   type: UNDO_SINGLE_DART
+});
+
+export const undoCommittedVisitDart = (points) => ({
+  type: UNDO_COMMITTED_VISIT_DART,
+  points,
 });
 
 export const legWin = (throws) => ({
