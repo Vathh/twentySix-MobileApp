@@ -11,6 +11,7 @@ export const UNDO_COMMITTED_VISIT_DART = 'UNDO_COMMITTED_VISIT_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
 export const UNDO = 'UNDO';
+export const UNDO_LAST_VISIT = 'UNDO_LAST_VISIT';
 
 export const syncFromServer = ({
   score,
@@ -91,6 +92,11 @@ export const legLose = () => ({
 
 export const undo = () => ({
   type: UNDO
+});
+
+export const undoLastVisit = (visitScore) => ({
+  type: UNDO_LAST_VISIT,
+  visitScore,
 });
 
 export const initialPlayerResultState = {

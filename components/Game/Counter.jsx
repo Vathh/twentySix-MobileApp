@@ -9,6 +9,7 @@ const Counter = ({
   playerStates,
   currentPlayerIndex,
   currentResult,
+  resultEdited = false,
   handleNumberBtn,
   handleOkBtn,
   handleUndoBtn,
@@ -130,9 +131,10 @@ const Counter = ({
   const renderLocalVisitRemaining = (playerIndex) => {
     if (!isPerDart) return null;
     if (playerIndex !== currentPlayerIndex || !canInput) return null;
-    if (localVisitRemaining == null) return null;
+    const mainScore = playerStates[playerIndex]?.score ?? 501;
+    const displayValue = localVisitRemaining ?? mainScore;
     return (
-      <Text style={styles.localVisitRemainingText}>{localVisitRemaining}</Text>
+      <Text style={styles.localVisitRemainingText}>{displayValue}</Text>
     );
   };
 
@@ -167,13 +169,21 @@ const Counter = ({
           </Pressable>
         </View>
         <View style={styles.dartBullCenter}>
-          <Pressable
-            style={[styles.dartBullBtn, modifier === 'triple' && styles.dartBullBtnDisabled]}
-            onPress={modifier === 'triple' ? undefined : () => applyDartValue(25)}
-            disabled={modifier === 'triple'}
-          >
-            <Text style={[styles.dartBullText, modifier === 'triple' && styles.dartBullTextDisabled]}>Bull</Text>
-          </Pressable>
+          <View style={styles.dartZeroBullRow}>
+            <Pressable
+              style={styles.dartZeroBtn}
+              onPress={() => applyDartValue(0)}
+            >
+              <Text style={styles.dartZeroText}>0</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.dartBullBtn, modifier === 'triple' && styles.dartBullBtnDisabled]}
+              onPress={modifier === 'triple' ? undefined : () => applyDartValue(25)}
+              disabled={modifier === 'triple'}
+            >
+              <Text style={[styles.dartBullText, modifier === 'triple' && styles.dartBullTextDisabled]}>Bull</Text>
+            </Pressable>
+          </View>
         </View>
         <Pressable
           style={[styles.dartUndoBtn, inputDisabled && styles.dartUndoBtnDisabled]}
@@ -251,7 +261,8 @@ const Counter = ({
     </View>
   );
 
-  const scoreDisplayText = currentResult > 0 ? currentResult : 'Wprowadź wynik';
+  const scoreDisplayText =
+    resultEdited || currentResult > 0 ? String(currentResult) : 'Wprowadź wynik';
   const scoreSection = (
     <View style={styles.scoreContainer}>
       <View style={styles.score}>
@@ -616,6 +627,27 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dartZeroBullRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dartZeroBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    minWidth: 48,
+  },
+  dartZeroText: {
+    color: '#c5c5c5',
+    fontSize: 18,
+    fontWeight: '600',
   },
   dartModBtn: {
     paddingVertical: 10,

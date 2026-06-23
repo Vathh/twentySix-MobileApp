@@ -11,6 +11,7 @@ import {
 import { tournamentMidLeg } from './fixtures/tournamentMidLeg.js';
 import { ffaAfterVisit } from './fixtures/ffaAfterVisit.js';
 import { ffaPartialVisit } from './fixtures/ffaPartialVisit.js';
+import { evaluatePerDartVisitAfterDart } from '../../perDartVisitRules.js';
 
 function assert(condition, message) {
 	if (!condition) {
@@ -164,6 +165,20 @@ function testApplyFfaPartialVisitPreservesLocalLegScores() {
 	assert(currentPlayerIndexRef.current === 0, 'still player 0 turn');
 }
 
+function testPerDartBustRules() {
+	const overshoot = evaluatePerDartVisitAfterDart(24, 60, 'T20');
+	assert(overshoot.bust && !overshoot.checkout, 'T20 on 24 is bust');
+
+	const invalidFinish = evaluatePerDartVisitAfterDart(24, 24, '16');
+	assert(invalidFinish.bust && !invalidFinish.checkout, 'S8+S16 on 24 is bust');
+
+	const validCheckout = evaluatePerDartVisitAfterDart(24, 24, 'D12');
+	assert(!validCheckout.bust && validCheckout.checkout, 'D12 on 24 is checkout');
+
+	const leaveOne = evaluatePerDartVisitAfterDart(50, 49, 'S17');
+	assert(leaveOne.bust && !leaveOne.checkout, 'leaving 1 is bust');
+}
+
 const tests = [
 	['normalize tournament', testNormalizeTournament],
 	['normalize ffa', testNormalizeFfa],
@@ -172,6 +187,7 @@ const tests = [
 	['apply ffa', testApplyFfa],
 	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],
 	['unified API payload', testUnifiedApiPayload],
+	['per-dart bust rules', testPerDartBustRules],
 ];
 
 let passed = 0;

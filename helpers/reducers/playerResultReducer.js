@@ -1,4 +1,4 @@
-import { APPEND_DART_LABEL, COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, POP_DART_LABEL, REOPEN_LAST_VISIT, RESET_VISIT_DART_LABELS, SYNC_FROM_SERVER, UNDO, UNDO_COMMITTED_VISIT_DART, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
+import { APPEND_DART_LABEL, COMPLETE_CURRENT_VISIT, LEG_LOSE, LEG_WIN, POP_DART_LABEL, REOPEN_LAST_VISIT, RESET_VISIT_DART_LABELS, SYNC_FROM_SERVER, UNDO, UNDO_COMMITTED_VISIT_DART, UNDO_LAST_VISIT, UNDO_SINGLE_DART, UPDATE_SINGLE_DART, UPDATE_STATS } from "./playerResultActions";
 
 export const playerResultReducer = (state, action) => {
   switch (action.type) {
@@ -239,15 +239,29 @@ export const playerResultReducer = (state, action) => {
         currentLegAverage,
       };
     }
-    case UNDO: {
-      const scores = state.currentLegScores;
-      const lastScore = scores.pop();
+    case UNDO:
+    case UNDO_LAST_VISIT: {
+      const scores = [...state.currentLegScores];
+      const lastScore =
+        action.type === UNDO_LAST_VISIT
+          ? action.visitScore
+          : scores.pop();
+      if (action.type === UNDO && lastScore == null) {
+        return state;
+      }
+      if (action.type === UNDO_LAST_VISIT && scores.length > 0) {
+        scores.pop();
+      }
       const score = state.score + lastScore;
       const totalPointsEarned = state.totalPointsEarned - lastScore;
-      const dartsThrown = state.dartsThrown - 3;
-      const totalDartsThrown = state.totalDartsThrown - 3;
-      const matchAverage = (totalPointsEarned/totalDartsThrown*3).toFixed(2);
-      const currentLegAverage = ((501 - score)/dartsThrown*3).toFixed(2);
+      const dartsThrown = Math.max(0, state.dartsThrown - 3);
+      const totalDartsThrown = Math.max(0, state.totalDartsThrown - 3);
+      const matchAverage = totalDartsThrown > 0
+        ? ((totalPointsEarned / totalDartsThrown) * 3).toFixed(2)
+        : 0;
+      const currentLegAverage = dartsThrown > 0
+        ? (((501 - score) / dartsThrown) * 3).toFixed(2)
+        : 0;
 
       return {
         ...state,
@@ -257,8 +271,8 @@ export const playerResultReducer = (state, action) => {
         matchAverage,
         dartsThrown,
         currentLegScores: scores,
-        currentLegAverage
-      }
+        currentLegAverage,
+      };
     }
     default:
       return state;
