@@ -11,6 +11,8 @@ export function canCounterInput({
 	isHost,
 	myPlayerIndex,
 	currentPlayerIndex,
+	ffaPresence = null,
+	players = [],
 }) {
 	if (gameClosed || scoringBusy) {
 		return false;
@@ -25,6 +27,32 @@ export function canCounterInput({
 	}
 
 	if (mode === GAME_MODE.QUICK_FFA) {
+		if (Array.isArray(ffaPresence)) {
+			const myPlayerId =
+				myPlayerIndex != null ? players[myPlayerIndex]?.id : null;
+			if (
+				myPlayerId != null &&
+				ffaPresence.some(
+					(row) => row.playerId === myPlayerId && row.status === 'left',
+				)
+			) {
+				return false;
+			}
+			const currentPlayerId =
+				currentPlayerIndex != null
+					? players[currentPlayerIndex]?.id
+					: null;
+			if (
+				currentPlayerId != null &&
+				ffaPresence.some(
+					(row) =>
+						row.playerId === currentPlayerId && row.status === 'left',
+				)
+			) {
+				return false;
+			}
+		}
+
 		if (lobbyScoringMode === 'one_device' && !isHost) {
 			return false;
 		}

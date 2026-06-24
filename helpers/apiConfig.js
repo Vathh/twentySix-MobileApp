@@ -138,6 +138,10 @@ export const getQuickGameFfaVisitUrl = (lobbyId) =>
 	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + '/ffa/visits';
 export const getQuickGameFfaUndoUrl = (lobbyId) =>
 	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + '/ffa/visits/undo';
+export const getQuickGameFfaPresenceUrl = (lobbyId) =>
+	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/' + lobbyId + '/ffa/presence';
+export const QUICK_GAME_LOBBY_ACTIVE_MATCH_URL =
+	API_BASE_URL + QUICK_GAME_LOBBY_PREFIX + '/active-match';
 
 // Game scoring (wizyty, legi) — ten sam kontrakt dla quick / group / playoff
 const GROUP_GAMES_PREFIX = '/group-games';

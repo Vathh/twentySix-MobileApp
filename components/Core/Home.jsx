@@ -1,10 +1,47 @@
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import useAuth from '../../hooks/useAuth'
+import {
+	buildGameScoringParamsFromActiveMatch,
+	resolveActiveFfaMatch,
+} from '../../helpers/activeQuickGameMatch'
 
 const Home = ({ navigation }) => {
 
   const { auth } = useAuth()
+  const [activeMatch, setActiveMatch] = useState(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false
+
+      if (!auth?.accessToken) {
+        setActiveMatch(null)
+        return () => {
+          cancelled = true
+        }
+      }
+
+      setActiveMatch(null)
+
+      resolveActiveFfaMatch(auth.accessToken)
+        .then((match) => {
+          if (!cancelled) {
+            setActiveMatch(match)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setActiveMatch(null)
+          }
+        })
+
+      return () => {
+        cancelled = true
+      }
+    }, [auth?.accessToken]),
+  )
 
   const tournamentModeHandler = () => {
     navigation.navigate('TournamentCode')
@@ -25,14 +62,35 @@ const Home = ({ navigation }) => {
     }
   }
 
+  const resumeMatchHandler = () => {
+    const params = buildGameScoringParamsFromActiveMatch(activeMatch)
+    if (params) {
+      navigation.navigate('GameScoring', params)
+    }
+  }
+
   const trainingHandler = () => {
     navigation.navigate('TrainingMatchSetup')
   }
+
+  const opponentNames =
+    activeMatch?.players
+      ?.filter((_, index) => index !== activeMatch.myPlayerIndex)
+      ?.map((p) => p.name)
+      ?.join(', ') ?? 'przeciwnikiem'
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Wybierz tryb gry</Text>
       <View style={styles.form}>
+        {activeMatch ? (
+          <Pressable style={styles.buttonResume} onPress={resumeMatchHandler}>
+            <Text style={styles.buttonResumeText}>Wróć do meczu</Text>
+            <Text style={styles.buttonHintResume}>
+              Quick game z {opponentNames}
+            </Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.button} onPress={tournamentModeHandler}>
           <Text style={styles.buttonText}>Turniej</Text>
         </Pressable>
@@ -67,6 +125,25 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     width: '100%',
     maxWidth: 320,
+  },
+  buttonResume: {
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#2d6a4f',
+    borderRadius: 8,
+  },
+  buttonResumeText: {
+    color: '#e8fff3',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonHintResume: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#c8f5dc',
+    textAlign: 'center',
   },
   button: {
     alignItems: 'center',

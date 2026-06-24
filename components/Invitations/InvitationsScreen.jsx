@@ -29,7 +29,7 @@ const TAB_FRIENDS = 'friends';
 
 const InvitationsScreen = ({ navigation }) => {
   const { auth } = useAuth();
-  const [activeTab, setActiveTab] = useState(TAB_FRIENDS);
+  const [activeTab, setActiveTab] = useState(TAB_POJEDYNEK);
   const [tournamentInvitations, setTournamentInvitations] = useState([]);
   const [lobbyInvitations, setLobbyInvitations] = useState([]);
   const [friendInvitations, setFriendInvitations] = useState([]);
@@ -352,12 +352,6 @@ const InvitationsScreen = ({ navigation }) => {
     >
       <View style={styles.tabs}>
         <Pressable
-          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_FRIENDS)}
-        >
-          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
-        </Pressable>
-        <Pressable
           style={[styles.tab, activeTab === TAB_POJEDYNEK && styles.tabActive]}
           onPress={() => setActiveTab(TAB_POJEDYNEK)}
         >
@@ -368,6 +362,12 @@ const InvitationsScreen = ({ navigation }) => {
           onPress={() => setActiveTab(TAB_TOURNAMENT)}
         >
           <Text style={[styles.tabText, activeTab === TAB_TOURNAMENT && styles.tabTextActive]}>Turniej</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_FRIENDS)}
+        >
+          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
         </Pressable>
       </View>
 

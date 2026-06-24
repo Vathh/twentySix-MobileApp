@@ -6,7 +6,7 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
   appendDartLabel,
@@ -55,6 +55,12 @@ import { createFfaTransport } from '../../helpers/gameScoring/transports/createF
 import { releaseTournamentGame } from '../../helpers/lockTournamentGame';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
 import { evaluatePerDartVisitAfterDart } from '../../helpers/perDartVisitRules';
+import { postFfaPresence } from '../../helpers/quickGameFfaApi';
+import {
+	clearActiveFfaLobby,
+	saveActiveFfaLobby,
+} from '../../helpers/activeQuickGameMatch';
+import { buildFfaPresenceBannerMessages } from '../../helpers/ffaPresenceMessages';
 
 const GameScoringScreen = ({ route, navigation }) => {
 	const { auth } = useAuth();
@@ -159,6 +165,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 	/** Indeks zawodnika rozpoczynającego bieżący leg (rotacja: opener+1 po zamknięciu lega). */
 	const legOpenerIndexRef = useRef(0);
 	const okHandlingRef = useRef(false);
+	/** Checkout w trybie sumy — czeka na wybór lotki (1–3) przed zamknięciem lega online. */
+	const pendingCheckoutRef = useRef(null);
 	const tournamentResultSentRef = useRef(false);
 	const quickResultSentRef = useRef(false);
 	const [ffaFinishedQuickGameId, setFfaFinishedQuickGameId] = useState(null);
@@ -190,6 +198,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 	const dartHistoryRef = useRef([]);
 	/** Chronologiczny log zatwierdzonych wizyt — wspólny dla trybu sumy i per-dart (cofanie po zmianie trybu). */
 	const visitLogRef = useRef([]);
+	const intentionalFfaLeaveRef = useRef(false);
 	/** Suma punktów w bieżącej wizycie per-dart (zerowana na początku każdej wizyty). */
 	const visitPointsTotalRef = useRef(0);
 
@@ -311,6 +320,18 @@ const GameScoringScreen = ({ route, navigation }) => {
 		reloadKey,
 	});
 
+	const { ffaPresence } = gameScoring;
+
+	const myPlayerId = useMemo(() => {
+		if (myPlayerIndex == null || myPlayerIndex < 0) return null;
+		return players[myPlayerIndex]?.id ?? null;
+	}, [myPlayerIndex, players]);
+
+	const presenceBannerMessages = useMemo(
+		() => buildFfaPresenceBannerMessages(ffaPresence, myPlayerId),
+		[ffaPresence, myPlayerId],
+	);
+
 	const counterOneDeviceSpectator = useMemo(
 		() => isOneDeviceSpectator({ mode, lobbyScoringMode, isHost }),
 		[mode, lobbyScoringMode, isHost],
@@ -326,6 +347,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 				isHost,
 				myPlayerIndex,
 				currentPlayerIndex,
+				ffaPresence,
+				players,
 			}),
 		[
 			mode,
@@ -334,6 +357,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 			isHost,
 			myPlayerIndex,
 			currentPlayerIndex,
+			ffaPresence,
+			players,
 		],
 	);
 
@@ -434,6 +459,12 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const toggleQFModal = () => {
 		setIsQFModalVisible((visibility) => !visibility);
+	};
+
+	const openCheckoutDartModal = (idx, visitScore, visitOpts = {}) => {
+		pendingCheckoutRef.current = { idx, visitScore, visitOpts };
+		setQfHelperDart(playerStates[idx]?.dartsThrown ?? 0);
+		toggleQFModal();
 	};
 
 	const advanceToNextLegOpener = useCallback(() => {
@@ -586,16 +617,21 @@ const GameScoringScreen = ({ route, navigation }) => {
 						if (resultToApply >= 100) {
 							handleHf(resultToApply, player);
 						}
-						await gameScoring.closeLegWithWinner(
-							idx,
-							resultToApply,
-							dartsInVisit,
-							visitOpts,
-						);
+						if (isPerDartMode) {
+							await gameScoring.closeLegWithWinner(
+								idx,
+								resultToApply,
+								dartsInVisit,
+								visitOpts,
+							);
+						} else {
+							openCheckoutDartModal(idx, resultToApply, visitOpts);
+						}
 						visitClientIdRef.current = null;
 						okHandlingRef.current = false;
 						setLocalRemaining(null);
 						setCurrentResult(0);
+						setResultEdited(false);
 					},
 				},
 			]);
@@ -957,36 +993,43 @@ const GameScoringScreen = ({ route, navigation }) => {
 		okHandlingRef.current = false;
 	};
 
-	const handleCheckout = (idx) => {
+	const handleCheckout = (idx, visitScore, visitOpts = {}) => {
+		const score = visitScore ?? playerStates[idx]?.score ?? 501;
 		if (syncEnabled) {
-			const st = playerStates[idx];
-			void gameScoring.closeLegWithWinner(idx, st.score, 3);
+			if (!isPerDartMode) {
+				openCheckoutDartModal(idx, score, visitOpts);
+				return;
+			}
+			void gameScoring.closeLegWithWinner(idx, score, 3, visitOpts);
 			return;
 		}
-		const state = playerStates[idx];
-		if (state.dartsThrown < 20) {
-			setQfHelperDart(state.dartsThrown);
-			toggleQFModal();
-			return;
-		}
-		playerDispatches[idx](legWin(3));
-		for (let j = 0; j < N; j++) {
-			if (j !== idx) playerDispatches[j](legLose());
-		}
-		advanceToNextLegOpener();
+		openCheckoutDartModal(idx, score, visitOpts);
 	};
 
 	const handleQFModalBtn = (dartNumber) => {
+		const pending = pendingCheckoutRef.current;
+		const idx = pending?.idx ?? currentPlayerIndexRef.current;
+		const player = players[idx];
+
 		if (syncEnabled) {
-			const idx = currentPlayerIndexRef.current;
-			const st = playerStates[idx];
-			void gameScoring.closeLegWithWinner(idx, st.score, dartNumber);
+			pendingCheckoutRef.current = null;
+			const visitScore = pending?.visitScore ?? playerStates[idx]?.score ?? 501;
+			const visitOpts = pending?.visitOpts ?? {};
+			void gameScoring.closeLegWithWinner(
+				idx,
+				visitScore,
+				dartNumber,
+				visitOpts,
+			);
 			toggleQFModal();
+			okHandlingRef.current = false;
+			setCurrentResult(0);
+			setResultEdited(false);
 			return;
 		}
+
+		pendingCheckoutRef.current = null;
 		const dart = qfHelperDart + dartNumber;
-		const idx = currentPlayerIndexRef.current;
-		const player = players[idx];
 		if (player?.playerId) handleQf(player, dart);
 		playerDispatches[idx](legWin(dartNumber));
 		for (let j = 0; j < N; j++) {
@@ -1078,13 +1121,88 @@ const GameScoringScreen = ({ route, navigation }) => {
 									accessToken: auth.accessToken,
 								});
 							}
+							if (
+								mode === GAME_MODE.QUICK_FFA &&
+								syncEnabled &&
+								!gameClosed &&
+								lobbyId &&
+								auth?.accessToken
+							) {
+								intentionalFfaLeaveRef.current = true;
+								try {
+									await postFfaPresence(lobbyId, auth.accessToken, 'left');
+								} catch {
+									// Wyjście z ekranu i tak dozwolone
+								}
+								await clearActiveFfaLobby();
+							}
 							navigation.dispatch(e.data.action);
 						},
 					},
 				]);
 			}),
-		[navigation, mode, gameClosed, tournamentGame, auth?.accessToken],
+		[
+			navigation,
+			mode,
+			gameClosed,
+			tournamentGame,
+			auth?.accessToken,
+			syncEnabled,
+			lobbyId,
+		],
 	);
+
+	useEffect(() => {
+		if (
+			mode !== GAME_MODE.QUICK_FFA ||
+			!syncEnabled ||
+			!lobbyId ||
+			!auth?.accessToken ||
+			gameClosed
+		) {
+			return undefined;
+		}
+
+		let cancelled = false;
+		const token = auth.accessToken;
+
+		const sendPresence = async (status) => {
+			if (cancelled) return;
+			try {
+				await postFfaPresence(lobbyId, token, status);
+			} catch {
+				// Ignoruj błędy sieci — heartbeat spróbuje ponownie
+			}
+		};
+
+		saveActiveFfaLobby(lobbyId);
+		sendPresence('connected');
+
+		const heartbeat = setInterval(() => sendPresence('connected'), 30000);
+
+		const appStateSub = AppState.addEventListener('change', (nextState) => {
+			if (nextState === 'active') {
+				sendPresence('connected');
+			} else if (nextState === 'background' || nextState === 'inactive') {
+				sendPresence('disconnected');
+			}
+		});
+
+		return () => {
+			cancelled = true;
+			clearInterval(heartbeat);
+			appStateSub.remove();
+			if (!intentionalFfaLeaveRef.current) {
+				sendPresence('disconnected');
+			}
+		};
+	}, [mode, syncEnabled, lobbyId, auth?.accessToken, gameClosed]);
+
+	useEffect(() => {
+		if (gameClosed && mode === GAME_MODE.QUICK_FFA) {
+			clearActiveFfaLobby();
+		}
+	}, [gameClosed, mode]);
 
 	function renderContent() {
 		if (selectedComponent === 'counter') {
@@ -1212,6 +1330,16 @@ const GameScoringScreen = ({ route, navigation }) => {
 				</Pressable>
 			</View>
 
+			{presenceBannerMessages.length > 0 && (
+				<View style={styles.presenceBanner}>
+					{presenceBannerMessages.map((message) => (
+						<Text key={message} style={styles.presenceBannerText}>
+							{message}
+						</Text>
+					))}
+				</View>
+			)}
+
 			{renderContent()}
 		</View>
 	);
@@ -1222,6 +1350,17 @@ const styles = StyleSheet.create({
 		flex: 1,
 		flexDirection: 'column',
 		backgroundColor: '#363062',
+	},
+	presenceBanner: {
+		backgroundColor: '#5c1d1d',
+		paddingVertical: 8,
+		paddingHorizontal: 16,
+	},
+	presenceBannerText: {
+		color: '#ffd4d4',
+		fontSize: 14,
+		textAlign: 'center',
+		marginVertical: 2,
 	},
 	modalContainer: {
 		flex: 1,

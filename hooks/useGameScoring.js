@@ -39,6 +39,7 @@ export function useGameScoring({
 	const finishedQuickGameIdRef = useRef(null);
 	const wsHealthyRef = useRef(false);
 	const [wsHealthy, setWsHealthy] = useState(false);
+	const [ffaPresence, setFfaPresence] = useState(null);
 
 	const isH2h = transport?.format === 'h2h';
 	const realtimeConfig = useMemo(
@@ -95,6 +96,10 @@ export function useGameScoring({
 		(state, source = 'external') => {
 			if (!state) {
 				return false;
+			}
+
+			if (Array.isArray(state.presence)) {
+				setFfaPresence(state.presence);
 			}
 
 			const revision = computeStateRevision(state);
@@ -436,5 +441,6 @@ export function useGameScoring({
 		undoVisit,
 		ensureLegStarted,
 		finishedQuickGameIdRef,
+		ffaPresence,
 	};
 }

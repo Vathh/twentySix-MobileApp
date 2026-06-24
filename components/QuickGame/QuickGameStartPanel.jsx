@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ACCOUNT_LOGIN_API_URL } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
 
@@ -10,10 +10,13 @@ const QuickGameStartPanel = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
+    if (loading) return;
     setErrorMsg('');
+    setLoading(true);
 
     try {
       const response = await fetch(ACCOUNT_LOGIN_API_URL, {
@@ -41,6 +44,8 @@ const QuickGameStartPanel = () => {
       });
     } catch (err) {
       setErrorMsg('Nieprawidłowy email lub hasło');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -57,6 +62,7 @@ const QuickGameStartPanel = () => {
           autoCorrect={false}
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={!loading}
         />
         <TextInput
           style={styles.input}
@@ -65,9 +71,18 @@ const QuickGameStartPanel = () => {
           onChangeText={setPassword}
           secureTextEntry
           autoCapitalize="none"
+          editable={!loading}
         />
-        <Pressable style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Zaloguj</Text>
+        <Pressable
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#363062" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>Zaloguj</Text>
+          )}
         </Pressable>
       </View>
     </View>
@@ -112,14 +127,20 @@ const styles = StyleSheet.create({
     },
   button: {
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 20,
     // marginHorizontal: 'auto',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingVertical: 7,
     paddingHorizontal: 14,
+    minWidth: 100,
+    minHeight: 34,
     backgroundColor:  '#f5f5f5cc',
     borderRadius: 5
+  },
+  buttonDisabled: {
+    opacity: 0.85,
   },
   buttonText: {
     color: '#363062',

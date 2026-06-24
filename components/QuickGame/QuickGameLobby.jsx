@@ -69,7 +69,7 @@ const QuickGameLobby = ({ navigation, route }) => {
 
   const applyLobbyData = useCallback((data, fallbackLobbyId = null) => {
     if (!data) return;
-    if (data.status === 'started' && data.players?.length >= 2) {
+    if (data.matchInProgress && data.status === 'started' && data.players?.length >= 2) {
       const players = (data.players || []).map((p) => ({
         id: p.id,
         name: p.name ?? p.tempName ?? 'Gracz',
