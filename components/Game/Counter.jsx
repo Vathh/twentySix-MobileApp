@@ -19,6 +19,7 @@ const Counter = ({
   scoringMode = SCORING_MODES.SUM,
   canInput = true,
   submitting = false,
+  gameClosed = false,
   localVisitRemaining = null,
   /** Tryb jednego urządzenia — widok tylko do odczytu (bez komunikatu o kolejce). */
   oneDeviceSpectator = false,
@@ -276,6 +277,40 @@ const Counter = ({
     </View>
   );
 
+  const renderWaitingOverlay = (variant = 'twoPlayer') => {
+    if (gameClosed) {
+      return (
+        <View
+          style={
+            variant === 'multi'
+              ? styles.waitingOverlayMulti
+              : styles.waitingOverlay
+          }
+          pointerEvents="none"
+        >
+          <Text style={[styles.waitingText, styles.matchFinishedText]}>
+            Mecz został zakończony
+          </Text>
+        </View>
+      );
+    }
+    if (!inputDisabled || oneDeviceSpectator) {
+      return null;
+    }
+    return (
+      <View
+        style={
+          variant === 'multi'
+            ? styles.waitingOverlayMulti
+            : styles.waitingOverlay
+        }
+        pointerEvents="none"
+      >
+        <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
+      </View>
+    );
+  };
+
   if (isTwoPlayer && N >= 2) {
     const p0 = players[0];
     const p1 = players[1];
@@ -300,24 +335,42 @@ const Counter = ({
         </View>
 
         <View style={styles.countersContainer}>
-          <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
-            <View style={styles.counterScoreStack}>
-              {renderLocalVisitRemaining(0)}
-              <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}>{s0?.score ?? 501}</Text>
+          <View style={styles.countersScoresRow}>
+            <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
+              <View style={styles.counterScoreStack}>
+                {renderLocalVisitRemaining(0)}
+                <Text
+                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  minimumFontScale={0.4}
+                >
+                  {s0?.score ?? 501}
+                </Text>
+              </View>
             </View>
-            <View style={styles.averagesContainer}>
+            <View style={styles.counterContainer}>
+              <View style={styles.counterScoreStack}>
+                {renderLocalVisitRemaining(1)}
+                <Text
+                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  minimumFontScale={0.4}
+                >
+                  {s1?.score ?? 501}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.averagesRow}>
+            <View style={[styles.averagesContainer, styles.counterContainerWithBorder]}>
               <Text style={styles.averageText}>
                 ms: {hasAverage(s0?.matchAverage) ? formatAverage(s0.matchAverage) : '-'}
               </Text>
               <Text style={styles.averageText}>
                 ls: {(s0?.dartsThrown > 0 || hasAverage(s0?.currentLegAverage)) ? formatAverage(s0.currentLegAverage) : '-'}
               </Text>
-            </View>
-          </View>
-          <View style={styles.counterContainer}>
-            <View style={styles.counterScoreStack}>
-              {renderLocalVisitRemaining(1)}
-              <Text style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}>{s1?.score ?? 501}</Text>
             </View>
             <View style={styles.averagesContainer}>
               <Text style={styles.averageText}>
@@ -328,12 +381,10 @@ const Counter = ({
               </Text>
             </View>
           </View>
+          {renderWaitingOverlay()}
         </View>
 
         {!isPerDart && scoreSection}
-        {inputDisabled && !oneDeviceSpectator && (
-          <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
-        )}
         {isPerDart ? dartPad : numPad}
       </View>
     );
@@ -341,51 +392,51 @@ const Counter = ({
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        ref={multiScrollRef}
-        style={styles.multiList}
-        contentContainerStyle={styles.multiListContent}
-      >
-        {players.map((p, i) => {
-          const st = playerStates[i];
-          return (
-          <View
-            key={i}
-            style={[styles.multiRow, i === currentPlayerIndex && styles.multiRowActive]}
-            onLayout={(e) => {
-              rowOffsetsRef.current[i] = e.nativeEvent.layout.y;
-              if (i === currentPlayerIndex && !isTwoPlayer && N >= 3) {
-                const y = e.nativeEvent.layout.y;
-                requestAnimationFrame(() => {
-                  multiScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
-                });
-              }
-            }}
-          >
-            <View style={styles.multiRowLeft}>
-              <Text style={styles.multiPlayerName} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
-              {renderVisitDartsLine(i)}
-              <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
+      <View style={styles.multiListWrapper}>
+        <ScrollView
+          ref={multiScrollRef}
+          style={styles.multiList}
+          contentContainerStyle={styles.multiListContent}
+        >
+          {players.map((p, i) => {
+            const st = playerStates[i];
+            return (
+            <View
+              key={i}
+              style={[styles.multiRow, i === currentPlayerIndex && styles.multiRowActive]}
+              onLayout={(e) => {
+                rowOffsetsRef.current[i] = e.nativeEvent.layout.y;
+                if (i === currentPlayerIndex && !isTwoPlayer && N >= 3) {
+                  const y = e.nativeEvent.layout.y;
+                  requestAnimationFrame(() => {
+                    multiScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+                  });
+                }
+              }}
+            >
+              <View style={styles.multiRowLeft}>
+                <Text style={styles.multiPlayerName} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
+                {renderVisitDartsLine(i)}
+                <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
+              </View>
+              <View style={styles.multiRowCenter}>
+                {renderLocalVisitRemaining(i)}
+                <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
+                  {st?.score ?? 501}
+                </Text>
+                <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
+              </View>
+              <View style={styles.multiRowRight}>
+                <Text style={styles.multiAvg}>ms: {hasAverage(st?.matchAverage) ? formatAverage(st.matchAverage) : '-'}</Text>
+                <Text style={styles.multiAvg}>ls: {(st?.dartsThrown > 0 || hasAverage(st?.currentLegAverage)) ? formatAverage(st.currentLegAverage) : '-'}</Text>
+              </View>
             </View>
-            <View style={styles.multiRowCenter}>
-              {renderLocalVisitRemaining(i)}
-              <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
-                {st?.score ?? 501}
-              </Text>
-              <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
-            </View>
-            <View style={styles.multiRowRight}>
-              <Text style={styles.multiAvg}>ms: {hasAverage(st?.matchAverage) ? formatAverage(st.matchAverage) : '-'}</Text>
-              <Text style={styles.multiAvg}>ls: {(st?.dartsThrown > 0 || hasAverage(st?.currentLegAverage)) ? formatAverage(st.currentLegAverage) : '-'}</Text>
-            </View>
-          </View>
-          );
-        })}
-      </ScrollView>
+            );
+          })}
+        </ScrollView>
+        {renderWaitingOverlay('multi')}
+      </View>
       {!isPerDart && scoreSection}
-      {inputDisabled && !oneDeviceSpectator && (
-        <Text style={styles.waitingText}>Czekaj na swoją kolejkę</Text>
-      )}
       {isPerDart ? dartPad : numPad}
     </View>
   );
@@ -442,17 +493,31 @@ const styles = StyleSheet.create({
     color: '#c5c5c5'
   },
   countersContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    width: '100%',
+    position: 'relative',
+  },
+  countersScoresRow: {
+    flex: 1,
     flexDirection: 'row',
-    flex: 1
+    width: '100%',
+    minHeight: 0,
+  },
+  averagesRow: {
+    flexDirection: 'row',
+    width: '100%',
   },
   counterContainer: {
     flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   counterScoreStack: {
     flex: 1,
     width: '100%',
+    minWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -463,6 +528,8 @@ const styles = StyleSheet.create({
   },
   counterTextNoFlex: {
     flex: 0,
+    width: '100%',
+    textAlign: 'center',
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
@@ -479,6 +546,8 @@ const styles = StyleSheet.create({
     color: '#F99417'
   },
   averagesContainer: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'center',
@@ -524,11 +593,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#c5c5c5'
   },
+  waitingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 58,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  waitingOverlayMulti: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
   waitingText: {
-    fontSize: 14,
-    color: '#a0a0a0',
+    fontSize: 15,
+    color: '#e8e8e8',
     textAlign: 'center',
-    paddingVertical: 8
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  matchFinishedText: {
+    color: '#c8f5dc',
+    backgroundColor: 'rgba(45,106,79,0.75)',
   },
   countContainer: {
     width: '100%'
@@ -549,6 +646,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#c5c5c5'
+  },
+  multiListWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   multiList: {
     flex: 1,

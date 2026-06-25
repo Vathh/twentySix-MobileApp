@@ -62,6 +62,11 @@ export function useGameScoringRealtime({
 			scope,
 			wsHost: cfg.wsHost,
 			wsPort: cfg.wsPort,
+			forceTLS: cfg.forceTLS,
+			authEndpoint:
+				channelType === 'private' && accessToken
+					? cfg.authEndpoint
+					: '(public — brak auth)',
 		});
 
 		const markWsDown = () => onWsHealthChangeRef.current?.(false);

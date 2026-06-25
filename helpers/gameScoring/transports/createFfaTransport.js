@@ -6,6 +6,8 @@ import {
 } from '../../quickGameFfaApi';
 import { newClientVisitId } from '../newClientVisitId.js';
 
+const FFA_WS_EVENTS = ['ffa.state.updated', '.ffa.state.updated'];
+
 function unwrapFfaPayload(data) {
 	const state = data?.state ?? data;
 	return state?.session ? state : null;
@@ -42,7 +44,7 @@ export function createFfaTransport({
 			channelName: `private-quick-game-lobby.${lobbyId}`,
 			channelType: 'private',
 			accessToken,
-			events: ['ffa.state.updated', '.ffa.state.updated'],
+			events: FFA_WS_EVENTS,
 			scope: 'quick-game-ffa',
 			unwrapPayload: unwrapFfaPayload,
 		}),

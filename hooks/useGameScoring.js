@@ -41,7 +41,19 @@ export function useGameScoring({
 	const [wsHealthy, setWsHealthy] = useState(false);
 	const [ffaPresence, setFfaPresence] = useState(null);
 
-	const isH2h = transport?.format === 'h2h';
+	/** Aktualne propsy scoringu — unikamy nowej referencji loadState co render (np. playerDispatches.slice). */
+	const scoringSyncRef = useRef({});
+	scoringSyncRef.current = {
+		players,
+		N,
+		playerDispatches,
+		playerStates,
+		enabled,
+		transport,
+		isPerDartMode,
+		onFinishedQuickGameId,
+	};
+
 	const realtimeConfig = useMemo(
 		() => transport?.getRealtimeConfig?.() ?? null,
 		[transport],
@@ -54,41 +66,38 @@ export function useGameScoring({
 
 	const applyStateInternal = useCallback(
 		(state) => {
+			const sync = scoringSyncRef.current;
+			const h2h = sync.transport?.format === 'h2h';
 			const result = applyGameScoringState(state, {
-				players,
-				N,
-				dispatches: playerDispatches,
+				players: sync.players,
+				N: sync.N,
+				dispatches: sync.playerDispatches,
 				currentPlayerIndexRef,
 				setCurrentPlayerIndex,
 				setGameClosed,
 				lastStateKeyRef,
 				legOpenerIndexRef,
 				lastLegNumberRef,
-				useLegOpenerRotation: isH2h && useLegOpenerRotation,
-				lastPlayerSnapRef: isH2h ? lastPlayerSnapRef : undefined,
+				useLegOpenerRotation: h2h && useLegOpenerRotation,
+				lastPlayerSnapRef: h2h ? lastPlayerSnapRef : undefined,
 				onFinishedQuickGameId: (id) => {
 					if (id) {
 						finishedQuickGameIdRef.current = id;
 					}
-					onFinishedQuickGameId?.(id);
+					sync.onFinishedQuickGameId?.(id);
 				},
 			});
-			if (isH2h) {
+			if (h2h) {
 				currentLegIdRef.current = result.currentLegId;
 			}
 			return result;
 		},
 		[
-			players,
-			N,
-			playerDispatches,
 			currentPlayerIndexRef,
 			setCurrentPlayerIndex,
 			setGameClosed,
 			legOpenerIndexRef,
 			useLegOpenerRotation,
-			isH2h,
-			onFinishedQuickGameId,
 		],
 	);
 
@@ -128,19 +137,27 @@ export function useGameScoring({
 		return next;
 	}, []);
 
+	const applyStateSafeRef = useRef(applyStateSafe);
+	applyStateSafeRef.current = applyStateSafe;
+
 	const loadState = useCallback(async () => {
-		if (!enabled || !transport?.fetchState) {
+		const { enabled: syncEnabled, transport: syncTransport } =
+			scoringSyncRef.current;
+		if (!syncEnabled || !syncTransport?.fetchState) {
 			return null;
 		}
 		try {
-			const state = await transport.fetchState();
-			applyStateSafe(state, 'external');
+			const state = await syncTransport.fetchState();
+			applyStateSafeRef.current(state, 'external');
 			return state;
 		} catch (e) {
 			console.warn('loadGameScoringState', e);
 			return null;
 		}
-	}, [enabled, transport, applyStateSafe]);
+	}, []);
+
+	const loadStateRef = useRef(loadState);
+	loadStateRef.current = loadState;
 
 	const ensureLegStarted = useCallback(async () => {
 		if (!enabled || !transport?.startLeg) {
@@ -185,9 +202,9 @@ export function useGameScoring({
 		if (!enabled || gameClosed) {
 			return undefined;
 		}
-		loadState();
+		void loadStateRef.current();
 		return undefined;
-	}, [enabled, gameClosed, reloadKey, loadState]);
+	}, [enabled, gameClosed, reloadKey]);
 
 	useEffect(() => {
 		if (!enabled || gameClosed || !transport || wsHealthy) {
@@ -196,7 +213,7 @@ export function useGameScoring({
 		let cancelled = false;
 		const tick = async () => {
 			if (cancelled || wsHealthyRef.current) return;
-			await loadState();
+			await loadStateRef.current();
 		};
 		void tick();
 		const t = setInterval(tick, BACKUP_POLL_MS);
@@ -204,7 +221,7 @@ export function useGameScoring({
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [enabled, gameClosed, transport, loadState, wsHealthy]);
+	}, [enabled, gameClosed, transport, wsHealthy]);
 
 	useGameScoringRealtime({
 		channelName: realtimeConfig?.channelName ?? null,
@@ -214,7 +231,7 @@ export function useGameScoring({
 		events: realtimeConfig?.events,
 		scope: realtimeConfig?.scope ?? 'game-scoring',
 		unwrapPayload: realtimeConfig?.unwrapPayload,
-		onGameState: (state) => applyStateSafe(state, 'external'),
+		onGameState: (state) => applyStateSafeRef.current(state, 'external'),
 		onWsHealthChange: setWsHealth,
 	});
 

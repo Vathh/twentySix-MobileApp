@@ -1220,6 +1220,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 					scoringMode={scoringMode}
 					canInput={counterTurnAllowed}
 					submitting={scoringBusy}
+					gameClosed={gameClosed}
 					oneDeviceSpectator={counterOneDeviceSpectator}
 					handleDartSubmit={handleDartSubmit}
 					handleUndoSingleDart={handleUndoSingleDart}
