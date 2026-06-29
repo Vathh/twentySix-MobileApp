@@ -90,11 +90,16 @@ Patrz: [`../twentysix-backend/docs/scenariusze_manualne_quick_game_mvp_4e.md`](.
 
 ---
 
-## Scenariusze manualne — turniej (krok 3)
+## Scenariusze manualne — turniej (krok 2)
+
+Pełna checklista: [`../twentysix-backend/docs/scenariusze_manualne_turniej_mvp.md`](../twentysix-backend/docs/scenariusze_manualne_turniej_mvp.md).
+
+Skrót:
 
 1. Grupa BO3 na tablecie → tabela na webie.
 2. Playoff → awans w drabince.
 3. Live web + achievementy po meczu.
+4. Korekta / walkower na webie.
 
 ---
 

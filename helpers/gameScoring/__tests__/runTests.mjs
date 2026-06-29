@@ -9,6 +9,7 @@ import {
 	normalizeScoringState,
 } from '../normalizeScoringState.js';
 import { tournamentMidLeg } from './fixtures/tournamentMidLeg.js';
+import { tournamentAfterLegClose } from './fixtures/tournamentAfterLegClose.js';
 import { ffaAfterVisit } from './fixtures/ffaAfterVisit.js';
 import { ffaPartialVisit } from './fixtures/ffaPartialVisit.js';
 import { evaluatePerDartVisitAfterDart } from '../../perDartVisitRules.js';
@@ -54,6 +55,195 @@ function testNormalizeFfa() {
 function testAutoDetect() {
 	assert(normalizeScoringState(tournamentMidLeg).format === 'h2h', 'auto h2h');
 	assert(normalizeScoringState(ffaAfterVisit).format === 'ffa', 'auto ffa');
+}
+
+function testTournamentRevisionMonotonicOnFastVisits() {
+	const afterHighVisit = computeTournamentStateRevision({
+		...tournamentMidLeg,
+		visits: [
+			{
+				id: 10,
+				playerId: 2,
+				score: 150,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+		],
+	});
+	const afterLowVisit = computeTournamentStateRevision({
+		...tournamentMidLeg,
+		visits: [
+			{
+				id: 10,
+				playerId: 2,
+				score: 150,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+			{
+				id: 11,
+				playerId: 1,
+				score: 22,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+		],
+	});
+	assert(
+		afterLowVisit > afterHighVisit,
+		`revision must grow when second visit scores less (${afterLowVisit} vs ${afterHighVisit})`,
+	);
+}
+
+function testTournamentRevisionMonotonicAfterLegClose() {
+	const midRev = computeTournamentStateRevision({
+		...tournamentMidLeg,
+		currentLeg: { id: 259, legNumber: 1, open: true },
+		visits: [
+			{
+				id: 99,
+				playerId: 1,
+				score: 123,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: true,
+			},
+		],
+	});
+	const afterCloseRev = computeTournamentStateRevision(tournamentAfterLegClose);
+	assert(
+		afterCloseRev > midRev,
+		`revision after leg close (${afterCloseRev}) must exceed mid-leg (${midRev})`,
+	);
+}
+
+function testApplyH2hArchivesLoserLegScoresOnNewLeg() {
+	const dispatches = [[], []];
+	const dispatchFns = [
+		(action) => dispatches[0].push(action),
+		(action) => dispatches[1].push(action),
+	];
+	const lastPlayerSnapRef = { current: {} };
+	const lastLegNumberRef = { current: 1 };
+	const lastStateKeyRef = { current: '' };
+
+	const legOneState = {
+		game: {
+			id: 1,
+			kind: 'group',
+			status: 'in_progress',
+			legsToWin: 2,
+			player1LegsWon: 0,
+			player2LegsWon: 0,
+			startingScore: 501,
+		},
+		players: [
+			{
+				playerId: 1,
+				remaining: 441,
+				legsWon: 0,
+				gameAverage: 60,
+				legAverage: 60,
+			},
+			{
+				playerId: 2,
+				remaining: 411,
+				legsWon: 0,
+				gameAverage: 90,
+				legAverage: 90,
+			},
+		],
+		currentLeg: { id: 5, legNumber: 1, open: true },
+		visits: [
+			{
+				id: 1,
+				playerId: 1,
+				score: 60,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+			{
+				id: 2,
+				playerId: 2,
+				score: 90,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+		],
+		legs: [],
+	};
+
+	applyGameScoringState(legOneState, {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: dispatchFns,
+		currentPlayerIndexRef: { current: 0 },
+		setCurrentPlayerIndex: () => {},
+		setGameClosed: () => {},
+		lastStateKeyRef,
+		lastPlayerSnapRef,
+		lastLegNumberRef,
+		useLegOpenerRotation: false,
+	});
+
+	const legTwoState = {
+		...legOneState,
+		game: {
+			...legOneState.game,
+			player1LegsWon: 1,
+		},
+		players: [
+			{
+				playerId: 1,
+				remaining: 501,
+				legsWon: 1,
+				gameAverage: 60,
+				legAverage: null,
+			},
+			{
+				playerId: 2,
+				remaining: 501,
+				legsWon: 0,
+				gameAverage: 90,
+				legAverage: null,
+			},
+		],
+		currentLeg: { id: 6, legNumber: 2, open: true },
+		visits: [],
+		legs: [
+			{
+				id: 5,
+				legNumber: 1,
+				winnerId: 1,
+			},
+		],
+	};
+
+	applyGameScoringState(legTwoState, {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: dispatchFns,
+		currentPlayerIndexRef: { current: 0 },
+		setCurrentPlayerIndex: () => {},
+		setGameClosed: () => {},
+		lastStateKeyRef,
+		lastPlayerSnapRef,
+		lastLegNumberRef,
+		useLegOpenerRotation: false,
+	});
+
+	const loserSync = dispatches[1].at(-1);
+	assert(loserSync?.type === 'SYNC_FROM_SERVER', 'loser synced');
+	assert(
+		Array.isArray(loserSync.legByLegScores) &&
+			loserSync.legByLegScores.some((leg) => leg.includes(90)),
+		'loser leg scores archived after leg change',
+	);
 }
 
 function testApplyH2h() {
@@ -181,8 +371,11 @@ function testPerDartBustRules() {
 
 const tests = [
 	['normalize tournament', testNormalizeTournament],
+	['tournament revision fast visits', testTournamentRevisionMonotonicOnFastVisits],
+	['tournament revision after leg close', testTournamentRevisionMonotonicAfterLegClose],
 	['normalize ffa', testNormalizeFfa],
 	['auto detect format', testAutoDetect],
+	['apply h2h loser leg archive', testApplyH2hArchivesLoserLegScoresOnNewLeg],
 	['apply h2h', testApplyH2h],
 	['apply ffa', testApplyFfa],
 	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],

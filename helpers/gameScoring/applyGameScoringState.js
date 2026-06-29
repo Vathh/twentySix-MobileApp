@@ -21,17 +21,21 @@ function buildH2hPlayerSync(sp, openLegVisits) {
 		(sum, v) => sum + (v.dartsInVisit ?? 3),
 		0,
 	);
+	const noLegActivity = completedVisits.length === 0 && !partialVisit;
 
 	return {
 		score: sp.remaining ?? 501,
 		legsWon: sp.legsWon ?? 0,
 		matchAverage:
 			sp.gameAverage != null ? Number(sp.gameAverage).toFixed(2) : undefined,
-		currentLegAverage:
-			sp.legAverage != null ? Number(sp.legAverage).toFixed(2) : undefined,
+		currentLegAverage: noLegActivity
+			? '0.00'
+			: sp.legAverage != null
+				? Number(sp.legAverage).toFixed(2)
+				: undefined,
 		currentLegScores: partialVisit ? undefined : completedLegScores,
-		dartsThrown: partialVisit ? undefined : dartsThrown,
-		totalDartsThrown: partialVisit ? undefined : dartsThrown,
+		dartsThrown: partialVisit ? undefined : noLegActivity ? 0 : dartsThrown,
+		totalDartsThrown: partialVisit ? undefined : noLegActivity ? 0 : dartsThrown,
 	};
 }
 
@@ -63,9 +67,33 @@ function buildFfaPlayerSync(sp, visits) {
 	};
 }
 
+function archiveClosedLegFromSnap(prevSnap, legByLegScores, legsAverages, dartsPerLeg) {
+	if (!prevSnap?.currentLegScores?.length) {
+		return { legByLegScores, legsAverages, dartsPerLeg };
+	}
+
+	return {
+		legByLegScores: [...legByLegScores, prevSnap.currentLegScores],
+		legsAverages:
+			prevSnap.currentLegAverage && prevSnap.currentLegAverage !== '0.00'
+				? [...legsAverages, prevSnap.currentLegAverage]
+				: legsAverages,
+		dartsPerLeg: prevSnap.dartsThrown
+			? [...dartsPerLeg, prevSnap.dartsThrown]
+			: dartsPerLeg,
+	};
+}
+
 function syncPlayersH2h(state, ctx) {
-	const { players, N, dispatches, lastPlayerSnapRef } = ctx;
+	const { players, N, dispatches, lastPlayerSnapRef, lastLegNumberRef } = ctx;
 	const openLegVisits = state.visits ?? [];
+	const legNumber = state.currentLeg?.legNumber ?? state.turn?.legNumber ?? null;
+	const prevLegNumber = lastLegNumberRef?.current ?? null;
+	const legAdvanced =
+		legNumber != null &&
+		prevLegNumber != null &&
+		legNumber > prevLegNumber;
+	const matchFinished = state.meta?.status === 'finished';
 
 	state.players.forEach((sp) => {
 		const spId = pid(sp.playerId);
@@ -82,15 +110,24 @@ function syncPlayersH2h(state, ctx) {
 		let legsAverages = prev?.legsAverages ?? [];
 		let dartsPerLeg = prev?.dartsPerLeg ?? [];
 
-		if (prev && snap.legsWon > prev.legsWon) {
-			if (prev.currentLegScores?.length) {
-				legByLegScores = [...legByLegScores, prev.currentLegScores];
-			}
-			if (prev.currentLegAverage) {
-				legsAverages = [...legsAverages, prev.currentLegAverage];
-			}
-			if (prev.dartsThrown) {
-				dartsPerLeg = [...dartsPerLeg, prev.dartsThrown];
+		if (prev) {
+			const wonLeg = snap.legsWon > prev.legsWon;
+			const legEndedForLoser =
+				legAdvanced ||
+				(matchFinished &&
+					(snap.currentLegScores?.length ?? 0) === 0 &&
+					(prev.currentLegScores?.length ?? 0) > 0);
+
+			if (wonLeg || legEndedForLoser) {
+				const archived = archiveClosedLegFromSnap(
+					prev,
+					legByLegScores,
+					legsAverages,
+					dartsPerLeg,
+				);
+				legByLegScores = archived.legByLegScores;
+				legsAverages = archived.legsAverages;
+				dartsPerLeg = archived.dartsPerLeg;
 			}
 		}
 
@@ -156,13 +193,13 @@ function updateLegOpenerRefs(state, ctx) {
 			legOpenerIndexRef.current = state.turn.legOpenerIndex;
 		}
 	} else if (useLegOpenerRotation) {
-		if (lastLegNumberRef.current != null) {
+		if (state.turn?.legOpenerIndex != null) {
+			legOpenerIndexRef.current = state.turn.legOpenerIndex;
+		} else if (lastLegNumberRef.current != null) {
 			legOpenerIndexRef.current = computeNextLegOpener(
 				legOpenerIndexRef.current,
 				N,
 			);
-		} else {
-			legOpenerIndexRef.current = 0;
 		}
 	}
 
@@ -235,6 +272,10 @@ export function applyGameScoringState(inputState, ctx) {
 
 	const revisionKey = String(state.revision ?? computeStateRevision(state));
 	if (lastStateKeyRef && revisionKey === lastStateKeyRef.current) {
+		if (state.meta?.status === 'finished') {
+			setGameClosed?.(true);
+			onFinishedQuickGameId?.(state.meta?.quickGameId ?? null);
+		}
 		return {
 			currentLegId: state.currentLeg?.id ?? null,
 			currentPlayerIndex: currentPlayerIndexRef?.current ?? null,

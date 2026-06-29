@@ -294,7 +294,7 @@ const Counter = ({
         </View>
       );
     }
-    if (!inputDisabled || oneDeviceSpectator) {
+    if (!inputDisabled || oneDeviceSpectator || submitting) {
       return null;
     }
     return (

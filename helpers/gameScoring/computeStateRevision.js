@@ -6,18 +6,31 @@ export function computeTournamentStateRevision(state) {
 		return 0;
 	}
 
+	// Po zamknięciu lega currentLeg jest null — revision musi rosnąć dalej
+	// (max id otwartego lub zakończonego lega + liczba wygranych legów).
+	const legIds = [
+		state.currentLeg?.id ?? 0,
+		...(state.legs ?? []).map((leg) => leg.id ?? 0),
+	];
+	const legToken = Math.max(0, ...legIds);
+
 	let rev =
-		(state.currentLeg?.id ?? 0) * 1_000_000 +
+		legToken * 1_000_000 +
 		(state.game?.player1LegsWon ?? 0) * 10_000 +
-		(state.game?.player2LegsWon ?? 0) * 1_000;
+		(state.game?.player2LegsWon ?? 0) * 1_000 +
+		(state.legs ?? []).length * 500_000;
 
 	const visits = state.visits ?? [];
-	rev += visits.length * 100;
-
-	const last = visits[visits.length - 1];
-	if (last) {
+	for (const v of visits) {
+		const visitId = v.id ?? v.visitNumber ?? 0;
 		rev +=
-			(last.dartsInVisit ?? 0) * 10 + Math.min(last.score ?? 0, 180);
+			visitId * 1_000 +
+			(v.dartsInVisit ?? 0) * 10 +
+			Math.min(v.score ?? 0, 180);
+	}
+
+	if (state.game?.status === 'finished') {
+		rev += 999_999_999;
 	}
 
 	return rev;
@@ -33,13 +46,13 @@ export function computeFfaStateRevision(state) {
 	let rev = sessionVersion * 1_000_000;
 
 	const visits = state.visits ?? [];
-	rev += visits.length * 1_000;
-
-	const last = visits[visits.length - 1];
-	if (last) {
+	visits.forEach((v, index) => {
+		const visitId = v.id ?? v.visitNumber ?? index + 1;
 		rev +=
-			(last.dartsInVisit ?? 0) * 10 + Math.min(last.score ?? 0, 180);
-	}
+			visitId * 1_000 +
+			(v.dartsInVisit ?? 0) * 10 +
+			Math.min(v.score ?? 0, 180);
+	});
 
 	const legsToWin = state.session?.legsToWin ?? state.game?.legsToWin ?? 0;
 	const maxLegsWon = (state.players ?? []).reduce(
@@ -78,14 +91,15 @@ export function computeStateRevision(state) {
 	rev += (state.turn?.legNumber ?? 0) * 10;
 
 	const visits = state.visits ?? [];
-	rev += visits.length * 100;
-
-	const last = visits[visits.length - 1];
-	if (last && isVisitComplete(last)) {
-		rev += Math.min(last.score ?? 0, 180);
-	} else if (last) {
-		rev += (last.dartsInVisit ?? 0) * 10;
-	}
+	visits.forEach((v, index) => {
+		const visitId = v.id ?? v.visitNumber ?? index + 1;
+		rev += visitId * 100;
+		if (isVisitComplete(v)) {
+			rev += Math.min(v.score ?? 0, 180);
+		} else {
+			rev += (v.dartsInVisit ?? 0) * 10;
+		}
+	});
 
 	const maxLegsWon = (state.players ?? []).reduce(
 		(max, p) => Math.max(max, p.legsWon ?? 0),

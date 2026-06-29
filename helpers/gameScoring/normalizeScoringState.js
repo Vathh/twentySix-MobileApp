@@ -73,6 +73,8 @@ export function fromTournamentState(raw, uiPlayers = []) {
 	const N = Math.max(uiPlayers.length, raw.players?.length ?? 2, 2);
 	const legNumber = raw.currentLeg?.legNumber ?? null;
 	const legOpen = raw.currentLeg?.open ?? false;
+	const legOpenerIndex =
+		raw.turn?.legOpenerIndex ?? raw.legOpenerIndex ?? 0;
 
 	const turn = {
 		currentPlayerIndex: inferCurrentPlayerIndex({
@@ -80,10 +82,10 @@ export function fromTournamentState(raw, uiPlayers = []) {
 			N,
 			visits,
 			explicitIndex: null,
-			legOpenerIndex: 0,
+			legOpenerIndex,
 			legOpen,
 		}),
-		legOpenerIndex: 0,
+		legOpenerIndex,
 		legNumber: legNumber ?? 0,
 	};
 

@@ -111,7 +111,7 @@ export function resolveGameContext(routeParams, auth) {
 
 	const syncEnabled = transport != null;
 	const isLocal = mode === GAME_MODE.TRAINING;
-	const showStartModal = isTraining || (isTournament && !syncEnabled);
+	const showStartModal = isTraining || (isQuick && !syncEnabled);
 
 	const activeGame = isTraining
 		? { id: null, type: 'training', tournamentId: null, groupNumber: null }

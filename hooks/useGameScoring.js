@@ -27,6 +27,7 @@ export function useGameScoring({
 	legOpenerIndexRef,
 	onFinishedQuickGameId,
 	reloadKey = null,
+	onStateLoaded = null,
 }) {
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
@@ -120,8 +121,11 @@ export function useGameScoring({
 				if (revision <= lastRevisionRef.current) {
 					return false;
 				}
-			} else if (revision < lastRevisionRef.current) {
-				return false;
+			} else {
+				// Własna odpowiedź API — zawsze stosuj (kolejka wizyt); revision tylko nie maleje.
+				lastRevisionRef.current = Math.max(lastRevisionRef.current, revision);
+				applyStateInternal(state);
+				return true;
 			}
 
 			lastRevisionRef.current = revision;
@@ -140,6 +144,9 @@ export function useGameScoring({
 	const applyStateSafeRef = useRef(applyStateSafe);
 	applyStateSafeRef.current = applyStateSafe;
 
+	const onStateLoadedRef = useRef(onStateLoaded);
+	onStateLoadedRef.current = onStateLoaded;
+
 	const loadState = useCallback(async () => {
 		const { enabled: syncEnabled, transport: syncTransport } =
 			scoringSyncRef.current;
@@ -149,6 +156,7 @@ export function useGameScoring({
 		try {
 			const state = await syncTransport.fetchState();
 			applyStateSafeRef.current(state, 'external');
+			onStateLoadedRef.current?.(state);
 			return state;
 		} catch (e) {
 			console.warn('loadGameScoringState', e);
@@ -290,9 +298,10 @@ export function useGameScoring({
 
 				pendingWritesRef.current += 1;
 				try {
+					const liveStates = scoringSyncRef.current.playerStates;
 					const remainingBefore =
 						remainingBeforeOverride ??
-						playerStates[playerIndex]?.score ??
+						liveStates[playerIndex]?.score ??
 						501;
 					const remainingAfter = bust
 						? remainingBefore
@@ -354,7 +363,19 @@ export function useGameScoring({
 
 					pendingWritesRef.current += 1;
 					try {
-						const legId = await ensureLegStarted();
+						let legId = visitOpts.legId ?? null;
+
+						if (legId != null && transport.fetchState) {
+							const snapshot = await transport.fetchState();
+							const openLegId = snapshot?.currentLeg?.id ?? null;
+							if (openLegId !== legId) {
+								return snapshot;
+							}
+							currentLegIdRef.current = legId;
+						} else {
+							legId = await ensureLegStarted();
+						}
+
 						if (!legId) {
 							throw new Error('Brak otwartego lega');
 						}
@@ -381,8 +402,36 @@ export function useGameScoring({
 								checkoutDart,
 							),
 						});
-						currentLegIdRef.current = null;
-						applyStateSafe(state, 'submit');
+						const applied = applyStateSafe(state, 'submit');
+						const matchFinished =
+							state?.game?.status === 'finished' ||
+							state?.meta?.status === 'finished';
+
+						if (matchFinished) {
+							if (!applied) {
+								lastRevisionRef.current = Math.max(
+									lastRevisionRef.current,
+									computeStateRevision(state),
+								);
+								applyStateInternal(state);
+							}
+							setGameClosed(true);
+						}
+
+						const legClosed =
+							state?.currentLeg == null ||
+							state?.currentLeg?.open === false;
+						if (legClosed) {
+							currentLegIdRef.current = null;
+						}
+
+						if (
+							transport.format === 'h2h' &&
+							!matchFinished &&
+							legClosed
+						) {
+							await ensureLegStarted();
+						}
 						return state;
 					} catch (e) {
 						Alert.alert(
@@ -415,7 +464,8 @@ export function useGameScoring({
 			ensureLegStarted,
 			buildCloseLegPlayers,
 			applyStateSafe,
-			submitVisit,
+			applyStateInternal,
+			setGameClosed,
 		],
 	);
 
@@ -457,6 +507,7 @@ export function useGameScoring({
 		closeLegWithWinner,
 		undoVisit,
 		ensureLegStarted,
+		getOpenLegId: () => currentLegIdRef.current,
 		finishedQuickGameIdRef,
 		ffaPresence,
 	};
