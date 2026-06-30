@@ -355,6 +355,84 @@ function testApplyFfaPartialVisitPreservesLocalLegScores() {
 	assert(currentPlayerIndexRef.current === 0, 'still player 0 turn');
 }
 
+function testCheckoutLegAverageIncludesClosingVisit() {
+	const dispatches = [[], []];
+	const dispatchFns = [
+		(action) => dispatches[0].push(action),
+		(action) => dispatches[1].push(action),
+	];
+	const lastStateKeyRef = { current: '' };
+	const lastPlayerSnapRef = {
+		current: {
+			1: {
+				legsWon: 0,
+				currentLegScores: [180, 180],
+				currentLegAverage: '180.00',
+				dartsThrown: 6,
+				score: 141,
+			},
+		},
+	};
+	const lastLegNumberRef = { current: 1 };
+
+	const afterCheckoutState = {
+		game: {
+			id: 1,
+			kind: 'group',
+			status: 'in_progress',
+			player1LegsWon: 1,
+			player2LegsWon: 0,
+			legsToWin: 2,
+			startingScore: 501,
+		},
+		players: [
+			{
+				playerId: 1,
+				remaining: 501,
+				legsWon: 1,
+				gameAverage: 167,
+				legAverage: null,
+			},
+			{
+				playerId: 2,
+				remaining: 501,
+				legsWon: 0,
+				gameAverage: null,
+				legAverage: null,
+			},
+		],
+		currentLeg: { id: 2, legNumber: 2, open: true },
+		visits: [],
+		legs: [{ id: 1, legNumber: 1, winnerId: 1 }],
+	};
+
+	applyGameScoringState(afterCheckoutState, {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: dispatchFns,
+		currentPlayerIndexRef: { current: 0 },
+		setCurrentPlayerIndex: () => {},
+		setGameClosed: () => {},
+		lastStateKeyRef,
+		lastPlayerSnapRef,
+		lastLegNumberRef,
+		useLegOpenerRotation: true,
+	});
+
+	const sync = dispatches[0].at(-1);
+	assert(sync?.type === 'SYNC_FROM_SERVER', 'winner synced after checkout');
+	assert(
+		Array.isArray(sync.legByLegScores) &&
+			sync.legByLegScores.some((leg) => leg.includes(141)),
+		'checkout score archived with leg visits',
+	);
+	assert(
+		Array.isArray(sync.legsAverages) &&
+			sync.legsAverages.some((avg) => Number(avg) < 180),
+		'best leg average includes checkout visit darts',
+	);
+}
+
 function testPerDartBustRules() {
 	const overshoot = evaluatePerDartVisitAfterDart(24, 60, 'T20');
 	assert(overshoot.bust && !overshoot.checkout, 'T20 on 24 is bust');
@@ -376,6 +454,7 @@ const tests = [
 	['normalize ffa', testNormalizeFfa],
 	['auto detect format', testAutoDetect],
 	['apply h2h loser leg archive', testApplyH2hArchivesLoserLegScoresOnNewLeg],
+	['checkout leg average archive', testCheckoutLegAverageIncludesClosingVisit],
 	['apply h2h', testApplyH2h],
 	['apply ffa', testApplyFfa],
 	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],

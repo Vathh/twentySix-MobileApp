@@ -23,6 +23,8 @@ const Counter = ({
   localVisitRemaining = null,
   /** Tryb jednego urządzenia — widok tylko do odczytu (bez komunikatu o kolejce). */
   oneDeviceSpectator = false,
+  /** false = ukryj nakładkę „Czekaj na swoją kolejkę” (np. podczas ładowania openera). */
+  showWaitingOverlay = true,
 }) => {
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
@@ -294,7 +296,7 @@ const Counter = ({
         </View>
       );
     }
-    if (!inputDisabled || oneDeviceSpectator || submitting) {
+    if (!showWaitingOverlay || !inputDisabled || oneDeviceSpectator || submitting) {
       return null;
     }
     return (

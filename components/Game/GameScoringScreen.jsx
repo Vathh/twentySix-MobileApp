@@ -323,14 +323,11 @@ const GameScoringScreen = ({ route, navigation }) => {
 				return;
 			}
 			const resumed =
-				state?.game?.status === 'in_progress' ||
-				state?.game?.status === 'finished' ||
 				(state?.game?.player1LegsWon ?? 0) +
 					(state?.game?.player2LegsWon ?? 0) >
 					0 ||
 				(state?.legs?.length ?? 0) > 0 ||
-				(state?.visits?.length ?? 0) > 0 ||
-				!!state?.currentLeg?.id;
+				(state?.visits?.length ?? 0) > 0;
 			matchOpenerChosenRef.current = resumed;
 			setIsModalVisible(!resumed);
 			setOpenerCheckPending(false);
@@ -390,6 +387,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		[
 			mode,
 			gameClosed,
+			scoringBusy,
 			lobbyScoringMode,
 			isHost,
 			myPlayerIndex,
@@ -1318,7 +1316,8 @@ const GameScoringScreen = ({ route, navigation }) => {
 					handleUndoBtn={handleUndoBtn}
 					handleClearBtn={handleClearBtn}
 					scoringMode={scoringMode}
-					canInput={counterTurnAllowed}
+					canInput={counterCanInput}
+					showWaitingOverlay={!openerCheckPending}
 					submitting={scoringBusy}
 					gameClosed={gameClosed}
 					oneDeviceSpectator={counterOneDeviceSpectator}

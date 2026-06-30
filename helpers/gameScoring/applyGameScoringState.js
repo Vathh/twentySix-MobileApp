@@ -67,20 +67,34 @@ function buildFfaPlayerSync(sp, visits) {
 	};
 }
 
-function archiveClosedLegFromSnap(prevSnap, legByLegScores, legsAverages, dartsPerLeg) {
-	if (!prevSnap?.currentLegScores?.length) {
+function archiveClosedLegFromSnap(prevSnap, legByLegScores, legsAverages, dartsPerLeg, { wonLeg = false } = {}) {
+	const baseScores = [...(prevSnap?.currentLegScores ?? [])];
+	if (baseScores.length === 0 && !(wonLeg && (prevSnap?.score ?? 0) > 0)) {
 		return { legByLegScores, legsAverages, dartsPerLeg };
 	}
 
+	let scores = baseScores;
+	let darts = prevSnap?.dartsThrown ?? scores.length * 3;
+
+	if (wonLeg && prevSnap?.score > 0 && prevSnap.score <= 180) {
+		const checkoutScore = prevSnap.score;
+		if (scores.length === 0 || scores[scores.length - 1] !== checkoutScore) {
+			scores = [...scores, checkoutScore];
+			darts += 3;
+		}
+	}
+
+	const totalPoints = scores.reduce((sum, value) => sum + value, 0);
+	const legAvg =
+		darts > 0 ? ((totalPoints / darts) * 3).toFixed(2) : null;
+
 	return {
-		legByLegScores: [...legByLegScores, prevSnap.currentLegScores],
+		legByLegScores: [...legByLegScores, scores],
 		legsAverages:
-			prevSnap.currentLegAverage && prevSnap.currentLegAverage !== '0.00'
-				? [...legsAverages, prevSnap.currentLegAverage]
+			legAvg && legAvg !== '0.00'
+				? [...legsAverages, legAvg]
 				: legsAverages,
-		dartsPerLeg: prevSnap.dartsThrown
-			? [...dartsPerLeg, prevSnap.dartsThrown]
-			: dartsPerLeg,
+		dartsPerLeg: wonLeg && darts > 0 ? [...dartsPerLeg, darts] : dartsPerLeg,
 	};
 }
 
@@ -124,6 +138,7 @@ function syncPlayersH2h(state, ctx) {
 					legByLegScores,
 					legsAverages,
 					dartsPerLeg,
+					{ wonLeg },
 				);
 				legByLegScores = archived.legByLegScores;
 				legsAverages = archived.legsAverages;
