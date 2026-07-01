@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { ACCOUNT_LOGIN_API_URL } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
 
 const TournamentLogin = () => {
 
   const { setAuth } = useAuth();
+  const navigation = useNavigation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,6 +86,12 @@ const TournamentLogin = () => {
             <Text style={styles.buttonText}>Zaloguj</Text>
           )}
         </Pressable>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => navigation.navigate('AccountRegister')}
+        >
+          <Text style={styles.linkText}>Nie masz konta? Zarejestruj się</Text>
+        </Pressable>
       </View>
     </View>
   )
@@ -143,7 +151,15 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#363062',
-  }
+  },
+  linkButton: {
+    marginTop: 20,
+    padding: 8,
+  },
+  linkText: {
+    color: '#F99417',
+    fontSize: 15,
+  },
 })
 
 export default TournamentLogin

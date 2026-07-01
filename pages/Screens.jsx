@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import GameList from '../components/Game/GameList';
 import GameScoringScreen from '../components/Game/GameScoringScreen';
 import TournamentLogin from '../components/Tournament/TournamentLogin';
+import AccountRegister from '../components/Tournament/AccountRegister';
 import TournamentCode from '../components/Tournament/TournamentCode';
 import Home from '../components/Core/Home';
 import QuickGameLobby from '../components/QuickGame/QuickGameLobby';
@@ -45,6 +46,11 @@ const Screens = () => {
         <Stack.Screen
           name="AccountLogin"
           component={TournamentLogin}
+          options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
+        />
+        <Stack.Screen
+          name="AccountRegister"
+          component={AccountRegister}
           options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
         />
         <Stack.Screen

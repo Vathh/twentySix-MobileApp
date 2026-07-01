@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://staging.example.com/api",
+        "EXPO_PUBLIC_REVERB_SCHEME": "https",
+        "EXPO_PUBLIC_REVERB_PORT": "443"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.example.com/api",
+        "EXPO_PUBLIC_REVERB_SCHEME": "https",
+        "EXPO_PUBLIC_REVERB_PORT": "443"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

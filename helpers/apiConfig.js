@@ -1,17 +1,21 @@
-// Adres API backendu. Telefon (Expo Go) musi łączyć się z IP komputera w tej samej sieci Wi‑Fi.
-// Sprawdź IP komputera: w terminalu wpisz ipconfig, szukaj "IPv4" przy "Wireless LAN".
-// Emulator Android: często działa ten sam adres; jeśli nie, zmień na http://10.0.2.2:8000/api
-const API_BASE_URL = 'http://192.168.0.28:8000/api';
+// Dev (LAN): ustaw w .env — patrz .env.example
+// Staging/prod: EXPO_PUBLIC_API_URL=https://staging.example.com/api
+const API_BASE_URL =
+	process.env.EXPO_PUBLIC_API_URL?.trim() || 'http://192.168.0.28:8000/api';
 
 // Baza URL Laravel (bez /api) – do autoryzacji kanałów WebSocket (broadcasting/auth)
 const LARAVEL_BASE_URL =
 	API_BASE_URL.replace(/\/api\/?$/, '') || 'http://192.168.0.28:8000';
 
 // Reverb (WebSocket) – musi być taki sam jak REVERB_APP_KEY w .env backendu
-export const REVERB_APP_KEY = 'sld-reverb-key';
+export const REVERB_APP_KEY =
+	process.env.EXPO_PUBLIC_REVERB_APP_KEY?.trim() || 'sld-reverb-key';
 // Host i port Reverb: ten sam host co API (LAN), NIE używaj 0.0.0.0 w aplikacji — to tylko bind serwera.
 // Opcjonalnie: EXPO_PUBLIC_REVERB_HOST / EXPO_PUBLIC_REVERB_PORT w .env (Metro musi być zrestartowany).
 const REVERB_WS_PORT = Number(process.env.EXPO_PUBLIC_REVERB_PORT) || 8080;
+const REVERB_USE_TLS =
+	(process.env.EXPO_PUBLIC_REVERB_SCHEME || '').trim() === 'https'
+	|| API_BASE_URL.startsWith('https://');
 
 const INVALID_CLIENT_WS_HOSTS = new Set(['0.0.0.0', '[::]', '::', '']);
 
@@ -45,7 +49,7 @@ export const getReverbConfig = () => ({
 	wsHost: reverbHostResolved,
 	wsPort: REVERB_WS_PORT,
 	wssPort: REVERB_WS_PORT,
-	forceTLS: false,
+	forceTLS: REVERB_USE_TLS,
 	disableStats: true,
 	enabledTransports: ['ws', 'wss'],
 	authEndpoint: LARAVEL_BASE_URL + '/broadcasting/auth',
@@ -87,6 +91,8 @@ export const LOGOUT_API_URL = API_BASE_URL + LOGOUT_ENDPOINT;
 
 export const LOGIN_API_URL = API_BASE_URL + LOGIN_ENDPOINT;
 export const ACCOUNT_LOGIN_API_URL = API_BASE_URL + ACCOUNT_LOGIN_ENDPOINT;
+export const REGISTER_API_URL = API_BASE_URL + '/register';
+export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-notification';
 
 export const ACTIVE_GAMES_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;
