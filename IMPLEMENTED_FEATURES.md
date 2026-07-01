@@ -5,7 +5,7 @@ Mapa zgodności z [`../twentysix-backend/docs/product.md`](../twentysix-backend/
 
 Backend: [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-backend/IMPLEMENTED_FEATURES.md)
 
-Ostatnia aktualizacja: czerwiec 2026 (unifikacja scoringu).
+Ostatnia aktualizacja: lipiec 2026 (krok 5 — domknięcie docs).
 
 ---
 
@@ -13,10 +13,10 @@ Ostatnia aktualizacja: czerwiec 2026 (unifikacja scoringu).
 
 | Obszar | Postęp |
 |--------|--------|
-| Tablet turniejowy | ~90% |
-| Quick game online | ~85% |
+| Tablet turniejowy | ~95% |
+| Quick game online | ~95% |
 | Trening (local) | ✅ |
-| Znajomi / zaproszenia | ~90% |
+| Znajomi / zaproszenia | ✅ |
 
 ---
 
@@ -43,6 +43,10 @@ Ostatnia aktualizacja: czerwiec 2026 (unifikacja scoringu).
 | BO3 — pierwszy do 2 legów | ✅ | domyślnie 2 |
 | Rotacja openera lega | ✅ | `computeNextLegOpener.js` |
 | Achievementy po meczu | ✅ | `POST /api/quick-game/update` + `gameId` |
+| Presence (connected / disconnected / left) | ✅ | `POST .../ffa/presence`, banner w `GameScoringScreen` |
+| Walkower 2P (`each_own`, przeciwnik wyszedł) | ✅ | backend `QuickGameFfaPresenceService` |
+| Powrót do trwającego meczu | ✅ | `GET /api/quick-game/active-match`, banner na `Home.jsx` |
+| Overlay „Czekaj na swoją kolejkę” / koniec meczu | ✅ | `useGameScoring`, `GameScoringScreen` |
 
 ---
 
@@ -83,10 +87,7 @@ Ostatnia aktualizacja: czerwiec 2026 (unifikacja scoringu).
 
 Patrz: [`../twentysix-backend/docs/scenariusze_manualne_quick_game_mvp_4e.md`](../twentysix-backend/docs/scenariusze_manualne_quick_game_mvp_4e.md)
 
-1. **2P each_own** — sync FFA, BO3.
-2. **4P one_device** — host wpisuje, rotacja openera A→B→C→D.
-3. **Trening offline** — brak zapisu w bazie.
-4. **Trening online** — celowo bez zapisu mimo sieci.
+Scenariusze A–F (lobby, trening, 2P/4P) + **G–I** (presence, walkover, powrót do meczu).
 
 ---
 
@@ -103,8 +104,13 @@ Skrót:
 
 ---
 
-## Priorytet mobile (po kroku 4)
+## Scenariusze manualne — web gość (krok 3)
 
-1. ~~Zaproszenia znajomych (wysyłka + akceptacja UI)~~ ✅
-2. ~~Spójna marka twentySix we wszystkich tytułach~~ ✅
-3. Krykiet (poza MVP).
+[`../twentysix-backend/docs/scenariusze_manualne_web_gosc_krok3.md`](../twentysix-backend/docs/scenariusze_manualne_web_gosc_krok3.md)
+
+---
+
+## Po MVP v1
+
+1. Krykiet w lobby (poza MVP).
+2. Push do zaproszeń (poza MVP).
