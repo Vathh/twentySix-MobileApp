@@ -16,6 +16,10 @@ function handleLobbyPayload(raw, onLobbyUpdatedRef) {
 	const lobby = data?.lobby ?? null;
 	if (lobby) {
 		onLobbyUpdatedRef.current?.(lobby);
+		logReverbWs('info', 'quick-game-lobby', 'odebrano lobby.updated', {
+			lobbyId: lobby.id,
+			players: lobby.players?.length,
+		});
 	} else {
 		logReverbWs(
 			'warn',
@@ -40,9 +44,16 @@ export function useQuickGameLobbyRealtime({
 
 	useEffect(() => {
 		if (!enabled || !lobbyId || !accessToken) {
+			logReverbWs('info', 'quick-game-lobby', 'hook pominięty', {
+				enabled,
+				lobbyId,
+				hasToken: !!accessToken,
+			});
 			onWsHealthChangeRef.current?.(false);
 			return undefined;
 		}
+
+		logReverbWs('info', 'quick-game-lobby', 'start subskrypcji', { lobbyId });
 
 		let pusher;
 		let channel;

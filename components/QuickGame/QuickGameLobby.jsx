@@ -24,6 +24,8 @@ import {
   getReverbDiagnostics,
 } from '../../helpers/apiConfig';
 import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerCache';
+import ReverbDebugPanel from '../ReverbDebugPanel';
+import { logReverbWs } from '../../helpers/reverbWsLog';
 
 const DEFAULT_LEGS_TO_WIN = 2;
 const MAX_LOBBY_PLAYERS = 8;
@@ -139,16 +141,23 @@ const QuickGameLobby = ({ navigation, route }) => {
 
   const fetchLobbyById = useCallback(async (lobbyId) => {
     if (!lobbyId || !auth?.accessToken) return;
+    logReverbWs('info', 'lobby-http', 'GET lobby (polling/refresh)', { lobbyId });
     try {
       const res = await fetch(getQuickGameLobbyUrl(lobbyId), {
         headers: { Authorization: `Bearer ${auth.accessToken}` },
       });
       if (res.ok) {
         const data = await res.json();
+        logReverbWs('info', 'lobby-http', `GET lobby ${res.status}`, {
+          lobbyId: data?.id,
+          players: data?.players?.length,
+        });
         applyLobbyData(data, lobbyId);
+      } else {
+        logReverbWs('warn', 'lobby-http', `GET lobby HTTP ${res.status}`);
       }
     } catch (e) {
-      console.warn('fetchLobbyById', e);
+      logReverbWs('error', 'lobby-http', 'GET lobby błąd', e);
     }
   }, [auth?.accessToken, applyLobbyData]);
 
@@ -642,6 +651,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         <Pressable style={styles.buttonOutlined} onPress={backToChoice}>
           <Text style={styles.buttonOutlinedText}>Wróć</Text>
         </Pressable>
+        <ReverbDebugPanel />
       </>
     );
 

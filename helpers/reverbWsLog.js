@@ -1,4 +1,6 @@
 /** Odporna na to, że Pusher/Reverb czasem przekaże `data` jako string JSON. */
+import { appendReverbDebugLog } from './reverbDebugLog';
+
 export function normalizePusherPayload(payload) {
 	if (payload == null) {
 		return null;
@@ -23,6 +25,7 @@ export function normalizePusherPayload(payload) {
 export function logReverbWs(level, scope, message, detail) {
 	const tag = `[WS/Reverb:${scope}]`;
 	const line = `${tag} ${message}`;
+	appendReverbDebugLog(level, scope, message, detail);
 	// Metro domyślnie często ukrywa console.log — warn/error zawsze widać w terminalu.
 	if (detail !== undefined && detail !== null) {
 		if (level === 'error') {
