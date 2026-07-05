@@ -40,58 +40,79 @@ export function useQuickGameLobbyRealtime({
 			return undefined;
 		}
 
-		const cfg = getReverbConfig();
-		const pusher = new Pusher(cfg.key, {
-			cluster: cfg.cluster,
-			wsHost: cfg.wsHost,
-			wsPort: cfg.wsPort,
-			wssPort: cfg.wssPort,
-			forceTLS: cfg.forceTLS,
-			disableStats: true,
-			enabledTransports: cfg.enabledTransports ?? ['ws', 'wss'],
-			authEndpoint: cfg.authEndpoint,
-			auth: {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					Accept: 'application/json',
+		let pusher;
+		let channel;
+		let unbindDebug = () => {};
+
+		try {
+			const cfg = getReverbConfig();
+			pusher = new Pusher(cfg.key, {
+				cluster: cfg.cluster,
+				wsHost: cfg.wsHost,
+				wsPort: cfg.wsPort,
+				wssPort: cfg.wssPort,
+				forceTLS: cfg.forceTLS,
+				disableStats: true,
+				enabledTransports: cfg.forceTLS ? ['wss'] : ['ws'],
+				authEndpoint: cfg.authEndpoint,
+				auth: {
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: 'application/json',
+					},
 				},
-			},
-		});
+			});
 
-		const unbindDebug = attachPusherReverbDebugLogging(pusher, {
-			scope: 'quick-game-lobby',
-			wsHost: cfg.wsHost,
-			wsPort: cfg.wsPort,
-			forceTLS: cfg.forceTLS,
-			authEndpoint: cfg.authEndpoint,
-		});
+			unbindDebug = attachPusherReverbDebugLogging(pusher, {
+				scope: 'quick-game-lobby',
+				wsHost: cfg.wsHost,
+				wsPort: cfg.wsPort,
+				forceTLS: cfg.forceTLS,
+				authEndpoint: cfg.authEndpoint,
+			});
 
-		const channelName = `private-quick-game-lobby.${lobbyId}`;
-		const channel = pusher.subscribe(channelName);
-		channel.bind('pusher:subscription_succeeded', () => {
+			const channelName = `private-quick-game-lobby.${lobbyId}`;
+			channel = pusher.subscribe(channelName);
+			channel.bind('pusher:subscription_succeeded', () => {
+				logReverbWs(
+					'info',
+					'quick-game-lobby',
+					`subskrypcja kanału OK: ${channelName}`,
+				);
+			});
+			channel.bind('pusher:subscription_error', (status) => {
+				logReverbWs(
+					'warn',
+					'quick-game-lobby',
+					'subscription_error — sprawdź /broadcasting/auth i kanał',
+					status,
+				);
+			});
+			const onLobbyEvent = (payload) => handleLobbyPayload(payload, onLobbyUpdatedRef);
+			channel.bind(LOBBY_EVENT, onLobbyEvent);
+			channel.bind(LOBBY_EVENT_ALT, onLobbyEvent);
+		} catch (err) {
 			logReverbWs(
-				'info',
+				'error',
 				'quick-game-lobby',
-				`subskrypcja kanału OK: ${channelName}`,
+				'init Pusher/Reverb nieudany — lobby działa przez odświeżanie HTTP',
+				err,
 			);
-		});
-		channel.bind('pusher:subscription_error', (status) => {
-			logReverbWs(
-				'warn',
-				'quick-game-lobby',
-				'subscription_error — sprawdź /broadcasting/auth i kanał',
-				status,
-			);
-		});
-		const onLobbyEvent = (payload) => handleLobbyPayload(payload, onLobbyUpdatedRef);
-		channel.bind(LOBBY_EVENT, onLobbyEvent);
-		channel.bind(LOBBY_EVENT_ALT, onLobbyEvent);
+			return undefined;
+		}
 
 		return () => {
-			unbindDebug();
-			channel.unbind_all();
-			pusher.unsubscribe(channelName);
-			pusher.disconnect();
+			try {
+				unbindDebug();
+				if (channel) {
+					channel.unbind_all();
+					const channelName = `private-quick-game-lobby.${lobbyId}`;
+					pusher?.unsubscribe(channelName);
+				}
+				pusher?.disconnect();
+			} catch {
+				// ignore cleanup errors
+			}
 		};
 	}, [enabled, lobbyId, accessToken]);
 }

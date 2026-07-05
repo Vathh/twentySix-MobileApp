@@ -35,77 +35,97 @@ export function useGameScoringRealtime({
 			return undefined;
 		}
 
-		const cfg = getReverbConfig();
-		const pusherOptions = {
-			cluster: cfg.cluster,
-			wsHost: cfg.wsHost,
-			wsPort: cfg.wsPort,
-			wssPort: cfg.wssPort,
-			forceTLS: cfg.forceTLS,
-			disableStats: true,
-			enabledTransports: cfg.enabledTransports ?? ['ws', 'wss'],
-		};
-
-		if (channelType === 'private' && accessToken) {
-			pusherOptions.authEndpoint = cfg.authEndpoint;
-			pusherOptions.auth = {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					Accept: 'application/json',
-				},
-			};
-		}
-
-		const pusher = new Pusher(cfg.key, pusherOptions);
-
-		const unbindDebug = attachPusherReverbDebugLogging(pusher, {
-			scope,
-			wsHost: cfg.wsHost,
-			wsPort: cfg.wsPort,
-			forceTLS: cfg.forceTLS,
-			authEndpoint:
-				channelType === 'private' && accessToken
-					? cfg.authEndpoint
-					: '(public — brak auth)',
-		});
-
+		let pusher;
+		let channel;
+		let unbindDebug = () => {};
 		const markWsDown = () => onWsHealthChangeRef.current?.(false);
 
-		pusher.connection.bind('disconnected', markWsDown);
-		pusher.connection.bind('unavailable', markWsDown);
-		pusher.connection.bind('failed', markWsDown);
+		try {
+			const cfg = getReverbConfig();
+			const pusherOptions = {
+				cluster: cfg.cluster,
+				wsHost: cfg.wsHost,
+				wsPort: cfg.wsPort,
+				wssPort: cfg.wssPort,
+				forceTLS: cfg.forceTLS,
+				disableStats: true,
+				enabledTransports: cfg.forceTLS ? ['wss'] : ['ws'],
+			};
 
-		const channel = pusher.subscribe(channelName);
-		channel.bind('pusher:subscription_succeeded', () => {
-			onWsHealthChangeRef.current?.(true);
-			logReverbWs('info', scope, `subskrypcja OK: ${channelName}`);
-		});
-		channel.bind('pusher:subscription_error', (status) => {
-			console.warn(`[WS/Reverb:${scope}] subscription_error`, status);
-			markWsDown();
-		});
-
-		const onState = (payload) => {
-			const data = normalizePusherPayload(payload);
-			const state = unwrapPayload(data);
-			if (state) {
-				onGameStateRef.current?.(state);
+			if (channelType === 'private' && accessToken) {
+				pusherOptions.authEndpoint = cfg.authEndpoint;
+				pusherOptions.auth = {
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: 'application/json',
+					},
+				};
 			}
-		};
 
-		events.forEach((eventName) => {
-			channel.bind(eventName, onState);
-		});
+			pusher = new Pusher(cfg.key, pusherOptions);
+
+			unbindDebug = attachPusherReverbDebugLogging(pusher, {
+				scope,
+				wsHost: cfg.wsHost,
+				wsPort: cfg.wsPort,
+				forceTLS: cfg.forceTLS,
+				authEndpoint:
+					channelType === 'private' && accessToken
+						? cfg.authEndpoint
+						: '(public — brak auth)',
+			});
+
+			pusher.connection.bind('disconnected', markWsDown);
+			pusher.connection.bind('unavailable', markWsDown);
+			pusher.connection.bind('failed', markWsDown);
+
+			channel = pusher.subscribe(channelName);
+			channel.bind('pusher:subscription_succeeded', () => {
+				onWsHealthChangeRef.current?.(true);
+				logReverbWs('info', scope, `subskrypcja OK: ${channelName}`);
+			});
+			channel.bind('pusher:subscription_error', (status) => {
+				console.warn(`[WS/Reverb:${scope}] subscription_error`, status);
+				markWsDown();
+			});
+
+			const onState = (payload) => {
+				const data = normalizePusherPayload(payload);
+				const state = unwrapPayload(data);
+				if (state) {
+					onGameStateRef.current?.(state);
+				}
+			};
+
+			events.forEach((eventName) => {
+				channel.bind(eventName, onState);
+			});
+		} catch (err) {
+			logReverbWs(
+				'error',
+				scope,
+				'init Pusher/Reverb nieudany — fallback HTTP polling',
+				err,
+			);
+			markWsDown();
+			return undefined;
+		}
 
 		return () => {
-			markWsDown();
-			pusher.connection.unbind('disconnected', markWsDown);
-			pusher.connection.unbind('unavailable', markWsDown);
-			pusher.connection.unbind('failed', markWsDown);
-			unbindDebug();
-			channel.unbind_all();
-			pusher.unsubscribe(channelName);
-			pusher.disconnect();
+			try {
+				markWsDown();
+				pusher?.connection.unbind('disconnected', markWsDown);
+				pusher?.connection.unbind('unavailable', markWsDown);
+				pusher?.connection.unbind('failed', markWsDown);
+				unbindDebug();
+				if (channel) {
+					channel.unbind_all();
+					pusher?.unsubscribe(channelName);
+				}
+				pusher?.disconnect();
+			} catch {
+				// ignore cleanup errors
+			}
 		};
 	}, [
 		enabled,

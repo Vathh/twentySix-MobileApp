@@ -10,9 +10,6 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faPaperPlane, faCheck, faTimes, faUserPlus, faGripVertical } from '@fortawesome/free-solid-svg-icons';
-import DraggableFlatList from 'react-native-draggable-flatlist';
 import useAuth from '../../hooks/useAuth';
 import { useQuickGameLobbyRealtime } from '../../hooks/useQuickGameLobbyRealtime';
 import {
@@ -33,9 +30,9 @@ const MAX_LOBBY_PLAYERS = 8;
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
 const INVITATION_STATUS = {
-  sent: { key: 'sent', label: 'Wysłane', icon: faPaperPlane, color: '#F99417' },
-  accepted: { key: 'accepted', label: 'Zaakceptowane', icon: faCheck, color: '#4ade80' },
-  rejected: { key: 'rejected', label: 'Odrzucone', icon: faTimes, color: '#f87171' },
+  sent: { key: 'sent', label: 'Wysłane', color: '#F99417' },
+  accepted: { key: 'accepted', label: 'Zaakceptowane', color: '#4ade80' },
+  rejected: { key: 'rejected', label: 'Odrzucone', color: '#f87171' },
 };
 
 const QuickGameLobby = ({ navigation, route }) => {
@@ -121,6 +118,19 @@ const QuickGameLobby = ({ navigation, route }) => {
         }
         return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
       });
+      // Lokalna lista „Zaproszenia” — usuń wpis gdy gracz już dołączył do lobby (HTTP/WS).
+      setInvitations((prev) =>
+        prev.filter((inv) => {
+          const joined = incoming.some(
+            (p) =>
+              (inv.id != null &&
+                (Number(p.playerId) === Number(inv.id) ||
+                  Number(p.player_id) === Number(inv.id))) ||
+              (inv.name && (p.name ?? p.tempName) === inv.name),
+          );
+          return !joined;
+        }),
+      );
     }
   }, [GAME_TYPES.X01, SCORING_MODES.EACH_OWN, lobby?.id, lobby?.youAreHost, navigation, resolveMyPlayerIndex]);
 
@@ -499,12 +509,10 @@ const QuickGameLobby = ({ navigation, route }) => {
           {isHost && players.length < MAX_LOBBY_PLAYERS && (
             <>
               <Pressable style={styles.inviteButton} onPress={openInviteModal}>
-                <FontAwesomeIcon icon={faUserPlus} size={18} color="#363062" style={{ marginRight: 8 }} />
-                <Text style={styles.inviteButtonText}>Zaproś znajomego</Text>
+                <Text style={styles.inviteButtonText}>+ Zaproś znajomego</Text>
               </Pressable>
               <Pressable style={styles.inviteButtonSecondary} onPress={openGuestModal}>
-                <FontAwesomeIcon icon={faUserPlus} size={18} color="#F99417" style={{ marginRight: 8 }} />
-                <Text style={styles.inviteButtonTextSecondary}>Dodaj gracza tymczasowego</Text>
+                <Text style={styles.inviteButtonTextSecondary}>+ Dodaj gracza tymczasowego</Text>
               </Pressable>
             </>
           )}
@@ -517,12 +525,9 @@ const QuickGameLobby = ({ navigation, route }) => {
               {invitations.map((inv) => {
                 const statusInfo = INVITATION_STATUS[inv.status] ?? INVITATION_STATUS.sent;
                 return (
-                  <View key={inv.id} style={styles.invitationRow}>
+                    <View key={inv.id} style={styles.invitationRow}>
                     <Text style={styles.invitationName}>{inv.name}</Text>
-                    <View style={styles.invitationStatus}>
-                      <FontAwesomeIcon icon={statusInfo.icon} size={18} color={statusInfo.color} style={styles.invitationStatusIcon} />
-                      <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
-                    </View>
+                    <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
                   </View>
                 );
               })}
@@ -547,28 +552,21 @@ const QuickGameLobby = ({ navigation, route }) => {
               {isHost ? (
                 <>
                   <Text style={styles.hintSmall}>
-                    Przytrzymaj uchwyt po prawej i przeciągnij, aby zmienić kolejność.
+                    Kolejność rzucania: użyj „Kolejność losowa” albo ustaw przed startem meczu.
                   </Text>
-                  <View style={styles.dragListContainer}>
-                    <DraggableFlatList
-                      data={listData}
-                      keyExtractor={(item, index) => String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)}
-                      scrollEnabled={false}
-                      activationDistance={8}
-                      onDragEnd={({ data }) => setOrderedPlayers(data)}
-                      renderItem={({ item, drag, isActive }) => (
-                        <View style={[styles.playerTile, isActive && styles.playerTileActive]}>
-                          <Text style={styles.playerTileName} numberOfLines={1}>
-                            {item.name || item.tempName || 'Gracz'}
-                            {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
-                            {item.ready ? ' ✓ Gotowy' : ''}
-                          </Text>
-                          <Pressable style={styles.dragHandle} onLongPress={drag} delayLongPress={150}>
-                            <FontAwesomeIcon icon={faGripVertical} size={18} color="#F99417" />
-                          </Pressable>
-                        </View>
-                      )}
-                    />
+                  <View style={styles.playersList}>
+                    {listData.map((item, index) => (
+                      <View
+                        key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)}
+                        style={styles.playerTile}
+                      >
+                        <Text style={styles.playerTileName} numberOfLines={1}>
+                          {item.name || item.tempName || 'Gracz'}
+                          {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
+                          {item.ready ? ' ✓ Gotowy' : ''}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </>
               ) : (

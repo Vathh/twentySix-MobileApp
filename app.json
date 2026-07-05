@@ -2,7 +2,7 @@
   "expo": {
     "name": "twentySix",
     "slug": "twentysix",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.twentysix.mobile"
+      "package": "app.twentysix.mobile",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +38,11 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ad6699cc-fcd5-4f14-820b-a90f4f7899ea"
+      }
+    }
   }
 }
