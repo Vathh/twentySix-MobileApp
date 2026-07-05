@@ -1,14 +1,29 @@
-import * as PusherRnModule from 'pusher-js/react-native';
-import * as PusherWebModule from 'pusher-js/dist/web/pusher.js';
-
 /**
- * Metro/Hermes w release APK potrafi zwrócić kilkowarstwowy obiekt zamiast klasy Pusher.
- * Statyczne importy + unwrap; fallback web (RN ma global WebSocket).
+ * Pusher ładujemy LAZY (require w runtime), nie importem statycznym —
+ * inaczej moduł web/rn odpala się przy starcie aplikacji i crashuje APK.
  */
 const SOURCES = [
-	['pusher-js/react-native', PusherRnModule],
-	['pusher-js/dist/web/pusher.js', PusherWebModule],
+	'pusher-js/react-native',
+	'pusher-js/dist/web/pusher.js',
 ];
+
+let cachedCtor = null;
+
+function ensureSelfGlobal() {
+	if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
+		global.self = global;
+	}
+}
+
+function tryRequire(id) {
+	try {
+		ensureSelfGlobal();
+		// Metro bundluje to do APK; require dopiero w lobby / scoringu.
+		return require(id);
+	} catch {
+		return null;
+	}
+}
 
 function looksLikePusher(ctor) {
 	if (typeof ctor !== 'function') {
@@ -22,9 +37,15 @@ function looksLikePusher(ctor) {
 	);
 }
 
-function unwrapPusherExport(value, depth = 0) {
-	if (value == null || depth > 6) {
+function findPusherConstructor(value, seen = new Set(), depth = 0) {
+	if (value == null || depth > 8) {
 		return null;
+	}
+	if (typeof value === 'object' || typeof value === 'function') {
+		if (seen.has(value)) {
+			return null;
+		}
+		seen.add(value);
 	}
 	if (looksLikePusher(value)) {
 		return value;
@@ -32,36 +53,15 @@ function unwrapPusherExport(value, depth = 0) {
 	if (typeof value !== 'object') {
 		return null;
 	}
-
-	const direct = [
-		value.default,
-		value.Pusher,
-		value.default?.default,
-		value.default?.Pusher,
-	];
-	for (const candidate of direct) {
-		if (looksLikePusher(candidate)) {
-			return candidate;
-		}
-	}
-
-	if (value.default != null && typeof value.default === 'object') {
-		const nested = unwrapPusherExport(value.default, depth + 1);
-		if (nested) {
-			return nested;
-		}
-	}
-
 	for (const key of Object.keys(value)) {
 		if (key === '__esModule') {
 			continue;
 		}
-		const candidate = value[key];
-		if (looksLikePusher(candidate)) {
-			return candidate;
+		const found = findPusherConstructor(value[key], seen, depth + 1);
+		if (found) {
+			return found;
 		}
 	}
-
 	return null;
 }
 
@@ -81,12 +81,21 @@ function describeExport(value) {
 }
 
 export function getPusherConstructor() {
+	if (cachedCtor) {
+		return cachedCtor;
+	}
+
 	let lastShape = 'brak modułu';
 
-	for (const [source, mod] of SOURCES) {
-		const ctor = unwrapPusherExport(mod);
+	for (const source of SOURCES) {
+		const mod = tryRequire(source);
+		if (mod == null) {
+			continue;
+		}
+		const ctor = findPusherConstructor(mod);
 		if (ctor) {
 			ctor.__twentySixPusherSource = source;
+			cachedCtor = ctor;
 			return ctor;
 		}
 		lastShape = `${source} → ${describeExport(mod)}`;

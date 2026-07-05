@@ -7,6 +7,11 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { AuthProvider } from './context/AuthProvider';
 import Screens from './pages/Screens';
 
+// pusher-js (web build) oczekuje `self` — w RN jest tylko `global`
+if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
+	global.self = global;
+}
+
 function AppContent() {
   const insets = useSafeAreaInsets();
   const topInset = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0);
