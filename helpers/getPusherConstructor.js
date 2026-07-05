@@ -1,12 +1,8 @@
 /**
- * Pusher ładujemy LAZY (require w runtime), nie importem statycznym —
- * inaczej moduł web/rn odpala się przy starcie aplikacji i crashuje APK.
+ * Pusher ładujemy LAZY (require w getPusherConstructor), nie importem statycznym —
+ * inaczej moduł odpala się przy starcie aplikacji i crashuje release APK.
+ * Metro wymaga statycznych ścieżek w require (nie require(zmienna)).
  */
-const SOURCES = [
-	'pusher-js/react-native',
-	'pusher-js/dist/web/pusher.js',
-];
-
 let cachedCtor = null;
 
 function ensureSelfGlobal() {
@@ -15,11 +11,27 @@ function ensureSelfGlobal() {
 	}
 }
 
-function tryRequire(id) {
+/** @returns {{ id: string, mod: unknown } | null} */
+function loadPusherRnModule() {
 	try {
 		ensureSelfGlobal();
-		// Metro bundluje to do APK; require dopiero w lobby / scoringu.
-		return require(id);
+		return {
+			id: 'pusher-js/react-native',
+			mod: require('pusher-js/react-native'),
+		};
+	} catch {
+		return null;
+	}
+}
+
+/** @returns {{ id: string, mod: unknown } | null} */
+function loadPusherWebModule() {
+	try {
+		ensureSelfGlobal();
+		return {
+			id: 'pusher-js/dist/web/pusher.js',
+			mod: require('pusher-js/dist/web/pusher.js'),
+		};
 	} catch {
 		return null;
 	}
@@ -87,18 +99,19 @@ export function getPusherConstructor() {
 
 	let lastShape = 'brak modułu';
 
-	for (const source of SOURCES) {
-		const mod = tryRequire(source);
-		if (mod == null) {
+	for (const load of [loadPusherRnModule, loadPusherWebModule]) {
+		const loaded = load();
+		if (loaded == null) {
 			continue;
 		}
+		const { id, mod } = loaded;
 		const ctor = findPusherConstructor(mod);
 		if (ctor) {
-			ctor.__twentySixPusherSource = source;
+			ctor.__twentySixPusherSource = id;
 			cachedCtor = ctor;
 			return ctor;
 		}
-		lastShape = `${source} → ${describeExport(mod)}`;
+		lastShape = `${id} → ${describeExport(mod)}`;
 	}
 
 	throw new TypeError(
