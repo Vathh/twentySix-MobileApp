@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import Pusher from 'pusher-js';
+import { createReverbPusher } from '../helpers/createReverbPusher';
 import { getReverbConfig } from '../helpers/apiConfig';
 import {
 	attachPusherReverbDebugLogging,
@@ -46,22 +46,7 @@ export function useQuickGameLobbyRealtime({
 
 		try {
 			const cfg = getReverbConfig();
-			pusher = new Pusher(cfg.key, {
-				cluster: cfg.cluster,
-				wsHost: cfg.wsHost,
-				wsPort: cfg.wsPort,
-				wssPort: cfg.wssPort,
-				forceTLS: cfg.forceTLS,
-				disableStats: true,
-				enabledTransports: cfg.forceTLS ? ['wss'] : ['ws'],
-				authEndpoint: cfg.authEndpoint,
-				auth: {
-					headers: {
-						Authorization: `Bearer ${accessToken}`,
-						Accept: 'application/json',
-					},
-				},
-			});
+			pusher = createReverbPusher(accessToken);
 
 			unbindDebug = attachPusherReverbDebugLogging(pusher, {
 				scope: 'quick-game-lobby',

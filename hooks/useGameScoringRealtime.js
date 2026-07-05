@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import Pusher from 'pusher-js';
+import { createReverbPusher } from '../helpers/createReverbPusher';
 import { getReverbConfig } from '../helpers/apiConfig';
 import {
 	attachPusherReverbDebugLogging,
@@ -42,27 +42,8 @@ export function useGameScoringRealtime({
 
 		try {
 			const cfg = getReverbConfig();
-			const pusherOptions = {
-				cluster: cfg.cluster,
-				wsHost: cfg.wsHost,
-				wsPort: cfg.wsPort,
-				wssPort: cfg.wssPort,
-				forceTLS: cfg.forceTLS,
-				disableStats: true,
-				enabledTransports: cfg.forceTLS ? ['wss'] : ['ws'],
-			};
-
-			if (channelType === 'private' && accessToken) {
-				pusherOptions.authEndpoint = cfg.authEndpoint;
-				pusherOptions.auth = {
-					headers: {
-						Authorization: `Bearer ${accessToken}`,
-						Accept: 'application/json',
-					},
-				};
-			}
-
-			pusher = new Pusher(cfg.key, pusherOptions);
+			const needsAuth = channelType === 'private' && accessToken;
+			pusher = createReverbPusher(needsAuth ? accessToken : null);
 
 			unbindDebug = attachPusherReverbDebugLogging(pusher, {
 				scope,

@@ -47,7 +47,6 @@ const reverbHostResolved = resolveReverbWsHost();
 
 export const getReverbConfig = () => ({
 	key: REVERB_APP_KEY,
-	cluster: 'reverb',
 	wsHost: reverbHostResolved,
 	wsPort: REVERB_WS_PORT,
 	wssPort: REVERB_WS_PORT,
