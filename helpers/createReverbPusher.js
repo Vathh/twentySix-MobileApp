@@ -1,5 +1,5 @@
-import Pusher from 'pusher-js/react-native';
 import { getReverbConfig } from './apiConfig';
+import { getPusherConstructor } from './getPusherConstructor';
 import { logReverbWs } from './reverbWsLog';
 
 /**
@@ -65,6 +65,10 @@ export function createReverbPusher(accessToken = null) {
 
 	let pusher;
 	try {
+		const Pusher = getPusherConstructor();
+		logReverbWs('info', 'pusher', 'import Pusher OK', {
+			exportType: typeof Pusher,
+		});
 		pusher = new Pusher(cfg.key, options);
 		logReverbWs('info', 'pusher', 'konstruktor Pusher OK');
 	} catch (err) {
