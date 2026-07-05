@@ -12,10 +12,12 @@ export const REVERB_APP_KEY =
 	process.env.EXPO_PUBLIC_REVERB_APP_KEY?.trim() || 'sld-reverb-key';
 // Host i port Reverb: ten sam host co API (LAN), NIE używaj 0.0.0.0 w aplikacji — to tylko bind serwera.
 // Opcjonalnie: EXPO_PUBLIC_REVERB_HOST / EXPO_PUBLIC_REVERB_PORT w .env (Metro musi być zrestartowany).
-const REVERB_WS_PORT = Number(process.env.EXPO_PUBLIC_REVERB_PORT) || 8080;
 const REVERB_USE_TLS =
 	(process.env.EXPO_PUBLIC_REVERB_SCHEME || '').trim() === 'https'
 	|| API_BASE_URL.startsWith('https://');
+// Staging/prod za nginx: WSS na 443, nie bezpośrednio na 8080 (port zwykle zamknięty na VPS).
+const REVERB_WS_PORT =
+	Number(process.env.EXPO_PUBLIC_REVERB_PORT) || (REVERB_USE_TLS ? 443 : 8080);
 
 const INVALID_CLIENT_WS_HOSTS = new Set(['0.0.0.0', '[::]', '::', '']);
 
