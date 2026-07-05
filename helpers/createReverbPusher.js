@@ -1,5 +1,5 @@
 import { getReverbConfig } from './apiConfig';
-import { getPusherConstructor } from './getPusherConstructor';
+import { getPusherConstructor, getPusherSourceLabel } from './getPusherConstructor';
 import { logReverbWs } from './reverbWsLog';
 
 /**
@@ -68,6 +68,7 @@ export function createReverbPusher(accessToken = null) {
 		const Pusher = getPusherConstructor();
 		logReverbWs('info', 'pusher', 'import Pusher OK', {
 			exportType: typeof Pusher,
+			source: getPusherSourceLabel(Pusher),
 		});
 		pusher = new Pusher(cfg.key, options);
 		logReverbWs('info', 'pusher', 'konstruktor Pusher OK');
