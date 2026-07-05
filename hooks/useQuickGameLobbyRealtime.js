@@ -31,18 +31,23 @@ export function useQuickGameLobbyRealtime({
 	accessToken,
 	enabled,
 	onLobbyUpdated,
+	onWsHealthChange,
 }) {
 	const onLobbyUpdatedRef = useRef(onLobbyUpdated);
 	onLobbyUpdatedRef.current = onLobbyUpdated;
+	const onWsHealthChangeRef = useRef(onWsHealthChange);
+	onWsHealthChangeRef.current = onWsHealthChange;
 
 	useEffect(() => {
 		if (!enabled || !lobbyId || !accessToken) {
+			onWsHealthChangeRef.current?.(false);
 			return undefined;
 		}
 
 		let pusher;
 		let channel;
 		let unbindDebug = () => {};
+		const markWsDown = () => onWsHealthChangeRef.current?.(false);
 
 		try {
 			const cfg = getReverbConfig();
@@ -56,9 +61,18 @@ export function useQuickGameLobbyRealtime({
 				authEndpoint: cfg.authEndpoint,
 			});
 
+			pusher.connection.bind('connected', () => {
+				onWsHealthChangeRef.current?.(true);
+			});
+			pusher.connection.bind('disconnected', markWsDown);
+			pusher.connection.bind('unavailable', markWsDown);
+			pusher.connection.bind('failed', markWsDown);
+			pusher.connection.bind('error', markWsDown);
+
 			const channelName = `private-quick-game-lobby.${lobbyId}`;
 			channel = pusher.subscribe(channelName);
 			channel.bind('pusher:subscription_succeeded', () => {
+				onWsHealthChangeRef.current?.(true);
 				logReverbWs(
 					'info',
 					'quick-game-lobby',
@@ -66,6 +80,7 @@ export function useQuickGameLobbyRealtime({
 				);
 			});
 			channel.bind('pusher:subscription_error', (status) => {
+				markWsDown();
 				logReverbWs(
 					'warn',
 					'quick-game-lobby',
@@ -77,6 +92,7 @@ export function useQuickGameLobbyRealtime({
 			channel.bind(LOBBY_EVENT, onLobbyEvent);
 			channel.bind(LOBBY_EVENT_ALT, onLobbyEvent);
 		} catch (err) {
+			markWsDown();
 			logReverbWs(
 				'error',
 				'quick-game-lobby',
@@ -88,6 +104,7 @@ export function useQuickGameLobbyRealtime({
 
 		return () => {
 			try {
+				markWsDown();
 				unbindDebug();
 				if (channel) {
 					channel.unbind_all();

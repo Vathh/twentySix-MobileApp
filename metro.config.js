@@ -19,6 +19,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       ),
     };
   }
+  if (moduleName === 'pusher-js' || moduleName === 'pusher-js/react-native') {
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(
+        __dirname,
+        'node_modules/pusher-js/dist/react-native/pusher.js'
+      ),
+    };
+  }
   return defaultResolveRequest(context, moduleName, platform);
 };
 

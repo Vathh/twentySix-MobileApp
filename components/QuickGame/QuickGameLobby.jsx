@@ -21,6 +21,7 @@ import {
   getQuickGameLobbyInviteUrl,
   getQuickGameLobbyAddGuestUrl,
   FRIENDS_API_URL,
+  getReverbDiagnostics,
 } from '../../helpers/apiConfig';
 import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerCache';
 
@@ -53,6 +54,8 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
+  const [wsLive, setWsLive] = useState(false);
+  const reverbDiag = getReverbDiagnostics();
   const [orderedPlayers, setOrderedPlayers] = useState([]);
 
   const resolveMyPlayerIndex = useCallback((players, fromApi) => {
@@ -172,6 +175,7 @@ const QuickGameLobby = ({ navigation, route }) => {
     accessToken: auth?.accessToken ?? null,
     enabled: !!lobby?.id && !!auth?.accessToken,
     onLobbyUpdated: applyLobbyData,
+    onWsHealthChange: setWsLive,
   });
 
   useEffect(() => {
@@ -427,6 +431,14 @@ const QuickGameLobby = ({ navigation, route }) => {
     const listHeader = (
       <>
         <Text style={styles.title}>Lobby quick game</Text>
+        <Text style={[styles.hintSmall, wsLive ? styles.wsLive : styles.wsOffline]}>
+          Live sync: {wsLive ? 'połączono' : 'offline'}
+          {' · '}
+          {reverbDiag.wsHost}:{reverbDiag.wsPort}
+          {' · key '}
+          {reverbDiag.keyPrefix}…
+          {reverbDiag.keyLooksDefault ? ' (domyślny — zły build!)' : ''}
+        </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.section}>
@@ -1080,6 +1092,12 @@ const styles = StyleSheet.create({
   },
   gameTypeBtnTextActive: {
     color: '#F99417',
+  },
+  wsLive: {
+    color: '#4ade80',
+  },
+  wsOffline: {
+    color: '#f87171',
   },
 });
 

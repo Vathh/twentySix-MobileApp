@@ -45,6 +45,16 @@ function resolveReverbWsHost() {
 
 const reverbHostResolved = resolveReverbWsHost();
 
+/** Do diagnostyki na stagingu (RC) — widać w UI, czy env z EAS trafił do APK. */
+export const getReverbDiagnostics = () => ({
+	apiUrl: API_BASE_URL,
+	wsHost: reverbHostResolved,
+	wsPort: REVERB_WS_PORT,
+	forceTLS: REVERB_USE_TLS,
+	keyPrefix: REVERB_APP_KEY.slice(0, 4),
+	keyLooksDefault: REVERB_APP_KEY === 'sld-reverb-key',
+});
+
 export const getReverbConfig = () => ({
 	key: REVERB_APP_KEY,
 	wsHost: reverbHostResolved,

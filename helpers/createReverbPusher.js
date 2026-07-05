@@ -3,19 +3,19 @@ import { getReverbConfig } from './apiConfig';
 
 /**
  * Instancja Pusher pod Laravel Reverb w React Native.
- * Wymaga `pusher-js/react-native` (nie domyślny import z 'pusher-js').
+ * Wymaga `pusher-js/react-native` (Metro też wymusza ten entry w metro.config.js).
  */
 export function createReverbPusher(accessToken = null) {
 	const cfg = getReverbConfig();
 	const options = {
-		// Reverb = własny host; pusty cluster — nie łączyć z pusher.com
-		cluster: '',
+		// Dummy cluster — przy wsHost łączy z Reverb, nie z pusher.com (Laravel docs: mt1).
+		cluster: 'mt1',
 		wsHost: cfg.wsHost,
 		wsPort: cfg.wsPort,
 		wssPort: cfg.wssPort,
 		forceTLS: cfg.forceTLS,
 		disableStats: true,
-		enabledTransports: cfg.forceTLS ? ['wss'] : ['ws', 'wss'],
+		enabledTransports: cfg.enabledTransports,
 	};
 
 	if (accessToken) {
