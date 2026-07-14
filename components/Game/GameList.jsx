@@ -10,8 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faSync } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { ACTIVE_GAMES_API_URL } from '../../helpers/apiConfig';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
@@ -184,7 +183,7 @@ const GameList = ({ navigation }) => {
       <View style={styles.headerRow}>
         <Text style={styles.title}>Mecze turnieju</Text>
         <Pressable onPress={fetchGames} style={styles.refreshButton}>
-          <FontAwesomeIcon icon={faSync} size={22} color="#F99417" />
+          <FontAwesome5 name="sync" size={22} color="#F99417" />
         </Pressable>
       </View>
 

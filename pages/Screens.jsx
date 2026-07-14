@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import useAuth from '../hooks/useAuth';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import GameList from '../components/Game/GameList';
@@ -22,7 +22,15 @@ const Stack = createNativeStackNavigator();
 
 const Screens = () => {
 
-  const { auth } = useAuth();
+  const { auth, authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#363062', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#F99417" />
+      </View>
+    );
+  }
 
   const headerOptions = {
     headerStyle: { backgroundColor: '#363062' },

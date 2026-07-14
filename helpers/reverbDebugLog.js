@@ -5,11 +5,8 @@ const entries = [];
 const listeners = new Set();
 
 export function isReverbDebugEnabled() {
-	const flag = process.env.EXPO_PUBLIC_REVERB_DEBUG?.trim();
-	if (flag === '1' || flag === 'true') {
-		return true;
-	}
-	return typeof __DEV__ !== 'undefined' && __DEV__;
+	const flag = process.env.EXPO_PUBLIC_REVERB_DEBUG?.trim().toLowerCase();
+	return flag === '1' || flag === 'true';
 }
 
 function formatDetail(detail) {

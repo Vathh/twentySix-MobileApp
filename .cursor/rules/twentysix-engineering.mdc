@@ -13,6 +13,21 @@ alwaysApply: true
 - **Nie** dodawaj równoległych hooków scoringu — rozszerz transport lub `helpers/gameScoring/`.
 - Backend waliduje wizyty przez `VisitRecorder`; mobile wysyła spójne `remainingBefore/After`, `bust`, `closedLeg`.
 
+## Tryb per-dart (ustalenie — nie zmieniać bez prośby)
+
+Ustawienie użytkownika: **Suma trzech rzutów** vs **Każdy rzut osobno** (`useGameSettings`, `SCORING_MODES.PER_DART`). Dotyczy **UI wpisywania**, nie trybu lobby (`one_device` / `each_own`).
+
+**Online sync (each_own / FFA / turniej):** API **tylko** gdy wizyta się domyka po stronie logiki gry:
+- **3 lotki** — pełna wizyta (`submitVisit`, `dartsInVisit: 3`);
+- **bust** — w dowolnej lotce 1–3 (`bust: true`, aktualne `dartsInVisit`);
+- **checkout (koniec lega)** — w lotce 1, 2 lub 3 (`closeLegWithWinner`, `closedLeg: true`, właściwe `dartsInVisit`).
+
+**Nie** wysyłać wizyty po lotce 1 ani 2, gdy wizyta trwa dalej — stan pośredni zostaje **lokalnie** do lotki 3. Wyjątki: bust i checkout (w tym checkout na lotce 1–2 — wtedy natychmiast `closeLegWithWinner`, bez czekania na 3. lotkę).
+
+Po bust / checkout / 3. lotce Counter **nie** przechodzi do kolejnej lotki w tej samej wizycie (`handleDartSubmit` → `'continue'` vs `'ended'`).
+
+Implementacja: `GameScoringScreen.handleDartSubmit`, `promptOnlinePerDartCheckout`, `helpers/perDartVisitRules.js`.
+
 ## Nazewnictwo
 
 - ✅ `useGameScoring`, `helpers/gameScoring/`, `resolveGameContext`, `GAME_MODE`

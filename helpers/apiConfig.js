@@ -102,6 +102,8 @@ export const LOGOUT_API_URL = API_BASE_URL + LOGOUT_ENDPOINT;
 
 export const LOGIN_API_URL = API_BASE_URL + LOGIN_ENDPOINT;
 export const ACCOUNT_LOGIN_API_URL = API_BASE_URL + ACCOUNT_LOGIN_ENDPOINT;
+export const ACCOUNT_LOGOUT_API_URL = API_BASE_URL + '/account/logout';
+export const ACCOUNT_SESSION_REFRESH_API_URL = API_BASE_URL + '/account/session/refresh';
 export const REGISTER_API_URL = API_BASE_URL + '/register';
 export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-notification';
 

@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { useQuickGameLobbyRealtime } from '../../hooks/useQuickGameLobbyRealtime';
@@ -27,8 +28,12 @@ import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerC
 import ReverbDebugPanel from '../ReverbDebugPanel';
 import { logReverbWs } from '../../helpers/reverbWsLog';
 
-const DEFAULT_LEGS_TO_WIN = 2;
 const MAX_LOBBY_PLAYERS = 8;
+
+const playerKey = (item, index) =>
+  String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index);
+
+const DEFAULT_LEGS_TO_WIN = 2;
 
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
@@ -558,69 +563,28 @@ const QuickGameLobby = ({ navigation, route }) => {
             <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego (bez konta).</Text>
           )}
         </View>
+      </>
+    );
 
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            {isHost ? 'Gracze w lobby (kolejność rzucania od góry)' : 'Gracze w lobby'}
-          </Text>
-          {listData.length === 0 ? (
-            <View style={styles.emptyPlayersBox}>
-              <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
-              <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego.</Text>
-            </View>
-          ) : (
-            <>
-              {isHost ? (
-                <>
-                  <Text style={styles.hintSmall}>
-                    Kolejność rzucania: użyj „Kolejność losowa” albo ustaw przed startem meczu.
-                  </Text>
-                  <View style={styles.playersList}>
-                    {listData.map((item, index) => (
-                      <View
-                        key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)}
-                        style={styles.playerTile}
-                      >
-                        <Text style={styles.playerTileName} numberOfLines={1}>
-                          {item.name || item.tempName || 'Gracz'}
-                          {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
-                          {item.ready ? ' ✓ Gotowy' : ''}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <View style={styles.playersList}>
-                  {players.map((item, index) => (
-                    <View key={String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index)} style={styles.playerTile}>
-                      <Text style={styles.playerTileName} numberOfLines={1}>
-                        {item.name || item.tempName || 'Gracz'}
-                        {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
-                        {item.ready ? ' ✓ Gotowy' : ''}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              {isHost && (
-                <Pressable
-                  style={styles.reorderButtonSecondary}
-                  onPress={() => {
-                    const arr = [...listData];
-                    for (let i = arr.length - 1; i > 0; i--) {
-                      const j = Math.floor(Math.random() * (i + 1));
-                      [arr[i], arr[j]] = [arr[j], arr[i]];
-                    }
-                    setOrderedPlayers(arr);
-                  }}
-                >
-                  <Text style={styles.reorderButtonTextSecondary}>Kolejność losowa</Text>
-                </Pressable>
-              )}
-            </>
-          )}
-        </View>
+    const shufflePlayerOrder = () => {
+      const arr = [...listData];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      setOrderedPlayers(arr);
+    };
+
+    const renderPlayerLabel = (item) => (
+      <>
+        {item.name || item.tempName || 'Gracz'}
+        {item.isRegistered === false && !item.isHost ? ' (tymczasowy)' : ''}
+        {item.ready ? ' ✓ Gotowy' : ''}
+      </>
+    );
+
+    const lobbyFooter = (
+      <>
         {auth?.accessToken && (
           <>
             {!isHost && (
@@ -655,11 +619,8 @@ const QuickGameLobby = ({ navigation, route }) => {
       </>
     );
 
-    return (
-      <View style={styles.container}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator>
-          {listHeader}
-        </ScrollView>
+    const lobbyModals = (
+      <>
         <Modal
           visible={inviteModalVisible}
           transparent
@@ -744,6 +705,90 @@ const QuickGameLobby = ({ navigation, route }) => {
             </Pressable>
           </Pressable>
         </Modal>
+      </>
+    );
+
+    const playersSectionHeader = (
+      <View style={styles.section}>
+        <Text style={styles.label}>
+          {isHost ? 'Gracze w lobby (kolejność rzucania od góry)' : 'Gracze w lobby'}
+        </Text>
+        {isHost && listData.length > 0 ? (
+          <Text style={styles.hintSmall}>
+            Przytrzymaj wiersz i przeciągnij, aby zmienić kolejność. Możesz też użyć „Kolejność losowa”.
+          </Text>
+        ) : null}
+      </View>
+    );
+
+    const hostDraggableList = isHost && listData.length > 0;
+
+    return (
+      <View style={styles.container}>
+        {hostDraggableList ? (
+          <DraggableFlatList
+            data={listData}
+            keyExtractor={playerKey}
+            onDragEnd={({ data }) => setOrderedPlayers(data)}
+            containerStyle={styles.scroll}
+            contentContainerStyle={styles.formContent}
+            ListHeaderComponent={
+              <>
+                {listHeader}
+                {playersSectionHeader}
+              </>
+            }
+            renderItem={({ item, drag, isActive }) => (
+              <ScaleDecorator>
+                <Pressable
+                  onLongPress={drag}
+                  disabled={isActive}
+                  style={[styles.playerTile, isActive && styles.playerTileActive]}
+                >
+                  <Text style={styles.playerTileName} numberOfLines={1}>
+                    {renderPlayerLabel(item)}
+                  </Text>
+                  <View style={styles.dragHandle}>
+                    <Text style={styles.dragHandleText}>≡</Text>
+                  </View>
+                </Pressable>
+              </ScaleDecorator>
+            )}
+            ListFooterComponent={
+              <>
+                <Pressable style={styles.reorderButtonSecondary} onPress={shufflePlayerOrder}>
+                  <Text style={styles.reorderButtonTextSecondary}>Kolejność losowa</Text>
+                </Pressable>
+                {lobbyFooter}
+              </>
+            }
+          />
+        ) : (
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator>
+            {listHeader}
+            <View style={styles.section}>
+              <Text style={styles.label}>Gracze w lobby</Text>
+              {listData.length === 0 ? (
+                <View style={styles.emptyPlayersBox}>
+                  <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
+                  <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego.</Text>
+                </View>
+              ) : (
+                <View style={styles.playersList}>
+                  {(isHost ? listData : players).map((item, index) => (
+                    <View key={playerKey(item, index)} style={styles.playerTile}>
+                      <Text style={styles.playerTileName} numberOfLines={1}>
+                        {renderPlayerLabel(item)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+            {lobbyFooter}
+          </ScrollView>
+        )}
+        {lobbyModals}
       </View>
     );
   }
@@ -886,6 +931,11 @@ const styles = StyleSheet.create({
   dragHandle: {
     padding: 8,
     marginLeft: 8,
+  },
+  dragHandleText: {
+    fontSize: 20,
+    color: '#F99417',
+    fontWeight: '700',
   },
   input: {
     marginBottom: 4,

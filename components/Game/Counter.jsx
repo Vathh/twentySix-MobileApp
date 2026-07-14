@@ -4,6 +4,8 @@ import { SCORING_MODES } from '../../hooks/useGameSettings'
 import { formatAverage, hasAverage } from '../../helpers/formatAverage'
 import { formatDartLabel } from '../../helpers/formatDartLabel'
 
+const PER_DART_ACCENT = '#B8D9F0';
+
 const Counter = ({
   players,
   playerStates,
@@ -86,7 +88,15 @@ const Counter = ({
     playerStates[currentPlayerIndex]?.currentVisitDartLabels?.join('|'),
   ]);
 
-  const applyDartValue = (baseValue) => {
+  const resetDartPad = () => {
+    dartScoresRef.current = [0, 0, 0];
+    setDartScores([0, 0, 0]);
+    setDartIndex(0);
+    setCurrentVisitLabels([]);
+    setModifier(null);
+  };
+
+  const applyDartValue = async (baseValue) => {
     if (inputDisabled) return;
     const mult = baseValue === 25
       ? (modifier === 'double' ? 2 : 1)
@@ -104,53 +114,104 @@ const Counter = ({
     setCurrentVisitLabels(nextLabels);
     const isLastDart = dartIndex >= 2;
     const roundTotal = nextScores[0] + nextScores[1] + nextScores[2];
-    handleDartSubmit?.(points, roundTotal, isLastDart, dartIndex, dartLabel);
-    if (isLastDart) {
-      dartScoresRef.current = [0, 0, 0];
-      setDartScores([0, 0, 0]);
-      setDartIndex(0);
-      setCurrentVisitLabels([]);
-    } else {
-      setDartIndex((i) => i + 1);
+    const outcome = await Promise.resolve(
+      handleDartSubmit?.(points, roundTotal, isLastDart, dartIndex, dartLabel),
+    );
+    if (outcome === 'continue') {
+      // Następny indeks lotki = liczba zapisanych etykiet (0→1→2).
+      // Nie używamy setDartIndex(i => i + 1) — useEffect też syncuje z reducera
+      // i dawało podwójny increment (po 1. lotce dartIndex=2, wizyta kończyła się po 2.).
+      setDartIndex(Math.min(nextLabels.length, 2));
+      return;
     }
+    resetDartPad();
   };
 
-  const getVisitDartsText = (playerIndex) => {
-    if (!isPerDart) return '';
+  const getVisitDartLabels = (playerIndex) => {
+    if (!isPerDart) return [];
     const st = playerStates[playerIndex];
     const isActive = playerIndex === currentPlayerIndex;
 
-    const current = isActive && canInput
-      ? currentVisitLabels
-      : (st?.currentVisitDartLabels ?? []);
-    if (current.length) {
-      return current.join(', ');
+    // Na swojej turze — tylko bieżąca wizyta; bez fallbacku do poprzedniej
+    // (czyści slot od razu po przejściu tury, nie dopiero po 1. rzucie).
+    if (isActive && canInput) {
+      return currentVisitLabels;
     }
 
-    const last = st?.lastVisitDartLabels ?? [];
-    return last.length ? last.join(', ') : '';
+    const inProgress = st?.currentVisitDartLabels ?? [];
+    if (inProgress.length) {
+      return inProgress;
+    }
+
+    return st?.lastVisitDartLabels ?? [];
   };
 
-  const renderLocalVisitRemaining = (playerIndex) => {
+  const renderLocalVisitRemainingOverlay = (playerIndex) => {
     if (!isPerDart) return null;
     if (playerIndex !== currentPlayerIndex || !canInput) return null;
     const mainScore = playerStates[playerIndex]?.score ?? 501;
     const displayValue = localVisitRemaining ?? mainScore;
+
     return (
-      <Text style={styles.localVisitRemainingText}>{displayValue}</Text>
+      <View style={styles.localVisitRemainingOverlay} pointerEvents="none">
+        <Text style={styles.localVisitRemainingText}>{displayValue}</Text>
+      </View>
     );
   };
 
-  const renderVisitDartsLine = (playerIndex, alignRight = false) => {
-    if (!isPerDart) return null;
-    const text = getVisitDartsText(playerIndex);
+  const renderLocalVisitRemaining = (playerIndex, variant = 'twoPlayer') => {
+    if (!isPerDart || variant === 'twoPlayer') return null;
+    if (playerIndex !== currentPlayerIndex || !canInput) return null;
+    const mainScore = playerStates[playerIndex]?.score ?? 501;
+    const displayValue = localVisitRemaining ?? mainScore;
     return (
-      <Text
-        style={[styles.visitDartsText, alignRight && styles.visitDartsTextRight]}
-        numberOfLines={1}
+      <Text style={styles.localVisitRemainingTextMulti}>{displayValue}</Text>
+    );
+  };
+
+  const renderVisitDartsUnderScore = (playerIndex, { alignRight = false, overlay = false } = {}) => {
+    if (!isPerDart) return null;
+    const labels = getVisitDartLabels(playerIndex);
+    if (!labels.length) {
+      return overlay ? null : <View style={styles.visitDartsUnderScoreSpacer} />;
+    }
+    return (
+      <View
+        style={[
+          overlay ? styles.visitDartsUnderScoreOverlay : styles.visitDartsUnderScore,
+          !overlay && alignRight && styles.visitDartsUnderScoreRight,
+        ]}
       >
-        {text || ' '}
-      </Text>
+        <Text
+          style={[
+            styles.visitDartsAccentText,
+            alignRight && styles.visitDartsAccentTextRight,
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {labels.join(' · ')}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderVisitDartsColumn = (playerIndex) => {
+    if (!isPerDart) return null;
+    const labels = getVisitDartLabels(playerIndex);
+    return (
+      <View style={styles.visitDartsColumn}>
+        {labels.length === 0 ? (
+          <View style={styles.visitDartsColumnSpacer} />
+        ) : (
+          labels.map((label, idx) => (
+            <Text key={`${playerIndex}-${idx}-${label}`} style={styles.visitDartsColumnText}>
+              {label}
+            </Text>
+          ))
+        )}
+      </View>
     );
   };
 
@@ -323,7 +384,6 @@ const Counter = ({
         <View style={styles.resultContainer}>
           <View style={styles.player1Container}>
             <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
-            {renderVisitDartsLine(0)}
           </View>
           <View style={styles.legsContainer}>
             <Text style={styles.legsResultText}>{s0?.legsWon ?? 0}</Text>
@@ -332,15 +392,14 @@ const Counter = ({
           </View>
           <View style={styles.player2Container}>
             <Text style={styles.playerText}>({s1?.dartsThrown ?? 0}) {p1?.name ?? 'Gracz'}</Text>
-            {renderVisitDartsLine(1, true)}
           </View>
         </View>
 
         <View style={styles.countersContainer}>
           <View style={styles.countersScoresRow}>
             <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
-              <View style={styles.counterScoreStack}>
-                {renderLocalVisitRemaining(0)}
+              <View style={[styles.counterScoreStack, isPerDart && styles.counterScoreStackOverlayRoot]}>
+                {renderLocalVisitRemainingOverlay(0)}
                 <Text
                   style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}
                   adjustsFontSizeToFit
@@ -349,11 +408,12 @@ const Counter = ({
                 >
                   {s0?.score ?? 501}
                 </Text>
+                {renderVisitDartsUnderScore(0, { overlay: isPerDart })}
               </View>
             </View>
             <View style={styles.counterContainer}>
-              <View style={styles.counterScoreStack}>
-                {renderLocalVisitRemaining(1)}
+              <View style={[styles.counterScoreStack, isPerDart && styles.counterScoreStackOverlayRoot]}>
+                {renderLocalVisitRemainingOverlay(1)}
                 <Text
                   style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}
                   adjustsFontSizeToFit
@@ -362,6 +422,7 @@ const Counter = ({
                 >
                   {s1?.score ?? 501}
                 </Text>
+                {renderVisitDartsUnderScore(1, { alignRight: true, overlay: isPerDart })}
               </View>
             </View>
           </View>
@@ -418,11 +479,11 @@ const Counter = ({
             >
               <View style={styles.multiRowLeft}>
                 <Text style={styles.multiPlayerName} numberOfLines={1}>{p?.name ?? 'Gracz'}</Text>
-                {renderVisitDartsLine(i)}
                 <Text style={styles.multiDarts}>({st?.dartsThrown ?? 0})</Text>
               </View>
+              {renderVisitDartsColumn(i)}
               <View style={styles.multiRowCenter}>
-                {renderLocalVisitRemaining(i)}
+                {renderLocalVisitRemaining(i, 'multi')}
                 <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
                   {st?.score ?? 501}
                 </Text>
@@ -468,14 +529,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#c5c5c5'
   },
-  visitDartsText: {
-    fontSize: 11,
-    color: '#8a8a9a',
-    marginTop: 2,
+  visitDartsUnderScore: {
+    width: '100%',
+    paddingHorizontal: 6,
+    marginTop: 4,
+    minHeight: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  visitDartsUnderScoreOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  visitDartsUnderScoreRight: {
+    alignItems: 'center',
+  },
+  visitDartsUnderScoreSpacer: {
+    minHeight: 22,
+    marginTop: 4,
+  },
+  visitDartsAccentText: {
+    fontSize: 17,
+    color: PER_DART_ACCENT,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  visitDartsAccentTextRight: {
+    textAlign: 'center',
+  },
+  visitDartsColumn: {
+    flex: 0.55,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    minHeight: 54,
+  },
+  visitDartsColumnSpacer: {
     minHeight: 14,
   },
-  visitDartsTextRight: {
-    textAlign: 'right',
+  visitDartsColumnText: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: PER_DART_ACCENT,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   legsContainer: {
     flex: 1,
@@ -515,6 +617,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'visible',
   },
   counterScoreStack: {
     flex: 1,
@@ -523,10 +626,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  counterScoreStackOverlayRoot: {
+    position: 'relative',
+    overflow: 'visible',
+  },
+  localVisitRemainingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: '50%',
+    marginBottom: 54,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
   localVisitRemainingText: {
-    fontSize: 28,
-    color: '#8a8a9a',
-    marginBottom: 4,
+    fontSize: 40,
+    lineHeight: 46,
+    color: PER_DART_ACCENT,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  localVisitRemainingTextMulti: {
+    fontSize: 30,
+    color: PER_DART_ACCENT,
+    fontWeight: '700',
+    marginBottom: 2,
+    letterSpacing: 0.5,
   },
   counterTextNoFlex: {
     flex: 0,
@@ -678,7 +806,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(249,148,23,0.15)',
   },
   multiRowLeft: {
-    flex: 1.2,
+    flex: 1,
+    minWidth: 0,
   },
   multiRowCenter: {
     flex: 1,

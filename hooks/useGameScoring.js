@@ -3,7 +3,15 @@ import { Alert } from 'react-native';
 import {
 	applyGameScoringState,
 	computeStateRevision,
+	isNormalizedScoringState,
+	normalizeScoringState,
 } from '../helpers/gameScoring/index.js';
+import {
+	CLOSED_LEG_UNDO_MESSAGE,
+	CLOSED_LEG_UNDO_TITLE,
+	resolveUndoLegId,
+	wouldUndoClosedLeg,
+} from '../helpers/gameScoring/undoVisit.js';
 import { useGameScoringRealtime } from './useGameScoringRealtime';
 
 const BACKUP_POLL_MS = 2500;
@@ -38,6 +46,7 @@ export function useGameScoring({
 	const pendingWritesRef = useRef(0);
 	const visitChainRef = useRef(Promise.resolve());
 	const finishedQuickGameIdRef = useRef(null);
+	const lastSyncStateRef = useRef(null);
 	const wsHealthyRef = useRef(false);
 	const [wsHealthy, setWsHealthy] = useState(false);
 	const [ffaPresence, setFfaPresence] = useState(null);
@@ -69,6 +78,17 @@ export function useGameScoring({
 		(state) => {
 			const sync = scoringSyncRef.current;
 			const h2h = sync.transport?.format === 'h2h';
+			if (state) {
+				const normalized = isNormalizedScoringState(state)
+					? state
+					: normalizeScoringState(state, sync.players);
+				lastSyncStateRef.current = {
+					currentLeg: normalized?.currentLeg ?? null,
+					visits: normalized?.visits ?? [],
+					legs: Array.isArray(state.legs) ? state.legs : [],
+					turn: normalized?.turn ?? null,
+				};
+			}
 			const result = applyGameScoringState(state, {
 				players: sync.players,
 				N: sync.N,
@@ -479,25 +499,47 @@ export function useGameScoring({
 					return null;
 				}
 
-				const legId = transport.requiresLegId
-					? currentLegIdRef.current
-					: null;
-				if (transport.requiresLegId && !legId) {
-					Alert.alert('Info', 'Brak aktywnego lega.');
-					return null;
+				const syncState = lastSyncStateRef.current;
+				const needsClosedLegConfirm = wouldUndoClosedLeg(syncState);
+
+				const performUndo = async () => {
+					const legId = transport.requiresLegId
+						? resolveUndoLegId(syncState, currentLegIdRef.current)
+						: null;
+					if (transport.requiresLegId && !legId) {
+						Alert.alert('Info', 'Brak lega do cofnięcia.');
+						return null;
+					}
+
+					pendingWritesRef.current += 1;
+					try {
+						const state = await transport.undoVisit(legId);
+						applyStateSafe(state, 'submit');
+						return state;
+					} catch (e) {
+						Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
+						return null;
+					} finally {
+						pendingWritesRef.current -= 1;
+					}
+				};
+
+				if (!needsClosedLegConfirm) {
+					return performUndo();
 				}
 
-				pendingWritesRef.current += 1;
-				try {
-					const state = await transport.undoVisit(legId);
-					applyStateSafe(state, 'submit');
-					return state;
-				} catch (e) {
-					Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
-					return null;
-				} finally {
-					pendingWritesRef.current -= 1;
-				}
+				return new Promise((resolve) => {
+					Alert.alert(CLOSED_LEG_UNDO_TITLE, CLOSED_LEG_UNDO_MESSAGE, [
+						{ text: 'Anuluj', style: 'cancel', onPress: () => resolve(null) },
+						{
+							text: 'Cofnij leg',
+							style: 'destructive',
+							onPress: () => {
+								void performUndo().then(resolve);
+							},
+						},
+					]);
+				});
 			}),
 		[runSerialized, enabled, transport, applyStateSafe],
 	);
