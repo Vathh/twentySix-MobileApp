@@ -4,7 +4,15 @@ export const ffaPartialVisit = {
 		id: 1,
 		lobbyId: 5,
 		status: 'in_progress',
-		legsToWin: 2,
+		legsToWinSet: 2,
+		setsToWinMatch: 1,
+		matchFormat: {
+			startingScore: 501,
+			legsToWinSet: 2,
+			setsToWinMatch: 1,
+			gameType: 'x01',
+			outRule: 'double_out',
+		},
 		currentLegNumber: 1,
 		legOpenerIndex: 0,
 		currentPlayerIndex: 0,
@@ -53,5 +61,14 @@ export const ffaPartialVisit = {
 			bust: false,
 		},
 	],
-	game: { status: 'in_progress', legsToWin: 2 },
+	game: {
+		status: 'in_progress',
+		matchFormat: {
+			startingScore: 501,
+			legsToWinSet: 2,
+			setsToWinMatch: 1,
+			gameType: 'x01',
+			outRule: 'double_out',
+		},
+	},
 };

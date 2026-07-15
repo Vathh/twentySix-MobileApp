@@ -3,7 +3,15 @@ export const ffaAfterVisit = {
 		id: 1,
 		lobbyId: 5,
 		status: 'in_progress',
-		legsToWin: 2,
+		legsToWinSet: 2,
+		setsToWinMatch: 1,
+		matchFormat: {
+			startingScore: 501,
+			legsToWinSet: 2,
+			setsToWinMatch: 1,
+			gameType: 'x01',
+			outRule: 'double_out',
+		},
 		startingScore: 501,
 		currentLegNumber: 1,
 		legOpenerIndex: 0,
@@ -39,5 +47,14 @@ export const ffaAfterVisit = {
 			closedLeg: false,
 		},
 	],
-	game: { status: 'in_progress', legsToWin: 2 },
+	game: {
+		status: 'in_progress',
+		matchFormat: {
+			startingScore: 501,
+			legsToWinSet: 2,
+			setsToWinMatch: 1,
+			gameType: 'x01',
+			outRule: 'double_out',
+		},
+	},
 };

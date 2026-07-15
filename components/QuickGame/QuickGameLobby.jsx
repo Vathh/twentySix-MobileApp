@@ -27,13 +27,25 @@ import {
 import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerCache';
 import ReverbDebugPanel from '../ReverbDebugPanel';
 import { logReverbWs } from '../../helpers/reverbWsLog';
+import MatchFormatPicker, { DEFAULT_MATCH_FORMAT } from './MatchFormatPicker';
+import {
+  formatMatchLabel,
+  normalizeMatchFormat,
+} from '../../helpers/matchFormat/matchFormat';
+import {
+  loadPersistedMatchFormat,
+  savePersistedMatchFormat,
+} from '../../helpers/matchFormat/persistMatchFormat';
 
 const MAX_LOBBY_PLAYERS = 8;
 
 const playerKey = (item, index) =>
   String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index);
 
-const DEFAULT_LEGS_TO_WIN = 2;
+const normalizeLobbyGameType = (value) => {
+  if (value === '501' || value == null) return 'x01';
+  return value;
+};
 
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
@@ -45,9 +57,9 @@ const INVITATION_STATUS = {
 
 const QuickGameLobby = ({ navigation, route }) => {
   const { auth } = useAuth();
-  const GAME_TYPES = { X01: '501', CRICKET: 'cricket' };
+  const GAME_TYPES = { X01: 'x01', CRICKET: 'cricket' };
   const [lobby, setLobby] = useState(null);
-  const [legsCount, setLegsCount] = useState(DEFAULT_LEGS_TO_WIN);
+  const [matchFormat, setMatchFormat] = useState(DEFAULT_MATCH_FORMAT);
   const [gameType, setGameType] = useState(GAME_TYPES.X01);
   const [scoringMode, setScoringMode] = useState(SCORING_MODES.EACH_OWN);
   const [invitations, setInvitations] = useState([]); // [{ id, name, status: 'sent'|'accepted'|'rejected' }]
@@ -64,6 +76,10 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [wsLive, setWsLive] = useState(false);
   const reverbDiag = getReverbDiagnostics();
   const [orderedPlayers, setOrderedPlayers] = useState([]);
+
+  useEffect(() => {
+    loadPersistedMatchFormat('quickGame').then(setMatchFormat);
+  }, []);
 
   const resolveMyPlayerIndex = useCallback((players, fromApi) => {
     if (fromApi !== undefined && fromApi !== null) return fromApi;
@@ -82,8 +98,8 @@ const QuickGameLobby = ({ navigation, route }) => {
         name: p.name ?? p.tempName ?? 'Gracz',
         playerId: p.playerId ?? p.player_id,
       }));
-      const legsToWin = data.legsCount ?? data.legs_count ?? DEFAULT_LEGS_TO_WIN;
-      const gameTypeToUse = data.gameType ?? data.game_type ?? GAME_TYPES.X01;
+      const format = normalizeMatchFormat(data.matchFormat);
+      const gameTypeToUse = normalizeLobbyGameType(data.gameType ?? data.game_type);
       const scoringModeToUse = data.scoringMode ?? SCORING_MODES.EACH_OWN;
       const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
       const myPlayerIndex = resolveMyPlayerIndex(players, data.myPlayerIndex);
@@ -92,7 +108,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         quickGame: {
           players,
           lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
-          legsCount: legsToWin,
+          matchFormat: format,
           gameType: gameTypeToUse,
           scoringMode: scoringModeToUse,
           isHost,
@@ -107,14 +123,15 @@ const QuickGameLobby = ({ navigation, route }) => {
       ...data,
       // Pole user-specific może nie przyjść w evencie lobby; zachowaj poprzednią wartość.
       youAreHost: data.youAreHost ?? prev?.youAreHost ?? false,
-      legsCount: data.legsCount ?? prev?.legsCount ?? DEFAULT_LEGS_TO_WIN,
-      gameType: data.gameType ?? data.game_type ?? prev?.gameType ?? GAME_TYPES.X01,
+      gameType: normalizeLobbyGameType(data.gameType ?? data.game_type ?? prev?.gameType),
       scoringMode: data.scoringMode ?? prev?.scoringMode ?? SCORING_MODES.EACH_OWN,
     }));
-    if (data.legsCount != null) setLegsCount(data.legsCount);
+    if (data.matchFormat != null) {
+      setMatchFormat(normalizeMatchFormat(data.matchFormat));
+    }
     if (data.scoringMode != null) setScoringMode(data.scoringMode);
     if (data.gameType != null || data.game_type != null) {
-      setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+      setGameType(normalizeLobbyGameType(data.gameType ?? data.game_type));
     }
     // Bez tablicy players nie ruszaj orderedPlayers (unikaj [] z „pustego” payloadu).
     if (Array.isArray(data.players)) {
@@ -171,7 +188,7 @@ const QuickGameLobby = ({ navigation, route }) => {
       const initial = route?.params?.initialLobby;
       if (initial?.id) {
         setLobby(initial);
-        setLegsCount(initial.legsCount ?? initial.legs_count ?? DEFAULT_LEGS_TO_WIN);
+        setMatchFormat(normalizeMatchFormat(initial.matchFormat));
         setGameType(initial.gameType ?? initial.game_type ?? GAME_TYPES.X01);
         setScoringMode(initial.scoringMode ?? SCORING_MODES.EACH_OWN);
         const pl = (initial.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
@@ -213,8 +230,8 @@ const QuickGameLobby = ({ navigation, route }) => {
       });
       const data = await res.json();
       if (res.ok && data?.id) {
-        setLobby({ ...data, legsCount: data.legsCount ?? DEFAULT_LEGS_TO_WIN, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
-        setLegsCount(data.legsCount ?? DEFAULT_LEGS_TO_WIN);
+        setLobby({ ...data, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
+        setMatchFormat(normalizeMatchFormat(data.matchFormat ?? matchFormat));
         setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
         setInvitations([]);
         fetchLobbyById(data.id);
@@ -379,7 +396,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           Authorization: `Bearer ${auth.accessToken}`,
         },
         body: JSON.stringify({
-          legsCount: legsCount ?? lobby?.legsCount ?? DEFAULT_LEGS_TO_WIN,
+          matchFormat,
           gameType: gameType ?? lobby?.gameType ?? GAME_TYPES.X01,
           scoringMode: scoringMode ?? lobby?.scoringMode ?? SCORING_MODES.EACH_OWN,
           playerOrder: (orderedPlayers.length ? orderedPlayers : (lobby?.players || []))
@@ -389,7 +406,8 @@ const QuickGameLobby = ({ navigation, route }) => {
       });
       const data = await res.json();
       if (res.ok && data?.players) {
-        const legsToWin = data.legsCount ?? legsCount ?? lobby?.legsCount ?? DEFAULT_LEGS_TO_WIN;
+        const format = normalizeMatchFormat(data.matchFormat ?? matchFormat);
+        await savePersistedMatchFormat('quickGame', format);
         const gameTypeToUse = data.gameType ?? gameType ?? lobby?.gameType ?? GAME_TYPES.X01;
         const toPass = (orderedPlayers.length ? orderedPlayers : data.players).map((p) => ({
           id: p.id,
@@ -404,7 +422,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           quickGame: {
             players: toPass,
             lobbyId: lobby.id,
-            legsCount: legsToWin,
+            matchFormat: format,
             gameType: gameTypeToUse,
             scoringMode: scoringModeToUse,
             isHost,
@@ -457,7 +475,6 @@ const QuickGameLobby = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.label}>Typ gry</Text>
-          <Text style={styles.hintSmall}>Wybierz tryb rozgrywki meczu (tylko host może zmieniać)</Text>
           <View style={styles.gameTypeRow}>
             <Pressable
               style={[styles.gameTypeBtn, gameType === GAME_TYPES.X01 && styles.gameTypeBtnActive]}
@@ -487,17 +504,29 @@ const QuickGameLobby = ({ navigation, route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Format meczu</Text>
-          <Text style={styles.bo3Value}>BO3 — pierwszy do {DEFAULT_LEGS_TO_WIN} legów</Text>
-          <Text style={styles.hintSmall}>W MVP format jest stały (501 double out, BO3).</Text>
+          {isHost ? (
+            <MatchFormatPicker
+              value={matchFormat}
+              onChange={(next) => {
+                setMatchFormat(next);
+                handleUpdateSettings({ matchFormat: next });
+              }}
+            />
+          ) : (
+            <>
+              <Text style={styles.label}>Format meczu</Text>
+              <Text style={styles.formatValue}>{formatMatchLabel(matchFormat)}</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Liczenie</Text>
-          <Text style={styles.hintSmall}>
-            Kto wpisuje punkty: na jednym urządzeniu tylko host; każdy na swoim – tylko aktualnie rzucający (tylko host może zmieniać).
-            {hasTempGuests ? ' Gracze tymczasowi wymagają trybu „na 1 urządzeniu”.' : ''}
-          </Text>
+          { hasTempGuests && 
+              <Text style={styles.hintSmall}>
+                Wybierz tryb rozgrywki meczu (tylko host może zmieniać)
+              </Text>
+          }
           <View style={styles.gameTypeRow}>
             <Pressable
               style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnActive]}
@@ -559,9 +588,9 @@ const QuickGameLobby = ({ navigation, route }) => {
               })}
             </>
           )}
-          {isHost && invitations.length === 0 && players.length < 2 && (
+          {/* {isHost && invitations.length === 0 && players.length < 2 && (
             <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego (bez konta).</Text>
-          )}
+          )} */}
         </View>
       </>
     );
@@ -771,7 +800,6 @@ const QuickGameLobby = ({ navigation, route }) => {
               {listData.length === 0 ? (
                 <View style={styles.emptyPlayersBox}>
                   <Text style={styles.emptyPlayersText}>Jeszcze brak graczy w lobby.</Text>
-                  <Text style={styles.hintSmall}>Zaproś znajomych lub dodaj gracza tymczasowego.</Text>
                 </View>
               ) : (
                 <View style={styles.playersList}>
@@ -840,6 +868,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
+    marginBottom: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -869,7 +898,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
   },
-  bo3Value: {
+  formatValue: {
     fontSize: 16,
     color: '#363062',
     fontWeight: '600',
@@ -929,13 +958,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   dragHandle: {
-    padding: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginLeft: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dragHandleText: {
-    fontSize: 20,
+    fontSize: 26,
     color: '#F99417',
     fontWeight: '700',
+    lineHeight: 28,
   },
   input: {
     marginBottom: 4,

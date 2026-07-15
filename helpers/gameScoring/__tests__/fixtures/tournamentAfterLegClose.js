@@ -4,10 +4,16 @@ export const tournamentAfterLegClose = {
 		kind: 'group',
 		status: 'in_progress',
 		tournamentId: 10,
-		legsToWin: 2,
 		player1LegsWon: 1,
 		player2LegsWon: 0,
 		startingScore: 501,
+		matchFormat: {
+			startingScore: 501,
+			legsToWinSet: 2,
+			setsToWinMatch: 1,
+			gameType: 'x01',
+			outRule: 'double_out',
+		},
 	},
 	players: [
 		{

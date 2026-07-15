@@ -5,10 +5,17 @@ import {
 } from '../apiConfig';
 import { GAME_MODE } from './resolveGameContext.js';
 
-export function findWinnerIndex(playerStates, legsToWin) {
-	const legsWonArr = playerStates.map((s) => s.legsWon ?? 0);
-	const winnerIdx = legsWonArr.findIndex((l) => l >= legsToWin);
-	return winnerIdx >= 0 ? winnerIdx : 0;
+import {
+	findWinnerIndex as findWinnerIndexByFormat,
+	isMatchWon,
+	normalizeMatchFormat,
+} from '../matchFormat/matchFormat.js';
+import { matchScoreForDisplay } from '../matchFormat/matchFormatScoring.js';
+
+export function findWinnerIndex(playerStates, matchFormat) {
+	const format = normalizeMatchFormat(matchFormat);
+	const idx = findWinnerIndexByFormat(playerStates, format);
+	return idx >= 0 ? idx : -1;
 }
 
 export function mapAchievementsForQuick(achievementsState) {
@@ -35,12 +42,14 @@ export async function sendTournamentAchievements({
 	playerStates,
 	N,
 	achievements,
+	matchFormat,
 }) {
 	if (!activeGame?.id || !achievements?.length || !accessToken) {
 		return;
 	}
 
-	const winnerIdx = findWinnerIndex(playerStates, 2);
+	const format = normalizeMatchFormat(matchFormat ?? { legsToWinSet: 2 });
+	const winnerIdx = findWinnerIndex(playerStates, format);
 	const winner = players[winnerIdx] ?? players[0];
 
 	const gameResultDTO = {
@@ -49,8 +58,8 @@ export async function sendTournamentAchievements({
 			type: activeGame.type,
 			player1Id: players[0]?.playerId ?? players[0]?.id,
 			player2Id: players[1]?.playerId ?? players[1]?.id,
-			player1Score: playerStates[0]?.legsWon ?? 0,
-			player2Score: playerStates[1]?.legsWon ?? 0,
+			player1Score: matchScoreForDisplay(playerStates[0], format),
+			player2Score: matchScoreForDisplay(playerStates[1], format),
 			winnerId: winner?.playerId ?? winner?.id,
 			tournamentId: activeGame.tournamentId,
 			groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
@@ -122,18 +131,15 @@ export function showTrainingFinishedAlert(winnerName) {
 	);
 }
 
-export function tournamentLegsToWin() {
-	return 2;
-}
-
 export function shouldHandleLocalTrainingWin({
 	mode,
 	syncEnabled,
 	playerStates,
-	legsToWin,
+	matchFormat,
 }) {
 	if (mode !== GAME_MODE.TRAINING || syncEnabled) {
 		return false;
 	}
-	return playerStates.some((s) => (s.legsWon ?? 0) >= legsToWin);
+	const format = normalizeMatchFormat(matchFormat);
+	return playerStates.some((s) => isMatchWon(s, format));
 }

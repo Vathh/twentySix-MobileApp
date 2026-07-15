@@ -1,3 +1,4 @@
+import { normalizeMatchFormat } from '../matchFormat/matchFormat.js';
 import {
 	getGroupGameScoringBaseUrl,
 	getPlayoffGameScoringBaseUrl,
@@ -61,7 +62,7 @@ export function resolveGameContext(routeParams, auth) {
 	const lobbyId = quickGame?.lobbyId ?? null;
 	const lobbyScoringMode = matchConfig?.scoringMode ?? 'each_own';
 	const isHost = matchConfig?.isHost ?? true;
-	const legsToWin = matchConfig?.legsCount ?? 2;
+	const matchFormat = normalizeMatchFormat(matchConfig?.matchFormat);
 
 	const players = isTraining || isQuick
 		? mapQuickPlayers(matchConfig?.players)
@@ -78,7 +79,9 @@ export function resolveGameContext(routeParams, auth) {
 	const hasOnlineQuick =
 		isQuick &&
 		!!lobbyId &&
-		(quickGame?.gameType === '501' || quickGame?.gameType === undefined);
+		(quickGame?.gameType === '501'
+			|| quickGame?.gameType === 'x01'
+			|| quickGame?.gameType === undefined);
 	const accessToken = auth?.accessToken ?? null;
 
 	let transport = null;
@@ -131,7 +134,7 @@ export function resolveGameContext(routeParams, auth) {
 		showStartModal,
 		players,
 		N,
-		legsToWin,
+		matchFormat,
 		transport,
 		reloadKey,
 		lobbyScoringMode,

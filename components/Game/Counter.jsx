@@ -3,6 +3,12 @@ import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
 import { SCORING_MODES } from '../../hooks/useGameSettings'
 import { formatAverage, hasAverage } from '../../helpers/formatAverage'
 import { formatDartLabel } from '../../helpers/formatDartLabel'
+import { isSingleSetFormat, normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat'
+import {
+  legScoreInSetForDisplay,
+  matchScoreForDisplay,
+  scoreUnitLabel,
+} from '../../helpers/matchFormat/matchFormatScoring'
 
 const PER_DART_ACCENT = '#B8D9F0';
 
@@ -23,11 +29,15 @@ const Counter = ({
   submitting = false,
   gameClosed = false,
   localVisitRemaining = null,
+  matchFormat = null,
   /** Tryb jednego urządzenia — widok tylko do odczytu (bez komunikatu o kolejce). */
   oneDeviceSpectator = false,
   /** false = ukryj nakładkę „Czekaj na swoją kolejkę” (np. podczas ładowania openera). */
   showWaitingOverlay = true,
 }) => {
+  const format = normalizeMatchFormat(matchFormat);
+  const unitLabel = scoreUnitLabel(format);
+  const multiSet = !isSingleSetFormat(format);
   const N = players?.length ?? 0;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
@@ -386,9 +396,16 @@ const Counter = ({
             <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
           </View>
           <View style={styles.legsContainer}>
-            <Text style={styles.legsResultText}>{s0?.legsWon ?? 0}</Text>
-            <Text style={styles.legsText}>legi</Text>
-            <Text style={styles.legsResultText}>{s1?.legsWon ?? 0}</Text>
+            <Text style={styles.legsResultText}>{matchScoreForDisplay(s0, format)}</Text>
+            <View style={styles.legsCenterColumn}>
+              <Text style={styles.legsText}>{unitLabel}</Text>
+              {multiSet ? (
+                <Text style={styles.legsSubText}>
+                  {legScoreInSetForDisplay(s0)}:{legScoreInSetForDisplay(s1)} legi
+                </Text>
+              ) : null}
+            </View>
+            <Text style={styles.legsResultText}>{matchScoreForDisplay(s1, format)}</Text>
           </View>
           <View style={styles.player2Container}>
             <Text style={styles.playerText}>({s1?.dartsThrown ?? 0}) {p1?.name ?? 'Gracz'}</Text>
@@ -487,7 +504,10 @@ const Counter = ({
                 <Text style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}>
                   {st?.score ?? 501}
                 </Text>
-                <Text style={styles.multiLegs}>{st?.legsWon ?? 0} legi</Text>
+                <Text style={styles.multiLegs}>
+                  {matchScoreForDisplay(st, format)} {unitLabel}
+                  {multiSet ? ` · ${legScoreInSetForDisplay(st)} legi` : ''}
+                </Text>
               </View>
               <View style={styles.multiRowRight}>
                 <Text style={styles.multiAvg}>ms: {hasAverage(st?.matchAverage) ? formatAverage(st.matchAverage) : '-'}</Text>
@@ -585,11 +605,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
+  legsCenterColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   legsText: {
     marginLeft: 15,
     marginRight: 15,
     fontSize: 20,
     color: '#c5c5c5'
+  },
+  legsSubText: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#888',
   },
   legsResultText: {
     fontSize: 28,

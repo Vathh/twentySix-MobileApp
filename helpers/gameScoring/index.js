@@ -26,8 +26,9 @@ export {
 	shouldHandleLocalTrainingWin,
 	showGameFinishedAlert,
 	showTrainingFinishedAlert,
-	tournamentLegsToWin,
 } from './postGame.js';
+export { createOfflineVisitFlow } from './offlineVisitFlow.js';
+export { createOnlineVisitFlow } from './onlineVisitFlow.js';
 export { GAME_MODE, resolveGameContext } from './resolveGameContext.js';
 export {
 	createFfaTransport,

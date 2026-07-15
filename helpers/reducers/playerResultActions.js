@@ -10,12 +10,15 @@ export const UNDO_SINGLE_DART = 'UNDO_SINGLE_DART';
 export const UNDO_COMMITTED_VISIT_DART = 'UNDO_COMMITTED_VISIT_DART';
 export const LEG_WIN = 'LEG_WIN';
 export const LEG_LOSE = 'LEG_LOSE';
+export const RESET_LEGS_IN_SET = 'RESET_LEGS_IN_SET';
 export const UNDO = 'UNDO';
 export const UNDO_LAST_VISIT = 'UNDO_LAST_VISIT';
 
 export const syncFromServer = ({
   score,
   legsWon,
+  legsWonInSet,
+  setsWon,
   matchAverage,
   currentLegAverage,
   currentLegScores,
@@ -29,6 +32,8 @@ export const syncFromServer = ({
   type: SYNC_FROM_SERVER,
   score,
   legsWon,
+  legsWonInSet,
+  setsWon,
   matchAverage,
   currentLegAverage,
   currentLegScores,
@@ -81,13 +86,18 @@ export const undoCommittedVisitDart = (points) => ({
   points,
 });
 
-export const legWin = (throws) => ({
+export const legWin = (throws, matchFormat = null) => ({
   type: LEG_WIN,
-  throws: throws
+  throws,
+  matchFormat,
 });
 
 export const legLose = () => ({
   type: LEG_LOSE
+});
+
+export const resetLegsInSet = () => ({
+  type: RESET_LEGS_IN_SET,
 });
 
 export const undo = () => ({
@@ -99,18 +109,26 @@ export const undoLastVisit = (visitScore) => ({
   visitScore,
 });
 
-export const initialPlayerResultState = {
-  score: 501,
-  legsWon: 0,
-  totalPointsEarned: 0,
-  totalDartsThrown: 0,
-  matchAverage: 0,
-  dartsThrown: 0,
-  currentLegScores: [],
-  currentLegAverage: 0,
-  dartsPerLeg: [],
-  legsAverages: [],
-  legByLegScores: [],
-  currentVisitDartLabels: [],
-  lastVisitDartLabels: [],
-};
+export function createInitialPlayerResultState(startingScore = 501) {
+  return {
+    startingScore,
+    score: startingScore,
+    legsWon: 0,
+    legsWonInSet: 0,
+    setsWon: 0,
+    totalPointsEarned: 0,
+    totalDartsThrown: 0,
+    matchAverage: 0,
+    dartsThrown: 0,
+    currentLegScores: [],
+    currentLegAverage: 0,
+    dartsPerLeg: [],
+    legsAverages: [],
+    legByLegScores: [],
+    currentVisitDartLabels: [],
+    lastVisitDartLabels: [],
+  };
+}
+
+/** @deprecated prefer createInitialPlayerResultState */
+export const initialPlayerResultState = createInitialPlayerResultState();

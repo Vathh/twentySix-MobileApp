@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
 	Pressable,
 	ScrollView,
@@ -7,14 +7,24 @@ import {
 	TextInput,
 	View,
 } from 'react-native';
+import MatchFormatPicker, { DEFAULT_MATCH_FORMAT } from './MatchFormatPicker';
+import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
+import {
+	loadPersistedMatchFormat,
+	savePersistedMatchFormat,
+} from '../../helpers/matchFormat/persistMatchFormat';
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 8;
-const DEFAULT_LEGS_TO_WIN = 2;
 
 const TrainingMatchSetup = ({ navigation }) => {
 	const [playerCount, setPlayerCount] = useState(2);
 	const [names, setNames] = useState(['Gracz 1', 'Gracz 2']);
+	const [matchFormat, setMatchFormat] = useState(DEFAULT_MATCH_FORMAT);
+
+	useEffect(() => {
+		loadPersistedMatchFormat('training').then(setMatchFormat);
+	}, []);
 
 	const trimmedNames = useMemo(
 		() =>
@@ -45,7 +55,10 @@ const TrainingMatchSetup = ({ navigation }) => {
 		});
 	};
 
-	const startTraining = () => {
+	const startTraining = async () => {
+		const format = normalizeMatchFormat(matchFormat);
+		await savePersistedMatchFormat('training', format);
+
 		const players = trimmedNames.map((name, i) => ({
 			id: i + 1,
 			name,
@@ -55,8 +68,8 @@ const TrainingMatchSetup = ({ navigation }) => {
 		navigation.navigate('GameScoring', {
 			trainingGame: {
 				players,
-				legsCount: DEFAULT_LEGS_TO_WIN,
-				gameType: '501',
+				matchFormat: format,
+				gameType: format.gameType,
 				scoringMode: 'one_device',
 				isHost: true,
 				myPlayerIndex: 0,
@@ -114,8 +127,10 @@ const TrainingMatchSetup = ({ navigation }) => {
 			</View>
 
 			<View style={styles.section}>
-				<Text style={styles.label}>Format</Text>
-				<Text style={styles.formatText}>501 double out · BO3 (pierwszy do 2 legów)</Text>
+				<MatchFormatPicker
+					value={matchFormat}
+					onChange={setMatchFormat}
+				/>
 			</View>
 
 			<Pressable style={styles.startBtn} onPress={startTraining}>
@@ -206,10 +221,6 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		color: '#363062',
 		marginBottom: 8,
-	},
-	formatText: {
-		fontSize: 15,
-		color: '#c5c5c5',
 	},
 	startBtn: {
 		backgroundColor: '#F99417',

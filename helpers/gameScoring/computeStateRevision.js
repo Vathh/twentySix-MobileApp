@@ -54,12 +54,21 @@ export function computeFfaStateRevision(state) {
 			Math.min(v.score ?? 0, 180);
 	});
 
-	const legsToWin = state.session?.legsToWin ?? state.game?.legsToWin ?? 0;
+	const legsToWinSet =
+		state.session?.matchFormat?.legsToWinSet
+		?? state.session?.legsToWinSet
+		?? state.game?.matchFormat?.legsToWinSet
+		?? 0;
+	const setsToWinMatch =
+		state.session?.matchFormat?.setsToWinMatch
+		?? state.session?.setsToWinMatch
+		?? state.game?.matchFormat?.setsToWinMatch
+		?? 0;
 	const maxLegsWon = (state.players ?? []).reduce(
 		(max, p) => Math.max(max, p.legsWon ?? 0),
 		0,
 	);
-	rev += maxLegsWon * 10_000 + legsToWin;
+	rev += maxLegsWon * 10_000 + legsToWinSet + setsToWinMatch * 100;
 
 	if (state.session?.status === 'finished' || state.game?.status === 'finished') {
 		rev += 999_999_999;
@@ -87,7 +96,8 @@ export function computeStateRevision(state) {
 	}
 
 	let rev = (state.currentLeg?.id ?? 0) * 1_000_000;
-	rev += (state.meta?.legsToWin ?? 0) * 100;
+	rev += (state.meta?.matchFormat?.legsToWinSet ?? 0) * 100;
+	rev += (state.meta?.matchFormat?.setsToWinMatch ?? 0) * 50;
 	rev += (state.turn?.legNumber ?? 0) * 10;
 
 	const visits = state.visits ?? [];

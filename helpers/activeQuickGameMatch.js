@@ -46,8 +46,8 @@ export function buildGameScoringParamsFromActiveMatch(match) {
 		quickGame: {
 			players,
 			lobbyId: match.lobbyId,
-			legsCount: match.legsCount ?? 2,
-			gameType: match.gameType ?? '501',
+			matchFormat: match.matchFormat,
+			gameType: match.gameType ?? 'x01',
 			scoringMode: match.scoringMode ?? 'each_own',
 			isHost: !!match.isHost,
 			myPlayerIndex: match.myPlayerIndex ?? 0,

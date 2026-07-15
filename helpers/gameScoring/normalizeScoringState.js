@@ -5,6 +5,7 @@ import {
 } from './computeStateRevision.js';
 import { inferCurrentPlayerIndex } from './inferCurrentPlayerIndex.js';
 import { pid } from './pid.js';
+import { normalizeMatchFormat } from '../matchFormat/matchFormat.js';
 
 const TOURNAMENT_KIND_MAP = {
 	group: 'tournament_group',
@@ -18,6 +19,8 @@ function mapTournamentPlayer(sp) {
 		name: sp.name ?? 'Gracz',
 		remaining: sp.remaining ?? 501,
 		legsWon: sp.legsWon ?? 0,
+		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
+		setsWon: sp.setsWon ?? 0,
 		gameAverage: sp.gameAverage ?? null,
 		legAverage: sp.legAverage ?? null,
 		legByLegScores: sp.legByLegScores ?? [],
@@ -34,6 +37,8 @@ function mapFfaPlayer(sp) {
 		name: sp.name ?? 'Gracz',
 		remaining: sp.remaining ?? 501,
 		legsWon: sp.legsWon ?? 0,
+		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
+		setsWon: sp.setsWon ?? 0,
 		gameAverage: sp.gameAverage ?? null,
 		legAverage: sp.legAverage ?? null,
 		legByLegScores: sp.legByLegScores ?? [],
@@ -89,13 +94,20 @@ export function fromTournamentState(raw, uiPlayers = []) {
 		legNumber: legNumber ?? 0,
 	};
 
+	const matchFormat = normalizeMatchFormat(
+		raw.game?.matchFormat ?? raw.meta?.matchFormat ?? {
+			startingScore: raw.game?.startingScore,
+		},
+	);
+
 	return {
 		format: 'h2h',
 		revision: computeTournamentStateRevision(raw),
 		meta: {
 			kind: tournamentMetaKind(raw),
-			legsToWin: raw.game?.legsToWin ?? 2,
-			startingScore: raw.game?.startingScore ?? 501,
+			matchFormat,
+			startingScore: matchFormat.startingScore,
+			currentSetNumber: raw.game?.currentSetNumber ?? 1,
 			gameId: raw.game?.id ?? null,
 			lobbyId: null,
 			tournamentId: raw.game?.tournamentId ?? null,
@@ -153,13 +165,22 @@ export function fromFfaState(raw, uiPlayers = []) {
 		legNumber,
 	};
 
+	const matchFormat = normalizeMatchFormat(
+		session.matchFormat ?? raw.game?.matchFormat ?? {
+			startingScore: session.startingScore,
+			legsToWinSet: session.legsToWinSet,
+			setsToWinMatch: session.setsToWinMatch,
+		},
+	);
+
 	return {
 		format: 'ffa',
 		revision: computeFfaStateRevision(raw),
 		meta: {
 			kind: 'quick_ffa',
-			legsToWin: session.legsToWin ?? raw.game?.legsToWin ?? 2,
-			startingScore: session.startingScore ?? raw.game?.startingScore ?? 501,
+			matchFormat,
+			startingScore: matchFormat.startingScore,
+			currentSetNumber: session.currentSetNumber ?? 1,
 			gameId: raw.game?.id ?? null,
 			lobbyId: session.lobbyId ?? null,
 			tournamentId: null,

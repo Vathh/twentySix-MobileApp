@@ -6,6 +6,7 @@ import {
 	isNormalizedScoringState,
 	normalizeScoringState,
 } from './normalizeScoringState.js';
+import { isSingleSetFormat } from '../matchFormat/matchFormat.js';
 import { pid } from './pid.js';
 import { isVisitComplete } from './visitUtils.js';
 
@@ -26,6 +27,8 @@ function buildH2hPlayerSync(sp, openLegVisits) {
 	return {
 		score: sp.remaining ?? 501,
 		legsWon: sp.legsWon ?? 0,
+		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
+		setsWon: sp.setsWon ?? 0,
 		matchAverage:
 			sp.gameAverage != null ? Number(sp.gameAverage).toFixed(2) : undefined,
 		currentLegAverage: noLegActivity
@@ -55,6 +58,8 @@ function buildFfaPlayerSync(sp, visits) {
 	return {
 		score: sp.remaining ?? 501,
 		legsWon: sp.legsWon ?? 0,
+		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
+		setsWon: sp.setsWon ?? 0,
 		matchAverage: sp.gameAverage ?? null,
 		currentLegAverage: sp.legAverage ?? null,
 		currentLegScores: partialVisit ? undefined : currentLegScores,
@@ -108,6 +113,8 @@ function syncPlayersH2h(state, ctx) {
 		prevLegNumber != null &&
 		legNumber > prevLegNumber;
 	const matchFinished = state.meta?.status === 'finished';
+	const matchFormat = state.meta?.matchFormat ?? null;
+	const singleSet = !matchFormat || isSingleSetFormat(matchFormat);
 
 	state.players.forEach((sp) => {
 		const spId = pid(sp.playerId);
@@ -125,7 +132,10 @@ function syncPlayersH2h(state, ctx) {
 		let dartsPerLeg = prev?.dartsPerLeg ?? [];
 
 		if (prev) {
-			const wonLeg = snap.legsWon > prev.legsWon;
+			const wonLeg = singleSet
+				? snap.legsWon > (prev.legsWon ?? 0)
+				: (snap.legsWonInSet ?? 0) > (prev.legsWonInSet ?? 0)
+					|| (snap.setsWon ?? 0) > (prev.setsWon ?? 0);
 			const legEndedForLoser =
 				legAdvanced ||
 				(matchFinished &&
@@ -158,6 +168,8 @@ function syncPlayersH2h(state, ctx) {
 		if (lastPlayerSnapRef) {
 			lastPlayerSnapRef.current[spId] = {
 				legsWon: snap.legsWon,
+				legsWonInSet: snap.legsWonInSet,
+				setsWon: snap.setsWon,
 				currentLegScores: snap.currentLegScores,
 				currentLegAverage: snap.currentLegAverage,
 				dartsThrown: snap.dartsThrown,

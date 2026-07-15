@@ -36,6 +36,7 @@ export function useGameScoring({
 	onFinishedQuickGameId,
 	reloadKey = null,
 	onStateLoaded = null,
+	onMatchFormat = null,
 }) {
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
@@ -62,6 +63,7 @@ export function useGameScoring({
 		transport,
 		isPerDartMode,
 		onFinishedQuickGameId,
+		onMatchFormat,
 	};
 
 	const realtimeConfig = useMemo(
@@ -88,6 +90,9 @@ export function useGameScoring({
 					legs: Array.isArray(state.legs) ? state.legs : [],
 					turn: normalized?.turn ?? null,
 				};
+				if (normalized?.meta?.matchFormat) {
+					sync.onMatchFormat?.(normalized.meta.matchFormat);
+				}
 			}
 			const result = applyGameScoringState(state, {
 				players: sync.players,

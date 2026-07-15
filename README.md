@@ -4,8 +4,10 @@ Aplikacja mobilna **twentySix** (React Native / Expo): sędziowanie turniejów, 
 
 ## Dokumentacja
 
-- **Wizja produktu:** `../twentysix-backend/docs/product.md`
-- **Logika biznesowa:** `../twentysix-backend/LOGIKA_BIZNESOWA.md`
+- **Wizja produktu:** [`../twentysix-backend/docs/product.md`](../twentysix-backend/docs/product.md)
+- **Co robić dalej:** [`../twentysix-backend/docs/NEXT_STEPS.md`](../twentysix-backend/docs/NEXT_STEPS.md)
+- **Indeks docs (backend):** [`../twentysix-backend/docs/README.md`](../twentysix-backend/docs/README.md)
+- **Logika biznesowa:** [`../twentysix-backend/LOGIKA_BIZNESOWA.md`](../twentysix-backend/LOGIKA_BIZNESOWA.md)
 - **Stan implementacji vs MVP:** [`IMPLEMENTED_FEATURES.md`](IMPLEMENTED_FEATURES.md)
 
 ## Uruchomienie

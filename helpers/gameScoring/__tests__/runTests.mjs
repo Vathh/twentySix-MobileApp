@@ -13,6 +13,12 @@ import { tournamentAfterLegClose } from './fixtures/tournamentAfterLegClose.js';
 import { ffaAfterVisit } from './fixtures/ffaAfterVisit.js';
 import { ffaPartialVisit } from './fixtures/ffaPartialVisit.js';
 import { evaluatePerDartVisitAfterDart } from '../../perDartVisitRules.js';
+import {
+	applyLegWinScores,
+	matchScoreForDisplay,
+	wouldCloseSet,
+} from '../../matchFormat/matchFormatScoring.js';
+import { isMatchWon } from '../../matchFormat/matchFormat.js';
 
 function assert(condition, message) {
 	if (!condition) {
@@ -27,7 +33,7 @@ function testNormalizeTournament() {
 	]);
 	assert(normalized.format === 'h2h', 'format h2h');
 	assert(normalized.meta.kind === 'tournament_group', 'kind group');
-	assert(normalized.meta.legsToWin === 2, 'legsToWin');
+	assert(normalized.meta.matchFormat.legsToWinSet === 2, 'matchFormat.legsToWinSet');
 	assert(normalized.players.length === 2, 'two players');
 	assert(normalized.visits.length === 1, 'one visit');
 	assert(normalized.turn.currentPlayerIndex === 1, 'next player after complete visit');
@@ -135,10 +141,16 @@ function testApplyH2hArchivesLoserLegScoresOnNewLeg() {
 			id: 1,
 			kind: 'group',
 			status: 'in_progress',
-			legsToWin: 2,
 			player1LegsWon: 0,
 			player2LegsWon: 0,
 			startingScore: 501,
+			matchFormat: {
+				startingScore: 501,
+				legsToWinSet: 2,
+				setsToWinMatch: 1,
+				gameType: 'x01',
+				outRule: 'double_out',
+			},
 		},
 		players: [
 			{
@@ -310,7 +322,13 @@ function testUnifiedApiPayload() {
 		meta: {
 			kind: 'quick_ffa',
 			lobbyId: 5,
-			legsToWin: 2,
+			matchFormat: {
+				startingScore: 501,
+				legsToWinSet: 2,
+				setsToWinMatch: 1,
+				gameType: 'x01',
+				outRule: 'double_out',
+			},
 			status: 'in_progress',
 		},
 		turn: {
@@ -382,8 +400,14 @@ function testCheckoutLegAverageIncludesClosingVisit() {
 			status: 'in_progress',
 			player1LegsWon: 1,
 			player2LegsWon: 0,
-			legsToWin: 2,
 			startingScore: 501,
+			matchFormat: {
+				startingScore: 501,
+				legsToWinSet: 2,
+				setsToWinMatch: 1,
+				gameType: 'x01',
+				outRule: 'double_out',
+			},
 		},
 		players: [
 			{
@@ -447,6 +471,19 @@ function testPerDartBustRules() {
 	assert(leaveOne.bust && !leaveOne.checkout, 'leaving 1 is bust');
 }
 
+function testMatchFormatOfflineScoring() {
+	const format = { startingScore: 501, legsToWinSet: 2, setsToWinMatch: 2, gameType: 'x01' };
+	let state = { legsWon: 0, legsWonInSet: 1, setsWon: 0 };
+	assert(wouldCloseSet(state, format), 'second leg closes set');
+	state = applyLegWinScores(state, format);
+	assert(state.setsWon === 1, 'one set won');
+	assert(state.legsWonInSet === 0, 'legs reset after set');
+	assert(matchScoreForDisplay(state, format) === 1, 'display shows sets');
+	state = applyLegWinScores(state, format);
+	state = applyLegWinScores(state, format);
+	assert(isMatchWon(state, format), 'match won after two sets');
+}
+
 const tests = [
 	['normalize tournament', testNormalizeTournament],
 	['tournament revision fast visits', testTournamentRevisionMonotonicOnFastVisits],
@@ -460,6 +497,7 @@ const tests = [
 	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],
 	['unified API payload', testUnifiedApiPayload],
 	['per-dart bust rules', testPerDartBustRules],
+	['offline multi-set scoring', testMatchFormatOfflineScoring],
 ];
 
 let passed = 0;
