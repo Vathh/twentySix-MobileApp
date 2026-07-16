@@ -739,14 +739,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,.3)'
   },
   undoBtn: {
     paddingRight: 10,
-    backgroundColor: 'rgba(0,0,0,.4)',
-    flex: 1,
     paddingLeft: 10,
-    justifyContent: 'center'
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(0,0,0,.4)',
+    justifyContent: 'center',
   },
   undoText: {
     fontSize: 18,

@@ -1,11 +1,17 @@
 /**
  * Komunikaty banera obecności FFA (tylko przeciwnicy, nie ja).
+ * W trybie „na 1 urządzeniu” nie pokazujemy nic — reszta telefonów nie jest używana.
  *
  * @param {Array<{ playerId: number, name: string, status: string }>|null|undefined} presence
  * @param {number|null|undefined} myPlayerId
+ * @param {{ scoringMode?: string|null }} [options]
  * @returns {string[]}
  */
-export function buildFfaPresenceBannerMessages(presence, myPlayerId) {
+export function buildFfaPresenceBannerMessages(presence, myPlayerId, options = {}) {
+	if (options.scoringMode === 'one_device') {
+		return [];
+	}
+
 	if (!Array.isArray(presence) || presence.length === 0) {
 		return [];
 	}

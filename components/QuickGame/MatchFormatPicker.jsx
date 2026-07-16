@@ -7,6 +7,41 @@ import {
 	normalizeMatchFormat,
 } from '../../helpers/matchFormat/matchFormat';
 
+const LEGS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+const SETS_OPTIONS = [1, 2, 3];
+
+function stepInOptions(options, current, delta) {
+	const idx = options.indexOf(current);
+	const safeIdx = idx >= 0 ? idx : 0;
+	const nextIdx = Math.min(options.length - 1, Math.max(0, safeIdx + delta));
+	return options[nextIdx];
+}
+
+function Stepper({ label, value, onDecrement, onIncrement, disabled }) {
+	return (
+		<View style={styles.stepperBlock}>
+			<Text style={styles.label}>{label}</Text>
+			<View style={styles.countRow}>
+				<Pressable
+					style={[styles.countBtn, disabled && styles.countBtnDisabled]}
+					onPress={onDecrement}
+					disabled={disabled}
+				>
+					<Text style={styles.countBtnText}>−</Text>
+				</Pressable>
+				<Text style={styles.countValue}>{value}</Text>
+				<Pressable
+					style={[styles.countBtn, disabled && styles.countBtnDisabled]}
+					onPress={onIncrement}
+					disabled={disabled}
+				>
+					<Text style={styles.countBtnText}>+</Text>
+				</Pressable>
+			</View>
+		</View>
+	);
+}
+
 export default function MatchFormatPicker({ value, onChange, disabled = false }) {
 	const format = normalizeMatchFormat(value);
 
@@ -17,77 +52,61 @@ export default function MatchFormatPicker({ value, onChange, disabled = false })
 			<Text style={styles.sectionLabel}>Format gry</Text>
 			<Text style={styles.preview}>{formatMatchLabel(format)}</Text>
 
-			<Text style={styles.label}>Punkty startowe</Text>
-			<View style={styles.rowWrap}>
-				{STARTING_SCORE_OPTIONS.map((score) => (
-					<Pressable
-						key={score}
-						disabled={disabled}
-						style={[
-							styles.chip,
-							format.startingScore === score && styles.chipActive,
-						]}
-						onPress={() => setField({ startingScore: score })}
-					>
-						<Text
-							style={[
-								styles.chipText,
-								format.startingScore === score && styles.chipTextActive,
-							]}
-						>
-							{score}
-						</Text>
-					</Pressable>
-				))}
-			</View>
+			<Stepper
+				label="Punkty startowe"
+				value={format.startingScore}
+				disabled={disabled}
+				onDecrement={() =>
+					setField({
+						startingScore: stepInOptions(
+							STARTING_SCORE_OPTIONS,
+							format.startingScore,
+							-1,
+						),
+					})
+				}
+				onIncrement={() =>
+					setField({
+						startingScore: stepInOptions(
+							STARTING_SCORE_OPTIONS,
+							format.startingScore,
+							1,
+						),
+					})
+				}
+			/>
 
-			<Text style={styles.label}>Legi do wygrania seta</Text>
-			<View style={styles.rowWrap}>
-				{[1, 2, 3, 4, 5].map((n) => (
-					<Pressable
-						key={n}
-						disabled={disabled}
-						style={[
-							styles.chip,
-							format.legsToWinSet === n && styles.chipActive,
-						]}
-						onPress={() => setField({ legsToWinSet: n })}
-					>
-						<Text
-							style={[
-								styles.chipText,
-								format.legsToWinSet === n && styles.chipTextActive,
-							]}
-						>
-							{n}
-						</Text>
-					</Pressable>
-				))}
-			</View>
+			<Stepper
+				label="Legi do wygrania seta"
+				value={format.legsToWinSet}
+				disabled={disabled}
+				onDecrement={() =>
+					setField({
+						legsToWinSet: stepInOptions(LEGS_OPTIONS, format.legsToWinSet, -1),
+					})
+				}
+				onIncrement={() =>
+					setField({
+						legsToWinSet: stepInOptions(LEGS_OPTIONS, format.legsToWinSet, 1),
+					})
+				}
+			/>
 
-			<Text style={styles.label}>Sety do wygrania meczu</Text>
-			<View style={styles.rowWrap}>
-				{[1, 2, 3].map((n) => (
-					<Pressable
-						key={n}
-						disabled={disabled}
-						style={[
-							styles.chip,
-							format.setsToWinMatch === n && styles.chipActive,
-						]}
-						onPress={() => setField({ setsToWinMatch: n })}
-					>
-						<Text
-							style={[
-								styles.chipText,
-								format.setsToWinMatch === n && styles.chipTextActive,
-							]}
-						>
-							{n}
-						</Text>
-					</Pressable>
-				))}
-			</View>
+			<Stepper
+				label="Sety do wygrania meczu"
+				value={format.setsToWinMatch}
+				disabled={disabled}
+				onDecrement={() =>
+					setField({
+						setsToWinMatch: stepInOptions(SETS_OPTIONS, format.setsToWinMatch, -1),
+					})
+				}
+				onIncrement={() =>
+					setField({
+						setsToWinMatch: stepInOptions(SETS_OPTIONS, format.setsToWinMatch, 1),
+					})
+				}
+			/>
 		</View>
 	);
 }
@@ -96,17 +115,56 @@ export { DEFAULT_MATCH_FORMAT };
 
 const styles = StyleSheet.create({
 	wrap: { marginBottom: 16 },
-	sectionLabel: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-	preview: { fontSize: 14, color: '#666', marginBottom: 12 },
-	label: { fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 8 },
-	rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-	chip: {
-		paddingHorizontal: 12,
-		paddingVertical: 8,
-		borderRadius: 8,
-		backgroundColor: '#eee',
+	sectionLabel: {
+		fontSize: 18,
+		fontWeight: '600',
+		marginBottom: 6,
+		color: '#f5f5f5',
+		textAlign: 'center',
 	},
-	chipActive: { backgroundColor: '#1a1a2e' },
-	chipText: { fontSize: 14, color: '#333' },
-	chipTextActive: { color: '#fff', fontWeight: '600' },
+	preview: {
+		fontSize: 16,
+		color: '#F99417',
+		marginBottom: 12,
+		textAlign: 'center',
+		fontWeight: '500',
+	},
+	stepperBlock: {
+		marginTop: 8,
+		marginBottom: 4,
+	},
+	label: {
+		fontSize: 14,
+		fontWeight: '500',
+		marginBottom: 14,
+		color: '#f5f5f5',
+	},
+	countRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 20,
+	},
+	countBtn: {
+		width: 44,
+		height: 44,
+		borderRadius: 8,
+		backgroundColor: '#f5f5f5cc',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	countBtnDisabled: {
+		opacity: 0.4,
+	},
+	countBtnText: {
+		fontSize: 24,
+		color: '#363062',
+		fontWeight: '600',
+	},
+	countValue: {
+		fontSize: 28,
+		color: '#F99417',
+		minWidth: 64,
+		textAlign: 'center',
+	},
 });

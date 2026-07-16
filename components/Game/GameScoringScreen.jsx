@@ -391,8 +391,11 @@ const GameScoringScreen = ({ route, navigation }) => {
 	}, [myPlayerIndex, players]);
 
 	const presenceBannerMessages = useMemo(
-		() => buildFfaPresenceBannerMessages(ffaPresence, myPlayerId),
-		[ffaPresence, myPlayerId],
+		() =>
+			buildFfaPresenceBannerMessages(ffaPresence, myPlayerId, {
+				scoringMode: lobbyScoringMode,
+			}),
+		[ffaPresence, myPlayerId, lobbyScoringMode],
 	);
 
 	const counterOneDeviceSpectator = useMemo(
@@ -978,13 +981,16 @@ const GameScoringScreen = ({ route, navigation }) => {
 		}
 
 		const idx = pending.idx ?? currentPlayerIndexRef.current;
-		checkoutClosingRef.current = true;
+		// Najpierw czyścimy pending — chroni przed podwójnym kliknięciem lotki.
+		// checkoutClosingRef ustawia ścieżka online albo finishOfflineLegWin (offline),
+		// żeby nie blokować finishOfflineLegWin własnym early-return.
 		pendingCheckoutRef.current = null;
 		setIsQFModalVisible(false);
 		setCheckoutModalPlayer(null);
 		beginScoringBusy('Zamykanie lega…');
 
 		if (syncEnabled) {
+			checkoutClosingRef.current = true;
 			const visitScore = pending.visitScore ?? playerStates[idx]?.score ?? startingScore;
 			const visitOpts = {
 				...(pending.visitOpts ?? {}),
@@ -1009,8 +1015,15 @@ const GameScoringScreen = ({ route, navigation }) => {
 			return;
 		}
 
-		offlineVisit.finishOfflineLegWin(idx, dartNumber);
-		endScoringBusy();
+		try {
+			offlineVisit.finishOfflineLegWin(idx, dartNumber);
+			setCurrentResult(0);
+			setResultEdited(false);
+		} finally {
+			checkoutClosingRef.current = false;
+			okHandlingRef.current = false;
+			endScoringBusy();
+		}
 	};
 
 	const handleUndoBtn = () => {

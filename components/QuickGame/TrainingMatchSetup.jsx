@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
 	label: {
 		fontSize: 16,
 		color: '#f5f5f5',
-		marginBottom: 8,
+		marginBottom: 14,
 		fontWeight: '500',
 	},
 	hintSmall: {

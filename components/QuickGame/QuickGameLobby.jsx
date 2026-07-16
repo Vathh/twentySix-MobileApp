@@ -522,11 +522,6 @@ const QuickGameLobby = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.label}>Liczenie</Text>
-          { hasTempGuests && 
-              <Text style={styles.hintSmall}>
-                Wybierz tryb rozgrywki meczu (tylko host może zmieniać)
-              </Text>
-          }
           <View style={styles.gameTypeRow}>
             <Pressable
               style={[styles.gameTypeBtn, scoringMode === SCORING_MODES.ONE_DEVICE && styles.gameTypeBtnActive]}
