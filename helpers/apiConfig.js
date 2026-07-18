@@ -1,52 +1,136 @@
-// Dev (LAN): ustaw w .env — patrz .env.example
-// Staging/prod: EXPO_PUBLIC_API_URL=https://staging.example.com/api
-const API_BASE_URL =
-	process.env.EXPO_PUBLIC_API_URL?.trim() || 'http://192.168.0.28:8000/api';
+/**
+ * Presety środowiska API (local / staging).
+ *
+ * Przełączanie:
+ * - `.env`: EXPO_PUBLIC_API_TARGET=local|staging
+ * - albo skrypt: npm run start:local / npm run start:staging
+ *
+ * EAS / pełny override: ustaw EXPO_PUBLIC_API_URL (+ opcjonalnie REVERB_*) —
+ * wtedy TARGET jest ignorowany.
+ */
+
+const LOCAL_HOST =
+	process.env.EXPO_PUBLIC_LOCAL_HOST?.trim() || '192.168.0.28';
+
+const API_PRESETS = {
+	local: {
+		apiUrl: `http://${LOCAL_HOST}:8000/api`,
+		reverbKey: 'sld-reverb-key',
+		reverbScheme: 'http',
+		reverbPort: 8080,
+		reverbHost: LOCAL_HOST,
+	},
+	staging: {
+		apiUrl: 'https://dartscore.studiokam.pl/api',
+		reverbKey: '28e001f35df29406bc8a144a39a4ef4a',
+		reverbScheme: 'https',
+		reverbPort: 443,
+		reverbHost: 'dartscore.studiokam.pl',
+	},
+};
+
+function resolveApiTarget() {
+	const raw = (process.env.EXPO_PUBLIC_API_TARGET || '').trim().toLowerCase();
+	if (raw === 'local' || raw === 'staging') {
+		return raw;
+	}
+	return null;
+}
+
+function resolveEnvConfig() {
+	const explicitApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+	const target = resolveApiTarget();
+
+	// TARGET wygrywa z pełnym URL w .env (łatwe przełączanie local/staging).
+	if (target) {
+		const preset = API_PRESETS[target] || API_PRESETS.local;
+		return {
+			target,
+			apiUrl: preset.apiUrl,
+			reverbKey:
+				process.env.EXPO_PUBLIC_REVERB_APP_KEY?.trim() || preset.reverbKey,
+			reverbScheme:
+				process.env.EXPO_PUBLIC_REVERB_SCHEME?.trim() || preset.reverbScheme,
+			reverbPort:
+				process.env.EXPO_PUBLIC_REVERB_PORT?.trim()
+				|| String(preset.reverbPort),
+			reverbHost:
+				process.env.EXPO_PUBLIC_REVERB_HOST?.trim() || preset.reverbHost,
+		};
+	}
+
+	// Bez TARGET: EAS / custom URL, albo domyślnie local.
+	if (explicitApiUrl) {
+		return {
+			target: 'custom',
+			apiUrl: explicitApiUrl,
+			reverbKey:
+				process.env.EXPO_PUBLIC_REVERB_APP_KEY?.trim() || 'sld-reverb-key',
+			reverbScheme: process.env.EXPO_PUBLIC_REVERB_SCHEME?.trim() || '',
+			reverbPort: process.env.EXPO_PUBLIC_REVERB_PORT?.trim() || '',
+			reverbHost: process.env.EXPO_PUBLIC_REVERB_HOST?.trim() || '',
+		};
+	}
+
+	const preset = API_PRESETS.local;
+	return {
+		target: 'local',
+		apiUrl: preset.apiUrl,
+		reverbKey: preset.reverbKey,
+		reverbScheme: preset.reverbScheme,
+		reverbPort: String(preset.reverbPort),
+		reverbHost: preset.reverbHost,
+	};
+}
+
+const envConfig = resolveEnvConfig();
+
+const API_BASE_URL = envConfig.apiUrl;
 
 // Baza URL Laravel (bez /api) – do autoryzacji kanałów WebSocket (broadcasting/auth)
 const LARAVEL_BASE_URL =
-	API_BASE_URL.replace(/\/api\/?$/, '') || 'http://192.168.0.28:8000';
+	API_BASE_URL.replace(/\/api\/?$/, '') || `http://${LOCAL_HOST}:8000`;
 
 // Reverb (WebSocket) – musi być taki sam jak REVERB_APP_KEY w .env backendu
-export const REVERB_APP_KEY =
-	process.env.EXPO_PUBLIC_REVERB_APP_KEY?.trim() || 'sld-reverb-key';
-// Host i port Reverb: ten sam host co API (LAN), NIE używaj 0.0.0.0 w aplikacji — to tylko bind serwera.
-// Opcjonalnie: EXPO_PUBLIC_REVERB_HOST / EXPO_PUBLIC_REVERB_PORT w .env (Metro musi być zrestartowany).
+export const REVERB_APP_KEY = envConfig.reverbKey;
+export const API_TARGET = envConfig.target;
+
 const REVERB_USE_TLS =
-	(process.env.EXPO_PUBLIC_REVERB_SCHEME || '').trim() === 'https'
-	|| API_BASE_URL.startsWith('https://');
-// Staging/prod za nginx: WSS na 443, nie bezpośrednio na 8080 (port zwykle zamknięty na VPS).
+	envConfig.reverbScheme === 'https' || API_BASE_URL.startsWith('https://');
 const REVERB_WS_PORT =
-	Number(process.env.EXPO_PUBLIC_REVERB_PORT) || (REVERB_USE_TLS ? 443 : 8080);
+	Number(envConfig.reverbPort) || (REVERB_USE_TLS ? 443 : 8080);
 
 const INVALID_CLIENT_WS_HOSTS = new Set(['0.0.0.0', '[::]', '::', '']);
 
 function resolveReverbWsHost() {
-	const fromEnv =
-		typeof process !== 'undefined'
-			? process.env.EXPO_PUBLIC_REVERB_HOST?.trim()
-			: '';
-	if (fromEnv) {
-		return fromEnv;
+	if (envConfig.reverbHost) {
+		return envConfig.reverbHost;
 	}
 	try {
 		const u = new URL(API_BASE_URL);
 		const host = u.hostname;
 		if (INVALID_CLIENT_WS_HOSTS.has(host)) {
 			console.warn(
-				'[WS/Reverb:config] API_BASE_URL ma host 0.0.0.0 / :: — telefon nie połączy się z Reverb. Ustaw IPv4 komputera w API_BASE_URL albo EXPO_PUBLIC_REVERB_HOST (np. 192.168.0.28). W backendzie REVERB_HOST=0.0.0.0 jest OK dla serwera; klient musi użyć realnego IP.',
+				'[WS/Reverb:config] API_BASE_URL ma host 0.0.0.0 / :: — telefon nie połączy się z Reverb. Ustaw IPv4 komputera w EXPO_PUBLIC_LOCAL_HOST albo EXPO_PUBLIC_REVERB_HOST (np. 192.168.0.28). W backendzie REVERB_HOST=0.0.0.0 jest OK dla serwera; klient musi użyć realnego IP.',
 			);
 		}
 		return host;
 	} catch {
-		return '192.168.0.28';
+		return LOCAL_HOST;
 	}
 }
 
 const reverbHostResolved = resolveReverbWsHost();
 
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+	console.log(
+		`[apiConfig] target=${API_TARGET} api=${API_BASE_URL} ws=${reverbHostResolved}:${REVERB_WS_PORT}`,
+	);
+}
+
 /** Do diagnostyki na stagingu (RC) — widać w UI, czy env z EAS trafił do APK. */
 export const getReverbDiagnostics = () => ({
+	apiTarget: API_TARGET,
 	apiUrl: API_BASE_URL,
 	wsHost: reverbHostResolved,
 	wsPort: REVERB_WS_PORT,

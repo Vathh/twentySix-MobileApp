@@ -4,6 +4,8 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:local": "node scripts/start-api-target.mjs local",
+    "start:staging": "node scripts/start-api-target.mjs staging",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

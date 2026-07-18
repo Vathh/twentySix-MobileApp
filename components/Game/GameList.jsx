@@ -56,8 +56,11 @@ const GameList = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchGames();
-      return () => {};
-    }, [fetchGames])
+      // Po powrocie z meczu otwórz z powrotem listę wybranej grupy.
+      if (selectedGroup != null) {
+        setIsModalVisible(true);
+      }
+    }, [fetchGames, selectedGroup]),
   );
 
   const groupGames = useMemo(
@@ -94,13 +97,14 @@ const GameList = ({ navigation }) => {
     [groupGames, selectedGroup],
   );
 
-  const toggleModal = () => {
-    setIsModalVisible((v) => !v);
+  const openGroupModal = (group) => {
+    setSelectedGroup(group);
+    setIsModalVisible(true);
   };
 
-  const handleGroupPress = (group) => {
-    setSelectedGroup(group);
-    toggleModal();
+  const closeGroupModal = () => {
+    setIsModalVisible(false);
+    setSelectedGroup(null);
   };
 
   const handleGamePress = async (game) => {
@@ -127,9 +131,8 @@ const GameList = ({ navigation }) => {
       return;
     }
 
-    if (isModalVisible) {
-      toggleModal();
-    }
+    // Zostaw selectedGroup — po powrocie z meczu modal grupy otworzy się ponownie.
+    setIsModalVisible(false);
 
     navigation.navigate('GameScoring', {
       game: {
@@ -198,7 +201,7 @@ const GameList = ({ navigation }) => {
                 <Pressable
                   key={group}
                   style={styles.groupButton}
-                  onPress={() => handleGroupPress(group)}
+                  onPress={() => openGroupModal(group)}
                 >
                   <Text style={styles.groupButtonText}>Grupa {group}</Text>
                 </Pressable>
@@ -219,15 +222,22 @@ const GameList = ({ navigation }) => {
         visible={isModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={toggleModal}
+        onRequestClose={closeGroupModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={toggleModal}>
+        <Pressable style={styles.modalOverlay} onPress={closeGroupModal}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>
               {selectedGroup != null ? `Grupa ${selectedGroup}` : 'Wybierz mecz'}
             </Text>
-            {gamesInGroup.map((game) => renderGameRow(game, false))}
-            <Pressable style={styles.closeButton} onPress={toggleModal}>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+              {gamesInGroup.map((game) => renderGameRow(game, false))}
+            </ScrollView>
+            <Pressable style={styles.closeButton} onPress={closeGroupModal}>
               <Text style={styles.closeButtonText}>Zamknij</Text>
             </Pressable>
           </Pressable>
@@ -329,6 +339,7 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 340,
+    maxHeight: '85%',
   },
   modalTitle: {
     fontSize: 20,
@@ -336,8 +347,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
   },
+  modalScroll: {
+    flexGrow: 0,
+    maxHeight: 420,
+  },
+  modalScrollContent: {
+    paddingBottom: 4,
+  },
   closeButton: {
-    marginTop: 20,
+    marginTop: 16,
     paddingVertical: 12,
     alignItems: 'center',
   },
