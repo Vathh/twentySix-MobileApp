@@ -23,9 +23,9 @@ function mapTournamentPlayer(sp) {
 		setsWon: sp.setsWon ?? 0,
 		gameAverage: sp.gameAverage ?? null,
 		legAverage: sp.legAverage ?? null,
-		legByLegScores: sp.legByLegScores ?? [],
-		legsAverages: sp.legsAverages ?? [],
-		dartsPerLeg: sp.dartsPerLeg ?? [],
+		legByLegScores: Array.isArray(sp.legByLegScores) ? sp.legByLegScores : undefined,
+		legsAverages: Array.isArray(sp.legsAverages) ? sp.legsAverages : undefined,
+		dartsPerLeg: Array.isArray(sp.dartsPerLeg) ? sp.dartsPerLeg : undefined,
 		matchPointsEarned: sp.matchPointsEarned ?? null,
 		matchDartsThrown: sp.matchDartsThrown ?? null,
 	};

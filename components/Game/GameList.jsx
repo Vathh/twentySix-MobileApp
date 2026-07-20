@@ -12,6 +12,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
+import {
+  promptTournamentFinishedLogout,
+  useTournamentFinishedRealtime,
+} from '../../hooks/useTournamentFinishedRealtime';
 import { ACTIVE_GAMES_API_URL } from '../../helpers/apiConfig';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
 
@@ -30,11 +34,23 @@ const playoffRoundSortKey = (round) => {
 };
 
 const GameList = ({ navigation }) => {
-  const { auth } = useAuth();
+  const { auth, setAuth } = useAuth();
   const [games, setGames] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [lockingGameId, setLockingGameId] = useState(null);
+
+  useTournamentFinishedRealtime({
+    tournamentId: auth?.tournamentId,
+    enabled: !!auth?.accessToken && auth?.tournamentId != null,
+    onFinished: (payload) => {
+      promptTournamentFinishedLogout(
+        setAuth,
+        auth?.tournamentId,
+        payload?.message,
+      );
+    },
+  });
 
   const fetchGames = useCallback(async () => {
     if (!auth?.accessToken || auth?.tournamentId == null) return;
@@ -44,6 +60,14 @@ const GameList = ({ navigation }) => {
         method: 'GET',
         headers: { Authorization: `Bearer ${auth.accessToken}` },
       });
+      if (res.status === 401) {
+        promptTournamentFinishedLogout(
+          setAuth,
+          auth.tournamentId,
+          'Sesja sędziowania wygasła lub turniej został zakończony.',
+        );
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setGames(Array.isArray(data) ? data : []);
@@ -51,7 +75,7 @@ const GameList = ({ navigation }) => {
     } catch (e) {
       console.warn('fetchGames', e);
     }
-  }, [auth?.accessToken, auth?.tournamentId]);
+  }, [auth?.accessToken, auth?.tournamentId, setAuth]);
 
   useFocusEffect(
     useCallback(() => {

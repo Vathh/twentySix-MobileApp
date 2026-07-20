@@ -7,6 +7,7 @@ import React, {
 	useState,
 } from 'react';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { useIsFocused } from '@react-navigation/native';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { playerResultReducer } from '../../helpers/reducers/playerResultReducer';
 import {
@@ -35,6 +36,10 @@ import { useGameSettings } from '../../hooks/useGameSettings';
 import useAuth from '../../hooks/useAuth';
 import { useGameScoring } from '../../hooks/useGameScoring';
 import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
+import {
+	promptTournamentFinishedLogout,
+	useTournamentFinishedRealtime,
+} from '../../hooks/useTournamentFinishedRealtime';
 import {
 	canCounterInput,
 	checkoutLegPrompt,
@@ -65,7 +70,8 @@ import { buildFfaPresenceBannerMessages } from '../../helpers/ffaPresenceMessage
 import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
 
 const GameScoringScreen = ({ route, navigation }) => {
-	const { auth } = useAuth();
+	const { auth, setAuth } = useAuth();
+	const isFocused = useIsFocused();
 	const {
 		scoringMode,
 		setScoringMode,
@@ -102,6 +108,21 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const isTournamentOnline =
 		mode === GAME_MODE.TOURNAMENT && syncEnabled;
+	const tournamentIdForSession =
+		auth?.tournamentId ?? activeGame?.tournamentId ?? tournamentGame?.tournamentId ?? null;
+
+	useTournamentFinishedRealtime({
+		tournamentId: tournamentIdForSession,
+		enabled: isTournamentOnline && !!auth?.accessToken && tournamentIdForSession != null,
+		onFinished: (payload) => {
+			promptTournamentFinishedLogout(
+				setAuth,
+				tournamentIdForSession,
+				payload?.message,
+			);
+		},
+	});
+
 	const [isModalVisible, setIsModalVisible] = useState(
 		showStartModal && !isTournamentOnline,
 	);
@@ -460,7 +481,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 
 	const KEEP_AWAKE_TAG = 'twentysix-game-scoring';
 	useEffect(() => {
-		if (gameClosed) {
+		if (!isFocused || gameClosed) {
 			void deactivateKeepAwake(KEEP_AWAKE_TAG);
 			return undefined;
 		}
@@ -468,7 +489,7 @@ const GameScoringScreen = ({ route, navigation }) => {
 		return () => {
 			void deactivateKeepAwake(KEEP_AWAKE_TAG);
 		};
-	}, [gameClosed]);
+	}, [isFocused, gameClosed]);
 
 	useEffect(() => {
 		if (!gameClosed || mode !== GAME_MODE.QUICK_FFA) return;

@@ -272,29 +272,24 @@ export function useGameScoring({
 		(winnerPlayerId, checkoutDart) => {
 			const tracked = !!isPerDartMode;
 			return players.slice(0, N).map((p) => {
-				const idx = players.indexOf(p);
-				const st = playerStates[idx];
-				const scores = st?.currentLegScores ?? [];
-				const highestVisit =
-					scores.length > 0 ? Math.max(...scores, 0) : null;
 				const isWinner = p.playerId === winnerPlayerId;
+				// Średnie / finish / lotki liczy backend z wizyt (po checkoutcie).
+				// Lokalny currentLegAverage jest często jeszcze sprzed ostatniej wizyty.
 				return {
 					playerId: p.playerId,
 					doubleTracked: tracked,
-					doubleAttempts: tracked ? null : null,
-					doubleSuccesses: tracked ? null : null,
-					legAverage: st?.currentLegAverage
-						? parseFloat(st.currentLegAverage)
-						: null,
+					doubleAttempts: null,
+					doubleSuccesses: null,
+					legAverage: null,
 					firstNineAverage: null,
-					highestVisit,
-					highestFinish: isWinner ? highestVisit : null,
-					dartsThrown: st?.dartsThrown ?? null,
+					highestVisit: null,
+					highestFinish: null,
+					dartsThrown: null,
 					checkoutDart: isWinner ? checkoutDart : null,
 				};
 			});
 		},
-		[players, N, playerStates, isPerDartMode],
+		[players, N, isPerDartMode],
 	);
 
 	const submitVisit = useCallback(

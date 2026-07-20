@@ -1,7 +1,9 @@
 import 'react-native-gesture-handler';
+import { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
+import { ExpoKeepAwakeTag, deactivateKeepAwake } from 'expo-keep-awake';
 import { Platform, StatusBar as RNStatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthProvider';
@@ -12,7 +14,22 @@ if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
 	global.self = global;
 }
 
+/**
+ * Expo w dev (`withDevTools`) włącza keep-awake na domyślnym tagu, gdy
+ * `expo-keep-awake` jest w zależnościach — przez to ekran nie gaśnie nigdzie.
+ * Wyłączamy to; keep-awake zostaje tylko na GameScoringScreen.
+ */
+function useAllowScreenSleepOutsideScoring() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void deactivateKeepAwake(ExpoKeepAwakeTag);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+}
+
 function AppContent() {
+  useAllowScreenSleepOutsideScoring();
   const insets = useSafeAreaInsets();
   const topInset = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0);
   const bottomInset = Math.max(insets.bottom, 10);

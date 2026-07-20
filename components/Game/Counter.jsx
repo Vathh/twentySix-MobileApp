@@ -389,6 +389,9 @@ const Counter = ({
     const p1 = players[1];
     const s0 = playerStates[0];
     const s1 = playerStates[1];
+    const setScore0 = matchScoreForDisplay(s0, format);
+    const setScore1 = matchScoreForDisplay(s1, format);
+    const currentSetNumber = multiSet ? setScore0 + setScore1 + 1 : 1;
     return (
       <View style={styles.container}>
         <View style={styles.resultContainer}>
@@ -396,16 +399,20 @@ const Counter = ({
             <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
           </View>
           <View style={styles.legsContainer}>
-            <Text style={styles.legsResultText}>{matchScoreForDisplay(s0, format)}</Text>
+            <Text style={styles.legsResultText}>{setScore0}</Text>
             <View style={styles.legsCenterColumn}>
-              <Text style={styles.legsText}>{unitLabel}</Text>
               {multiSet ? (
-                <Text style={styles.legsSubText}>
-                  {legScoreInSetForDisplay(s0)}:{legScoreInSetForDisplay(s1)} legi
-                </Text>
-              ) : null}
+                <>
+                  <Text style={styles.legsSetLabel}>SET {currentSetNumber}</Text>
+                  <Text style={styles.legsInSetScore}>
+                    {legScoreInSetForDisplay(s0)}:{legScoreInSetForDisplay(s1)}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.legsText}>{unitLabel}</Text>
+              )}
             </View>
-            <Text style={styles.legsResultText}>{matchScoreForDisplay(s1, format)}</Text>
+            <Text style={styles.legsResultText}>{setScore1}</Text>
           </View>
           <View style={styles.player2Container}>
             <Text style={styles.playerText}>({s1?.dartsThrown ?? 0}) {p1?.name ?? 'Gracz'}</Text>
@@ -608,12 +615,26 @@ const styles = StyleSheet.create({
   legsCenterColumn: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 12,
   },
   legsText: {
     marginLeft: 15,
     marginRight: 15,
     fontSize: 20,
     color: '#c5c5c5'
+  },
+  legsSetLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#F99417',
+  },
+  legsInSetScore: {
+    marginTop: 2,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#e8e8e8',
+    fontVariant: ['tabular-nums'],
   },
   legsSubText: {
     marginTop: 2,

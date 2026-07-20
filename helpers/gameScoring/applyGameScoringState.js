@@ -39,6 +39,9 @@ function buildH2hPlayerSync(sp, openLegVisits) {
 		currentLegScores: partialVisit ? undefined : completedLegScores,
 		dartsThrown: partialVisit ? undefined : noLegActivity ? 0 : dartsThrown,
 		totalDartsThrown: partialVisit ? undefined : noLegActivity ? 0 : dartsThrown,
+		legByLegScores: Array.isArray(sp.legByLegScores) ? sp.legByLegScores : undefined,
+		legsAverages: Array.isArray(sp.legsAverages) ? sp.legsAverages : undefined,
+		dartsPerLeg: Array.isArray(sp.dartsPerLeg) ? sp.dartsPerLeg : undefined,
 	};
 }
 
@@ -127,11 +130,12 @@ function syncPlayersH2h(state, ctx) {
 
 		const snap = buildH2hPlayerSync(sp, openLegVisits);
 		const prev = lastPlayerSnapRef?.current?.[spId];
-		let legByLegScores = prev?.legByLegScores ?? [];
-		let legsAverages = prev?.legsAverages ?? [];
-		let dartsPerLeg = prev?.dartsPerLeg ?? [];
+		let legByLegScores = snap.legByLegScores ?? prev?.legByLegScores ?? [];
+		let legsAverages = snap.legsAverages ?? prev?.legsAverages ?? [];
+		let dartsPerLeg = snap.dartsPerLeg ?? prev?.dartsPerLeg ?? [];
+		const hasServerLegHistory = Array.isArray(sp.legsAverages);
 
-		if (prev) {
+		if (prev && !hasServerLegHistory) {
 			const wonLeg = singleSet
 				? snap.legsWon > (prev.legsWon ?? 0)
 				: (snap.legsWonInSet ?? 0) > (prev.legsWonInSet ?? 0)

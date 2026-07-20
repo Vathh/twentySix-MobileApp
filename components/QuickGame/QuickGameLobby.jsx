@@ -42,10 +42,7 @@ const MAX_LOBBY_PLAYERS = 8;
 const playerKey = (item, index) =>
   String(item.id ?? item.playerId ?? item.player_id ?? item.tempName ?? index);
 
-const normalizeLobbyGameType = (value) => {
-  if (value === '501' || value == null) return 'x01';
-  return value;
-};
+const normalizeLobbyGameType = (_value) => 'x01';
 
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
@@ -57,7 +54,7 @@ const INVITATION_STATUS = {
 
 const QuickGameLobby = ({ navigation, route }) => {
   const { auth } = useAuth();
-  const GAME_TYPES = { X01: 'x01', CRICKET: 'cricket' };
+  const GAME_TYPES = { X01: 'x01' };
   const [lobby, setLobby] = useState(null);
   const [matchFormat, setMatchFormat] = useState(DEFAULT_MATCH_FORMAT);
   const [gameType, setGameType] = useState(GAME_TYPES.X01);
@@ -487,18 +484,6 @@ const QuickGameLobby = ({ navigation, route }) => {
               disabled={!isHost}
             >
               <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.X01 && styles.gameTypeBtnTextActive]}>501</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.gameTypeBtn, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnActive]}
-              onPress={() => {
-                if (isHost) {
-                  setGameType(GAME_TYPES.CRICKET);
-                  handleUpdateSettings({ gameType: GAME_TYPES.CRICKET });
-                }
-              }}
-              disabled={!isHost}
-            >
-              <Text style={[styles.gameTypeBtnText, gameType === GAME_TYPES.CRICKET && styles.gameTypeBtnTextActive]}>Cricket</Text>
             </Pressable>
           </View>
         </View>
