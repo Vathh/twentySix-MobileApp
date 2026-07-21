@@ -9,8 +9,10 @@ import {
   matchScoreForDisplay,
   scoreUnitLabel,
 } from '../../helpers/matchFormat/matchFormatScoring'
+import { colors } from '../../theme/colors'
 
-const PER_DART_ACCENT = '#B8D9F0';
+const PER_DART_ACCENT = colors.perDartAccent;
+
 
 const Counter = ({
   players,
@@ -541,7 +543,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 10,
     paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,.3)',
+    backgroundColor: colors.scrimMild,
   },
   player1Container: {
     flex: 1,
@@ -554,7 +556,7 @@ const styles = StyleSheet.create({
   },
   playerText: {
     fontSize: 18,
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   visitDartsUnderScore: {
     width: '100%',
@@ -621,30 +623,30 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     marginRight: 15,
     fontSize: 20,
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   legsSetLabel: {
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: '#F99417',
+    color: colors.accent,
   },
   legsInSetScore: {
     marginTop: 2,
     fontSize: 22,
     fontWeight: '700',
-    color: '#e8e8e8',
+    color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   legsSubText: {
     marginTop: 2,
     fontSize: 12,
-    color: '#888',
+    color: colors.textFaint,
   },
   legsResultText: {
     fontSize: 28,
     justifyContent: 'center',
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   countersContainer: {
     flex: 1,
@@ -713,17 +715,17 @@ const styles = StyleSheet.create({
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
-    borderColor: 'rgba(0,0,0,.3)'
+    borderColor: colors.scrimMild
   },
   counterText: {
     fontSize: 100,
     flex: 1,
     justifyContent: 'center',
     textAlignVertical: 'center',
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   goldText: {
-    color: '#F99417'
+    color: colors.accent
   },
   averagesContainer: {
     flex: 1,
@@ -732,7 +734,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,.3)'
+    backgroundColor: colors.scrimMild
   },
   averageText: {
     paddingLeft: 5,
@@ -740,7 +742,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 18,
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   scoreContainer: {
     flexDirection: 'row',
@@ -754,7 +756,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     paddingTop: 10,
     paddingBottom: 10,
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   undoContainer: {
     flex: 1,
@@ -766,12 +768,12 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingTop: 10,
     paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,.4)',
+    backgroundColor: colors.scrimStrong,
     justifyContent: 'center',
   },
   undoText: {
     fontSize: 18,
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   waitingOverlay: {
     position: 'absolute',
@@ -795,17 +797,17 @@ const styles = StyleSheet.create({
   },
   waitingText: {
     fontSize: 15,
-    color: '#e8e8e8',
+    color: colors.textSecondary,
     textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.scrimHeavy,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     overflow: 'hidden',
   },
   matchFinishedText: {
-    color: '#c8f5dc',
-    backgroundColor: 'rgba(45,106,79,0.75)',
+    color: colors.successSoftText,
+    backgroundColor: colors.successSoftBg,
   },
   countContainer: {
     width: '100%'
@@ -818,14 +820,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: .5,
-    borderColor: '#c5c5c5',
+    borderColor: colors.textMuted,
     paddingTop: 15,
     paddingBottom: 15
   },
   countNumberText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#c5c5c5'
+    color: colors.textMuted
   },
   multiListWrapper: {
     flex: 1,
@@ -845,15 +847,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderBottomColor: colors.borderSoft,
+    backgroundColor: colors.scrimSoft,
     marginBottom: 6,
     borderRadius: 6,
   },
   multiRowActive: {
     borderLeftWidth: 4,
-    borderLeftColor: '#F99417',
-    backgroundColor: 'rgba(249,148,23,0.15)',
+    borderLeftColor: colors.accent,
+    backgroundColor: colors.accentMuted,
   },
   multiRowLeft: {
     flex: 1,
@@ -868,27 +870,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   multiPlayerName: {
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   multiDarts: {
-    color: '#888',
+    color: colors.textFaint,
     fontSize: 12,
     marginTop: 2,
   },
   multiScore: {
     fontSize: 36,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: 'bold',
   },
   multiLegs: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 2,
   },
   multiAvg: {
-    color: '#888',
+    color: colors.textFaint,
     fontSize: 12,
   },
   dartPad: {
@@ -921,13 +923,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.scrimSoft,
     minWidth: 48,
   },
   dartZeroText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -935,35 +937,35 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.scrimMild,
   },
   dartModBtnActive: {
-    borderColor: '#F99417',
-    backgroundColor: 'rgba(249,148,23,0.25)',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoftStrong,
   },
   dartModText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: 'bold',
   },
   dartModTextActive: {
-    color: '#F99417',
+    color: colors.accent,
   },
   dartUndoBtn: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrimStrong,
   },
   dartUndoBtnDisabled: {
     opacity: 0.45,
   },
   dartUndoText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -978,9 +980,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.scrimSoft,
   },
   dartBullBtn: {
     paddingVertical: 10,
@@ -988,17 +990,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.scrimSoft,
   },
   dartBullText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: '600',
   },
   dartNumText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1006,7 +1008,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   dartBullTextDisabled: {
-    color: '#666',
+    color: colors.textVeryDim,
   },
 });
 

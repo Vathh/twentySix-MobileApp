@@ -17,6 +17,7 @@ import HeaderTitle from '../components/Common/HeaderTitle';
 import AccountMenuButton from '../components/Common/AccountMenuButton';
 import LogoutButton from '../components/Common/LogoutButton';
 import LoginButton from '../components/Common/LoginButton';
+import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,15 +27,15 @@ const Screens = () => {
 
   if (authLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#363062', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#F99417" />
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
   const headerOptions = {
-    headerStyle: { backgroundColor: '#363062' },
-    headerTintColor: '#F99417',
+    headerStyle: { backgroundColor: colors.bg },
+    headerTintColor: colors.accent,
     headerTitleAlign: 'center',
   };
 
@@ -93,7 +94,7 @@ const Screens = () => {
   if (auth?.accessToken && !auth?.tournamentId) {
     const menuHeaderLeft = (nav) => (
       <Pressable onPress={() => nav.navigate('Menu')} style={{ padding: 8, marginLeft: 4 }}>
-        <Text style={{ color: '#F99417', fontSize: 16 }}>☰ Menu</Text>
+        <Text style={{ color: colors.accent, fontSize: 16 }}>☰ Menu</Text>
       </Pressable>
     );
     return (

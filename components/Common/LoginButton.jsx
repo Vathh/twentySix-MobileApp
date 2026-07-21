@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { colors } from '../../theme/colors';
 
 const LoginButton = () => {
   const navigation = useNavigation();
@@ -18,7 +19,7 @@ const LoginButton = () => {
 const styles = StyleSheet.create({
   button: {},
   text: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: 'bold',
   },
 });

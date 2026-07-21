@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { REGISTER_API_URL, RESEND_VERIFICATION_API_URL } from '../../helpers/apiConfig'
+import { colors } from '../../theme/colors'
 
 const AccountRegister = () => {
   const navigation = useNavigation()
@@ -144,7 +145,7 @@ const AccountRegister = () => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#363062" size="small" />
+                <ActivityIndicator color={colors.onAccent} size="small" />
               ) : (
                 <Text style={styles.buttonText}>Zarejestruj się</Text>
               )}
@@ -158,7 +159,7 @@ const AccountRegister = () => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#363062" size="small" />
+                <ActivityIndicator color={colors.onAccent} size="small" />
               ) : (
                 <Text style={styles.buttonText}>Wyślij link ponownie</Text>
               )}
@@ -188,12 +189,12 @@ const AccountRegister = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     alignItems: 'center',
   },
   title: {
     fontSize: 24,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 40,
     marginTop: 80,
   },
@@ -203,21 +204,23 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 14,
-    color: '#ff1e1e',
+    color: colors.dangerText,
     marginBottom: 16,
     textAlign: 'center',
   },
   successMessage: {
     fontSize: 14,
-    color: '#9fd89f',
+    color: colors.successSoftText,
     marginBottom: 20,
     textAlign: 'center',
     lineHeight: 20,
   },
   input: {
     marginBottom: 16,
-    color: '#363062',
-    backgroundColor: '#f5f5f5cc',
+    color: colors.text,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 5,
     width: 260,
     paddingVertical: 8,
@@ -232,14 +235,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minWidth: 180,
     minHeight: 36,
-    backgroundColor: '#f5f5f5cc',
+    backgroundColor: colors.accent,
     borderRadius: 5,
   },
   buttonDisabled: {
     opacity: 0.85,
   },
   buttonText: {
-    color: '#363062',
+    color: colors.onAccent,
     fontWeight: '600',
   },
   linkButton: {
@@ -247,7 +250,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   linkText: {
-    color: '#F99417',
+    color: colors.accent,
     fontSize: 15,
   },
 })

@@ -17,6 +17,7 @@ import {
   useTournamentFinishedRealtime,
 } from '../../hooks/useTournamentFinishedRealtime';
 import { ACTIVE_GAMES_API_URL } from '../../helpers/apiConfig';
+import { colors } from '../../theme/colors';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
 
 const PLAYOFF_ROUND_ORDER = [
@@ -188,7 +189,7 @@ const GameList = ({ navigation }) => {
         </Text>
       </View>
       {lockingGameId === game.id ? (
-        <ActivityIndicator size="small" color="#F99417" style={styles.gameRowSpinner} />
+        <ActivityIndicator size="small" color={colors.accent} style={styles.gameRowSpinner} />
       ) : null}
     </Pressable>
   );
@@ -210,7 +211,7 @@ const GameList = ({ navigation }) => {
       <View style={styles.headerRow}>
         <Text style={styles.title}>Mecze turnieju</Text>
         <Pressable onPress={fetchGames} style={styles.refreshButton}>
-          <FontAwesome5 name="sync" size={22} color="#F99417" />
+          <FontAwesome5 name="sync" size={22} color={colors.accent} />
         </Pressable>
       </View>
 
@@ -274,7 +275,7 @@ const GameList = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     padding: 24,
   },
   headerRow: {
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: 'bold',
   },
   refreshButton: {
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginTop: 16,
   },
   scroll: {
@@ -304,14 +305,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   groupButton: {
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -319,18 +320,18 @@ const styles = StyleSheet.create({
   },
   groupButtonText: {
     fontSize: 18,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
   },
   gameRow: {
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#4a4580',
+    borderBottomColor: colors.bgElevated,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 8,
   },
@@ -342,23 +343,23 @@ const styles = StyleSheet.create({
   },
   roundLabel: {
     fontSize: 12,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   gameRowText: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 24,
     width: '100%',
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     marginBottom: 16,
   },
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 16,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
   },
 });

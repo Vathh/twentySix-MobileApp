@@ -6,6 +6,7 @@ import {
 	formatMatchLabel,
 	normalizeMatchFormat,
 } from '../../helpers/matchFormat/matchFormat';
+import { colors } from '../../theme/colors';
 
 const LEGS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const SETS_OPTIONS = [1, 2, 3];
@@ -119,12 +120,12 @@ const styles = StyleSheet.create({
 		fontSize: 18,
 		fontWeight: '600',
 		marginBottom: 6,
-		color: '#f5f5f5',
+		color: colors.text,
 		textAlign: 'center',
 	},
 	preview: {
 		fontSize: 16,
-		color: '#F99417',
+		color: colors.accent,
 		marginBottom: 12,
 		textAlign: 'center',
 		fontWeight: '500',
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: '500',
 		marginBottom: 14,
-		color: '#f5f5f5',
+		color: colors.text,
 	},
 	countRow: {
 		flexDirection: 'row',
@@ -149,7 +150,9 @@ const styles = StyleSheet.create({
 		width: 44,
 		height: 44,
 		borderRadius: 8,
-		backgroundColor: '#f5f5f5cc',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
@@ -158,12 +161,12 @@ const styles = StyleSheet.create({
 	},
 	countBtnText: {
 		fontSize: 24,
-		color: '#363062',
+		color: colors.text,
 		fontWeight: '600',
 	},
 	countValue: {
 		fontSize: 28,
-		color: '#F99417',
+		color: colors.accent,
 		minWidth: 64,
 		textAlign: 'center',
 	},

@@ -22,6 +22,7 @@ import {
   getTournamentInvitationRejectUrl,
   getTournamentInvitationWithdrawUrl,
 } from '../../helpers/apiConfig';
+import { colors } from '../../theme/colors';
 
 const TAB_TOURNAMENT = 'tournament';
 const TAB_POJEDYNEK = 'pojedynek';
@@ -217,7 +218,7 @@ const InvitationsScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#F99417" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -348,7 +349,7 @@ const InvitationsScreen = ({ navigation }) => {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F99417']} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />}
     >
       <View style={styles.tabs}>
         <Pressable
@@ -383,7 +384,7 @@ const InvitationsScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#363062' },
+  container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 24, paddingBottom: 40 },
   tabs: {
     flexDirection: 'row',
@@ -391,31 +392,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F99417',
+    borderColor: colors.accent,
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
   },
-  tabActive: { backgroundColor: '#F99417' },
-  tabText: { fontSize: 15, color: '#c5c5c5', fontWeight: '600' },
-  tabTextActive: { color: '#363062' },
-  hint: { fontSize: 14, color: '#a0a0a0', marginTop: 8 },
-  error: { fontSize: 14, color: '#ff6b6b', marginBottom: 12 },
+  tabActive: { backgroundColor: colors.accent },
+  tabText: { fontSize: 15, color: colors.textMuted, fontWeight: '600' },
+  tabTextActive: { color: colors.onAccent },
+  hint: { fontSize: 14, color: colors.textDim, marginTop: 8 },
+  error: { fontSize: 14, color: colors.danger, marginBottom: 12 },
   card: {
     padding: 16,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 16, color: '#c5c5c5', fontWeight: '600', marginBottom: 4 },
-  cardSub: { fontSize: 14, color: '#a0a0a0', marginBottom: 12 },
+  cardTitle: { fontSize: 16, color: colors.textMuted, fontWeight: '600', marginBottom: 4 },
+  cardSub: { fontSize: 14, color: colors.textDim, marginBottom: 12 },
   buttons: { flexDirection: 'row', gap: 12 },
   button: {
     flex: 1,
-    backgroundColor: '#F99417',
+    backgroundColor: colors.accent,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
@@ -424,15 +425,15 @@ const styles = StyleSheet.create({
   buttonOutlined: {
     flex: 1,
     borderWidth: 2,
-    borderColor: '#F99417',
+    borderColor: colors.accent,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#363062', fontWeight: 'bold', fontSize: 14 },
-  buttonOutlinedText: { color: '#F99417', fontWeight: 'bold', fontSize: 14 },
+  buttonText: { color: colors.onAccent, fontWeight: 'bold', fontSize: 14 },
+  buttonOutlinedText: { color: colors.accent, fontWeight: 'bold', fontSize: 14 },
 });
 
 export default InvitationsScreen;

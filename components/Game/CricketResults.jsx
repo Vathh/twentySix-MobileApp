@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../theme/colors';
 
 const CricketResults = ({ players, cricketStates, legsToWin }) => {
   const N = players?.length ?? 0;
@@ -31,20 +32,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    color: '#f5f5f5',
+    color: colors.text,
     fontWeight: '700',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#888',
+    color: colors.textDim,
     marginBottom: 20,
   },
   list: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.scrimMild,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   row: {
@@ -54,16 +55,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.borderSoft,
   },
   name: {
     fontSize: 18,
-    color: '#e8e8e8',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   legs: {
     fontSize: 18,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: '700',
   },
 });

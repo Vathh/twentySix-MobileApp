@@ -1,5 +1,6 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import { colors } from '../../theme/colors'
 
 const StatsTitleRow = ({ title }) => {
   return (
@@ -17,12 +18,12 @@ const styles = StyleSheet.create({
     paddingBottom: 4
   },
   darkRow: {
-    backgroundColor: 'rgba(0,0,0,.3)',
+    backgroundColor: colors.scrimMild,
     borderBottomWidth: 1,
-    borderBottomColor: '#dc8418'
+    borderBottomColor: colors.accentHover
   },
   title: {
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 16
   },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../theme/colors';
 
 const StatsRow = ({ title, player1Value, player2Value }) => {
   const display = (v) => (v == null || v === '' ? '-' : String(v));
@@ -25,9 +26,9 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   lightRow: {
-    backgroundColor: 'rgba(0,0,0,.2)',
+    backgroundColor: colors.scrimSoft,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#bd7013',
+    borderBottomColor: colors.accentHover,
   },
   leftRowSide: {
     flex: 1,
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     textAlign: 'center',
-    color: '#f5f5f5',
+    color: colors.text,
   },
 });
 

@@ -1,18 +1,19 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../theme/colors';
 
 export const gameScoringScreenStyles = StyleSheet.create({
 	container: {
 		flex: 1,
 		flexDirection: 'column',
-		backgroundColor: '#363062',
+		backgroundColor: colors.bg,
 	},
 	presenceBanner: {
-		backgroundColor: '#5c1d1d',
+		backgroundColor: colors.errorBannerBg,
 		paddingVertical: 8,
 		paddingHorizontal: 16,
 	},
 	presenceBannerText: {
-		color: '#ffd4d4',
+		color: colors.errorBannerText,
 		fontSize: 14,
 		textAlign: 'center',
 		marginVertical: 2,
@@ -25,15 +26,15 @@ export const gameScoringScreenStyles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		borderWidth: 1,
-		borderColor: 'rgba(0,0,0,.3)',
+		borderColor: colors.scrimMild,
 		paddingTop: 5,
 		paddingBottom: 5,
 	},
 	selectedNavigationBtn: {
-		backgroundColor: 'rgba(0,0,0,.3)',
+		backgroundColor: colors.scrimMild,
 	},
 	navigationBtnText: {
 		fontSize: 18,
-		color: '#c5c5c5',
+		color: colors.textMuted,
 	},
 });

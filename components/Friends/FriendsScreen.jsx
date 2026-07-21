@@ -18,6 +18,7 @@ import {
   FRIENDS_REMOVE_URL,
   USERS_SEARCH_URL,
 } from '../../helpers/apiConfig';
+import { colors } from '../../theme/colors';
 
 const TAB_LIST = 'list';
 const TAB_ADD = 'add';
@@ -196,7 +197,7 @@ const FriendsScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#F99417" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -256,13 +257,13 @@ const FriendsScreen = ({ navigation }) => {
       <TextInput
         style={styles.searchInput}
         placeholder="Szukaj gracza…"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.placeholder}
         value={searchQuery}
         onChangeText={setSearchQuery}
         autoCapitalize="none"
         autoCorrect={false}
       />
-      {searchLoading ? <ActivityIndicator color="#F99417" style={styles.searchSpinner} /> : null}
+      {searchLoading ? <ActivityIndicator color={colors.accent} style={styles.searchSpinner} /> : null}
       {!searchLoading && searchQuery.trim().length >= 2 && searchResults.length === 0 ? (
         <Text style={styles.hint}>Brak wyników.</Text>
       ) : null}
@@ -295,7 +296,7 @@ const FriendsScreen = ({ navigation }) => {
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F99417']} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
       }
       keyboardShouldPersistTaps="handled"
     >
@@ -326,7 +327,7 @@ const FriendsScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#363062' },
+  container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 24, paddingBottom: 40 },
   tabs: {
     flexDirection: 'row',
@@ -334,22 +335,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F99417',
+    borderColor: colors.accent,
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
   },
-  tabActive: { backgroundColor: '#F99417' },
-  tabText: { fontSize: 15, color: '#c5c5c5', fontWeight: '600' },
-  tabTextActive: { color: '#363062' },
-  hint: { fontSize: 14, color: '#a0a0a0', marginBottom: 12 },
-  error: { fontSize: 14, color: '#ff6b6b', marginBottom: 12 },
+  tabActive: { backgroundColor: colors.accent },
+  tabText: { fontSize: 15, color: colors.textMuted, fontWeight: '600' },
+  tabTextActive: { color: colors.onAccent },
+  hint: { fontSize: 14, color: colors.textDim, marginBottom: 12 },
+  error: { fontSize: 14, color: colors.danger, marginBottom: 12 },
   sectionTitle: {
     fontSize: 16,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: '600',
     marginTop: 20,
     marginBottom: 8,
@@ -360,48 +361,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 8,
   },
   pendingRow: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#3d3868',
+    backgroundColor: colors.bgDeep,
     borderRadius: 8,
     marginBottom: 8,
   },
-  rowText: { flex: 1, fontSize: 16, color: '#c5c5c5', fontWeight: '500', marginRight: 8 },
+  rowText: { flex: 1, fontSize: 16, color: colors.textMuted, fontWeight: '500', marginRight: 8 },
   removeButton: {
     borderWidth: 1,
-    borderColor: '#ff6b6b',
+    borderColor: colors.danger,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
   },
-  removeButtonText: { color: '#ff6b6b', fontSize: 13, fontWeight: '600' },
+  removeButtonText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   inviteButton: {
-    backgroundColor: '#F99417',
+    backgroundColor: colors.accent,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 6,
   },
-  inviteButtonText: { color: '#363062', fontSize: 13, fontWeight: 'bold' },
+  inviteButtonText: { color: colors.onAccent, fontSize: 13, fontWeight: 'bold' },
   buttonDisabled: { opacity: 0.5 },
   searchInput: {
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#5a5590',
+    borderColor: colors.bgElevatedHover,
   },
   searchSpinner: { marginVertical: 12 },
   linkButton: { marginTop: 24, alignItems: 'center' },
-  linkButtonText: { color: '#F99417', fontSize: 15, fontWeight: '600' },
+  linkButtonText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
 });
 
 export default FriendsScreen;

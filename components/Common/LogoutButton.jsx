@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import { colors } from '../../theme/colors';
 
 const LogoutButton = () => {
 	const { logout } = useAuth();
@@ -28,7 +29,7 @@ const LogoutButton = () => {
 const styles = StyleSheet.create({
 	button: {},
 	text: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		fontWeight: 'bold',
 	},
 });

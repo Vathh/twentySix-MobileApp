@@ -7,6 +7,7 @@ import {
 	Text,
 	View,
 } from 'react-native';
+import { colors } from '../../theme/colors';
 
 export default function GameScoringModals({
 	isOpenerModalVisible,
@@ -70,7 +71,7 @@ export default function GameScoringModals({
 
 			{scoringBusy && !isCheckoutModalVisible && (
 				<View style={styles.scoringBusyOverlay} pointerEvents="none">
-					<ActivityIndicator size="large" color="#F99417" />
+					<ActivityIndicator size="large" color={colors.accent} />
 					<Text style={styles.scoringBusyText}>{scoringBusyLabel}</Text>
 				</View>
 			)}
@@ -83,10 +84,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
-		backgroundColor: '#363062',
+		backgroundColor: colors.bg,
 	},
 	modalText: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		marginRight: 50,
 		marginLeft: 50,
 		marginBottom: 30,
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
 		width: 120,
 		borderRadius: 10,
 		borderWidth: 2,
-		borderColor: 'rgba(255,255,255,.3)',
+		borderColor: colors.borderMuted,
 		justifyContent: 'center',
 		alignItems: 'center',
 	},
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
 		marginTop: 30,
 	},
 	modalBtnText: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		paddingTop: 10,
 		paddingBottom: 10,
 		paddingLeft: 15,
@@ -135,11 +136,11 @@ const styles = StyleSheet.create({
 		bottom: 56,
 		justifyContent: 'center',
 		alignItems: 'center',
-		backgroundColor: 'rgba(54, 48, 98, 0.72)',
+		backgroundColor: colors.overlayPurple,
 		zIndex: 10,
 	},
 	scoringBusyText: {
-		color: '#f5f5f5',
+		color: colors.text,
 		fontSize: 18,
 		marginTop: 14,
 		textAlign: 'center',

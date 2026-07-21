@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ACCOUNT_LOGIN_API_URL } from '../../helpers/apiConfig';
 import useAuth from '../../hooks/useAuth';
+import { colors } from '../../theme/colors';
 
 const QuickGameStartPanel = () => {
 
@@ -79,7 +80,7 @@ const QuickGameStartPanel = () => {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#363062" size="small" />
+            <ActivityIndicator color={colors.onAccent} size="small" />
           ) : (
             <Text style={styles.buttonText}>Zaloguj</Text>
           )}
@@ -92,18 +93,18 @@ const QuickGameStartPanel = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     alignItems: 'center'
   },
   mode: {
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     fontSize: 20,
     paddingTop: 20,
   },
   title: {
     fontSize: 24,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 70,
     marginTop: 100
   },
@@ -112,13 +113,15 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 14,
-    color: '#ff1e1e',
+    color: colors.dangerText,
     marginBottom: 20
   },
   input: {
     marginBottom: 20,
-    color: '#363062',
-    backgroundColor:  '#f5f5f5cc',
+    color: colors.text,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 5,
     width: 200,
     paddingVertical: 5,
@@ -129,21 +132,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
-    // marginHorizontal: 'auto',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingVertical: 7,
     paddingHorizontal: 14,
     minWidth: 100,
     minHeight: 34,
-    backgroundColor:  '#f5f5f5cc',
+    backgroundColor: colors.accent,
     borderRadius: 5
   },
   buttonDisabled: {
     opacity: 0.85,
   },
   buttonText: {
-    color: '#363062',
+    color: colors.onAccent,
   }
 })
 

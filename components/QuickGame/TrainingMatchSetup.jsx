@@ -13,6 +13,7 @@ import {
 	loadPersistedMatchFormat,
 	savePersistedMatchFormat,
 } from '../../helpers/matchFormat/persistMatchFormat';
+import { colors } from '../../theme/colors';
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 8;
@@ -120,7 +121,7 @@ const TrainingMatchSetup = ({ navigation }) => {
 						value={names[i] ?? ''}
 						onChangeText={(v) => updateName(i, v)}
 						placeholder={`Gracz ${i + 1}`}
-						placeholderTextColor="#999"
+						placeholderTextColor={colors.placeholder}
 						maxLength={32}
 					/>
 				))}
@@ -154,7 +155,7 @@ const TrainingMatchSetup = ({ navigation }) => {
 const styles = StyleSheet.create({
 	scroll: {
 		flex: 1,
-		backgroundColor: '#363062',
+		backgroundColor: colors.bg,
 	},
 	container: {
 		padding: 20,
@@ -162,14 +163,14 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		fontSize: 22,
-		color: '#F99417',
+		color: colors.accent,
 		fontWeight: '600',
 		marginBottom: 8,
 		textAlign: 'center',
 	},
 	hint: {
 		fontSize: 14,
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		textAlign: 'center',
 		marginBottom: 24,
 		lineHeight: 20,
@@ -179,13 +180,13 @@ const styles = StyleSheet.create({
 	},
 	label: {
 		fontSize: 16,
-		color: '#f5f5f5',
+		color: colors.text,
 		marginBottom: 14,
 		fontWeight: '500',
 	},
 	hintSmall: {
 		fontSize: 13,
-		color: '#aaa',
+		color: colors.textDim,
 		marginBottom: 10,
 	},
 	countRow: {
@@ -198,39 +199,43 @@ const styles = StyleSheet.create({
 		width: 44,
 		height: 44,
 		borderRadius: 8,
-		backgroundColor: '#f5f5f5cc',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
 	countBtnText: {
 		fontSize: 24,
-		color: '#363062',
+		color: colors.text,
 		fontWeight: '600',
 	},
 	countValue: {
 		fontSize: 28,
-		color: '#F99417',
+		color: colors.accent,
 		minWidth: 40,
 		textAlign: 'center',
 	},
 	input: {
-		backgroundColor: '#f5f5f5cc',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
 		borderRadius: 6,
 		paddingHorizontal: 12,
 		paddingVertical: 10,
 		fontSize: 16,
-		color: '#363062',
+		color: colors.text,
 		marginBottom: 8,
 	},
 	startBtn: {
-		backgroundColor: '#F99417',
+		backgroundColor: colors.accent,
 		borderRadius: 8,
 		paddingVertical: 14,
 		alignItems: 'center',
 		marginTop: 8,
 	},
 	startBtnText: {
-		color: '#363062',
+		color: colors.onAccent,
 		fontSize: 17,
 		fontWeight: '600',
 	},
@@ -240,7 +245,7 @@ const styles = StyleSheet.create({
 		paddingVertical: 10,
 	},
 	backBtnText: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		fontSize: 15,
 	},
 });

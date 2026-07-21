@@ -1,13 +1,8 @@
 import 'react-native-gesture-handler';
-import { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StatusBar } from 'expo-status-bar';
-import { ExpoKeepAwakeTag, deactivateKeepAwake } from 'expo-keep-awake';
-import { Platform, StatusBar as RNStatusBar, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuthProvider } from './context/AuthProvider';
-import Screens from './pages/Screens';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initTheme } from './theme/colors';
 
 // pusher-js (web build) oczekuje `self` — w RN jest tylko `global`
 if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
@@ -15,49 +10,38 @@ if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
 }
 
 /**
- * Expo w dev (`withDevTools`) włącza keep-awake na domyślnym tagu, gdy
- * `expo-keep-awake` jest w zależnościach — przez to ekran nie gaśnie nigdzie.
- * Wyłączamy to; keep-awake zostaje tylko na GameScoringScreen.
+ * Ładuje motyw z AsyncStorage PRZED require AppShell / Screens,
+ * żeby StyleSheet.create dostał właściwe hex z aktywnej palety.
  */
-function useAllowScreenSleepOutsideScoring() {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void deactivateKeepAwake(ExpoKeepAwakeTag);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-}
-
-function AppContent() {
-  useAllowScreenSleepOutsideScoring();
-  const insets = useSafeAreaInsets();
-  const topInset = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0);
-  const bottomInset = Math.max(insets.bottom, 10);
-  return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <GestureHandlerRootView style={styles.gesture}>
-        <StatusBar style="light" />
-        <NavigationContainer>
-          <AuthProvider>
-            <Screens />
-          </AuthProvider>
-        </NavigationContainer>
-      </GestureHandlerRootView>
-    </View>
-  );
-}
-
 export default function App() {
-  return (
-    <SafeAreaProvider>
-      <AppContent />
-    </SafeAreaProvider>
-  );
+	const [ready, setReady] = useState(false);
+
+	useEffect(() => {
+		initTheme().finally(() => setReady(true));
+	}, []);
+
+	if (!ready) {
+		return (
+			<View style={bootStyles.boot}>
+				<ActivityIndicator size="large" color="#F59E0B" />
+			</View>
+		);
+	}
+
+	const AppShell = require('./AppShell').default;
+
+	return (
+		<SafeAreaProvider>
+			<AppShell />
+		</SafeAreaProvider>
+	);
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#363062' },
-  gesture: { flex: 1 },
-});
-
-
+const bootStyles = {
+	boot: {
+		flex: 1,
+		backgroundColor: '#141418',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+};

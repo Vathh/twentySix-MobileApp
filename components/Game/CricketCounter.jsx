@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
+import { colors } from '../../theme/colors';
 
 const CRICKET_SEGMENTS = [20, 19, 18, 17, 16, 15, 'bull'];
 
@@ -157,7 +158,7 @@ const COL_NAME = 90;
 const COL_SEGMENT = 34;
 const COL_BULL = 38;
 const COL_PTS = 42;
-const BORDER = 'rgba(255,255,255,0.22)';
+const BORDER = colors.border;
 
 const styles = StyleSheet.create({
   container: {
@@ -167,10 +168,10 @@ const styles = StyleSheet.create({
   tableWrapper: {
     flex: 1,
     marginBottom: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.scrimStrong,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   tableScroll: {
@@ -219,15 +220,15 @@ const styles = StyleSheet.create({
   },
   cellHeader: {},
   cellActive: {
-    backgroundColor: 'rgba(249,148,23,0.2)',
+    backgroundColor: colors.accentSoft,
   },
   headerText: {
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   cellText: {
-    color: '#e8e8e8',
+    color: colors.textSecondary,
     fontSize: 15,
   },
   hitSymbol: {
@@ -235,11 +236,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   hitClosed: {
-    color: '#4ade80',
+    color: colors.success,
   },
   ptsText: {
     fontWeight: '600',
-    color: '#f5f5f5',
+    color: colors.text,
   },
   bottomSection: {
     paddingBottom: 16,
@@ -249,21 +250,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(0,0,0,.3)',
+    backgroundColor: colors.scrimMild,
   },
   dartInfo: {
     flex: 1,
-    color: '#888',
+    color: colors.textDim,
     fontSize: 14,
   },
   undoBtn: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(0,0,0,.4)',
+    backgroundColor: colors.scrimStrong,
     borderRadius: 6,
   },
   undoText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 16,
   },
   keyboard: {
@@ -279,21 +280,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.scrimMild,
   },
   modBtnActive: {
-    borderColor: '#F99417',
-    backgroundColor: 'rgba(249,148,23,0.25)',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoftStrong,
   },
   modText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: 'bold',
   },
   modTextActive: {
-    color: '#F99417',
+    color: colors.accent,
   },
   numRow: {
     flexDirection: 'row',
@@ -308,21 +309,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.borderMuted,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.scrimSoft,
   },
   numBtnDisabled: {
     opacity: 0.4,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: colors.borderSoft,
   },
   numText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 18,
     fontWeight: '600',
   },
   numTextDisabled: {
-    color: '#666',
+    color: colors.textVeryDim,
   },
 });
 

@@ -6,6 +6,7 @@ import {
 	buildGameScoringParamsFromActiveMatch,
 	resolveActiveFfaMatch,
 } from '../../helpers/activeQuickGameMatch'
+import { colors } from '../../theme/colors'
 
 const Home = ({ navigation }) => {
 
@@ -94,13 +95,13 @@ const Home = ({ navigation }) => {
         <Pressable style={styles.button} onPress={tournamentModeHandler}>
           <Text style={styles.buttonText}>Turniej</Text>
         </Pressable>
-        <Pressable style={styles.buttonPrimary} onPress={quickGameOnlineHandler}>
-          <Text style={styles.buttonPrimaryText}>Quick game online</Text>
+        <Pressable style={styles.button} onPress={quickGameOnlineHandler}>
+          <Text style={styles.buttonText}>Quick game online</Text>
           <Text style={styles.buttonHint}>Lobby, znajomi, zapis w statystykach</Text>
         </Pressable>
         <Pressable style={styles.button} onPress={trainingHandler}>
           <Text style={styles.buttonText}>Trening</Text>
-          <Text style={styles.buttonHintDark}>Bez internetu · wynik nie jest zapisywany</Text>
+          <Text style={styles.buttonHint}>Bez internetu · wynik nie jest zapisywany</Text>
         </Pressable>
       </View>
     </View>
@@ -110,13 +111,13 @@ const Home = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     paddingHorizontal: 24,
   },
   title: {
     fontSize: 24,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 48,
     marginTop: 100,
     textAlign: 'center',
@@ -131,18 +132,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#2d6a4f',
+    backgroundColor: colors.successMuted,
     borderRadius: 8,
   },
   buttonResumeText: {
-    color: '#e8fff3',
+    color: colors.successSoftText,
     fontSize: 16,
     fontWeight: '600',
   },
   buttonHintResume: {
     marginTop: 4,
     fontSize: 12,
-    color: '#c8f5dc',
+    color: colors.successSoftText,
     textAlign: 'center',
   },
   button: {
@@ -150,37 +151,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#f5f5f5cc',
-    borderRadius: 8,
-  },
-  buttonPrimary: {
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#F99417',
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#363062',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  buttonPrimaryText: {
-    color: '#363062',
-    fontSize: 16,
+    color: colors.text,
+    fontSize: 17,
     fontWeight: '600',
   },
   buttonHint: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#363062aa',
-    textAlign: 'center',
-  },
-  buttonHintDark: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#36306299',
+    marginTop: 5,
+    fontSize: 13,
+    color: colors.text,
+    opacity: 0.85,
     textAlign: 'center',
   },
 })

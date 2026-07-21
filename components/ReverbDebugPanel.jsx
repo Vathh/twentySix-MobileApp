@@ -5,11 +5,12 @@ import {
 	isReverbDebugEnabled,
 	subscribeReverbDebugLog,
 } from '../helpers/reverbDebugLog';
+import { colors } from '../theme/colors';
 
 const LEVEL_COLOR = {
-	info: '#94a3b8',
-	warn: '#fbbf24',
-	error: '#f87171',
+	info: colors.textDim,
+	warn: colors.warning,
+	error: colors.danger,
 };
 
 export default function ReverbDebugPanel() {
@@ -74,9 +75,9 @@ const styles = StyleSheet.create({
 	wrap: {
 		marginTop: 12,
 		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.15)',
+		borderColor: colors.borderMuted,
 		borderRadius: 8,
-		backgroundColor: 'rgba(0,0,0,0.35)',
+		backgroundColor: colors.scrim,
 		overflow: 'hidden',
 	},
 	header: {
@@ -85,15 +86,15 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between',
 		paddingHorizontal: 10,
 		paddingVertical: 8,
-		backgroundColor: 'rgba(0,0,0,0.25)',
+		backgroundColor: colors.scrimSoft,
 	},
 	headerText: {
-		color: '#e2e8f0',
+		color: colors.textSecondary,
 		fontSize: 12,
 		fontWeight: '600',
 	},
 	clearBtn: {
-		color: '#94a3b8',
+		color: colors.textDim,
 		fontSize: 11,
 	},
 	log: {
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
 	},
 	empty: {
 		fontSize: 11,
-		color: '#94a3b8',
+		color: colors.textDim,
 		fontStyle: 'italic',
 	},
 });

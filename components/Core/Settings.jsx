@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
 import { SCORING_MODES } from '../../hooks/useGameSettings';
+import { colors } from '../../theme/colors';
 
 const Settings = ({ scoringMode, setScoringMode, loaded = true }) => {
   if (!loaded) {
@@ -55,20 +56,20 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   loadingText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 16,
   },
   section: {
     marginBottom: 24,
   },
   label: {
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
   hint: {
-    color: '#888',
+    color: colors.textDim,
     fontSize: 14,
     marginBottom: 12,
   },
@@ -79,23 +80,23 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderColor: colors.border,
+    backgroundColor: colors.scrimSoft,
   },
   optionSelected: {
-    borderColor: '#F99417',
-    backgroundColor: 'rgba(249,148,23,0.15)',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentMuted,
   },
   optionText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
   },
   optionTextSelected: {
-    color: '#F99417',
+    color: colors.accent,
   },
   optionDesc: {
-    color: '#888',
+    color: colors.textDim,
     fontSize: 13,
     marginTop: 4,
   },

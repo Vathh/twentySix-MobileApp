@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import { colors } from '../../theme/colors';
 
 const AccountMenuButton = () => {
 	const { auth, logout } = useAuth();
@@ -35,7 +36,7 @@ const styles = StyleSheet.create({
 		maxWidth: 140,
 	},
 	text: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		fontWeight: 'bold',
 	},
 });

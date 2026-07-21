@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { LOGIN_API_URL } from '../../helpers/apiConfig'
 import useAuth from '../../hooks/useAuth'
+import { colors } from '../../theme/colors'
 
 /**
  * Ekran uwierzytelnienia kodem turnieju.
@@ -69,24 +70,24 @@ const TournamentCode = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     alignItems: 'center'
   },
   subtitle: {
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     fontSize: 20,
     marginTop: 40
   },
   title: {
     fontSize: 24,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginTop: 16,
     marginBottom: 8
   },
   hint: {
     fontSize: 14,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 24,
     textAlign: 'center',
     paddingHorizontal: 24
@@ -96,13 +97,15 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 14,
-    color: '#ff1e1e',
+    color: colors.dangerText,
     marginBottom: 20
   },
   input: {
     marginBottom: 20,
-    color: '#363062',
-    backgroundColor: '#f5f5f5cc',
+    color: colors.text,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 5,
     width: 220,
     paddingVertical: 10,
@@ -114,11 +117,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: '#f5f5f5cc',
+    backgroundColor: colors.accent,
     borderRadius: 5
   },
   buttonText: {
-    color: '#363062',
+    color: colors.onAccent,
     fontWeight: 'bold'
   }
 })

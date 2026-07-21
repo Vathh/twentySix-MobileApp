@@ -36,6 +36,7 @@ import {
   loadPersistedMatchFormat,
   savePersistedMatchFormat,
 } from '../../helpers/matchFormat/persistMatchFormat';
+import { colors } from '../../theme/colors';
 
 const MAX_LOBBY_PLAYERS = 8;
 
@@ -47,9 +48,9 @@ const normalizeLobbyGameType = (_value) => 'x01';
 const SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
 const INVITATION_STATUS = {
-  sent: { key: 'sent', label: 'Wysłane', color: '#F99417' },
-  accepted: { key: 'accepted', label: 'Zaakceptowane', color: '#4ade80' },
-  rejected: { key: 'rejected', label: 'Odrzucone', color: '#f87171' },
+  sent: { key: 'sent', label: 'Wysłane', color: colors.accent },
+  accepted: { key: 'accepted', label: 'Zaakceptowane', color: colors.success },
+  rejected: { key: 'rejected', label: 'Odrzucone', color: colors.danger },
 };
 
 const QuickGameLobby = ({ navigation, route }) => {
@@ -685,7 +686,7 @@ const QuickGameLobby = ({ navigation, route }) => {
                 value={guestName}
                 onChangeText={setGuestName}
                 placeholder="Imię zawodnika"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.placeholder}
                 maxLength={50}
                 autoCapitalize="words"
               />
@@ -828,7 +829,7 @@ const QuickGameLobby = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
   },
   formContent: {
     padding: 24,
@@ -853,46 +854,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: 'rgba(249,148,23,0.5)',
+    borderColor: colors.accentBorder,
     backgroundColor: 'transparent',
   },
   reorderButtonTextSecondary: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   title: {
     fontSize: 22,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 16,
     fontWeight: 'bold',
   },
   hint: {
     fontSize: 14,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 16,
   },
   hintSmall: {
     fontSize: 13,
-    color: '#a0a0a0',
+    color: colors.textDim,
     marginTop: 4,
     marginBottom: 8,
   },
   formatValue: {
     fontSize: 16,
-    color: '#363062',
+    color: colors.bg,
     fontWeight: '600',
     marginTop: 4,
     marginBottom: 4,
   },
   error: {
     fontSize: 14,
-    color: '#ff6b6b',
+    color: colors.dangerAlt,
     marginBottom: 12,
   },
   label: {
     fontSize: 16,
-    color: '#F99417',
+    color: colors.accent,
     marginBottom: 8,
     fontWeight: 'bold',
   },
@@ -901,20 +902,20 @@ const styles = StyleSheet.create({
   },
   playerRow: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginVertical: 4,
   },
   emptyPlayersBox: {
     paddingVertical: 20,
     paddingHorizontal: 16,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 12,
     alignItems: 'center',
   },
   emptyPlayersText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: colors.textDim,
     marginBottom: 4,
   },
   playerTile: {
@@ -923,18 +924,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 8,
   },
   playerTileActive: {
-    backgroundColor: '#5a5590',
+    backgroundColor: colors.bgElevatedHover,
     opacity: 0.95,
   },
   playerTileName: {
     flex: 1,
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   dragHandle: {
@@ -948,17 +949,17 @@ const styles = StyleSheet.create({
   },
   dragHandleText: {
     fontSize: 26,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: '700',
     lineHeight: 28,
   },
   input: {
     marginBottom: 4,
     padding: 12,
-    backgroundColor: '#f5f5f5cc',
+    backgroundColor: colors.chipLight,
     borderRadius: 8,
     fontSize: 16,
-    color: '#363062',
+    color: colors.bg,
   },
   invitationsBox: {
     marginBottom: 8,
@@ -970,13 +971,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 8,
   },
   invitationName: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   invitationStatus: {
@@ -994,7 +995,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F99417',
+    backgroundColor: colors.accent,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -1002,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   inviteButtonText: {
     fontSize: 16,
-    color: '#363062',
+    color: colors.bg,
     fontWeight: 'bold',
   },
   inviteButtonSecondary: {
@@ -1014,17 +1015,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#F99417',
+    borderColor: colors.accent,
     backgroundColor: 'transparent',
   },
   inviteButtonTextSecondary: {
     fontSize: 16,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
   },
   subLabel: {
     fontSize: 14,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     marginBottom: 8,
     marginTop: 4,
   },
@@ -1032,12 +1033,12 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   guestInput: {
-    backgroundColor: '#f5f5f5cc',
+    backgroundColor: colors.chipLight,
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#363062',
+    color: colors.bg,
     marginBottom: 12,
   },
   cachedNamesWrap: {
@@ -1053,14 +1054,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
   },
   cachedNameChipText: {
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 13,
   },
   button: {
-    backgroundColor: '#F99417',
+    backgroundColor: colors.accent,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -1071,12 +1072,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#363062',
+    color: colors.bg,
     fontWeight: 'bold',
     fontSize: 16,
   },
   buttonTextDisabled: {
-    color: '#6b6b6b',
+    color: colors.textDisabled,
   },
   buttonOutlined: {
     paddingVertical: 12,
@@ -1085,11 +1086,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#F99417',
+    borderColor: colors.accent,
     backgroundColor: 'transparent',
   },
   buttonOutlinedText: {
-    color: '#F99417',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -1099,18 +1100,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonTextSecondary: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 16,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#363062',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 24,
     width: '100%',
@@ -1118,7 +1119,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     marginBottom: 16,
   },
@@ -1129,7 +1130,7 @@ const styles = StyleSheet.create({
   friendRow: {
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#4a4580',
+    backgroundColor: colors.bgElevated,
     borderRadius: 8,
     marginBottom: 8,
   },
@@ -1138,7 +1139,7 @@ const styles = StyleSheet.create({
   },
   friendRowText: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   gameTypeRow: {
@@ -1152,27 +1153,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.scrimSoft,
     alignItems: 'center',
   },
   gameTypeBtnActive: {
-    borderColor: '#F99417',
-    backgroundColor: 'rgba(249,148,23,0.2)',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   gameTypeBtnText: {
     fontSize: 16,
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   gameTypeBtnTextActive: {
-    color: '#F99417',
+    color: colors.accent,
   },
   wsLive: {
-    color: '#4ade80',
+    color: colors.success,
   },
   wsOffline: {
-    color: '#f87171',
+    color: colors.danger,
   },
 });
 

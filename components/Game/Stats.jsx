@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
+import { colors } from '../../theme/colors';
 
 const StatsSingleRow = ({ title, value }) => {
   const display = value == null || value === '' ? '-' : String(value);
@@ -199,14 +200,14 @@ const styles = StyleSheet.create({
     paddingBottom: 4
   },
   darkRow: {
-    backgroundColor: 'rgba(0,0,0,.3)',
+    backgroundColor: colors.scrimMild,
     borderBottomWidth: 1,
-    borderBottomColor: '#dc8418'
+    borderBottomColor: colors.accentHover
   },
   lightRow: {
-    backgroundColor: 'rgba(0,0,0,.2)',
+    backgroundColor: colors.scrimSoft,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#bd7013',
+    borderBottomColor: colors.accentHover,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     textAlign: 'center',
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 16
   },
   multiScroll: {
@@ -233,8 +234,8 @@ const styles = StyleSheet.create({
     maxHeight: 48,
     flexGrow: 0,
     borderBottomWidth: 1,
-    borderBottomColor: '#dc8418',
-    backgroundColor: 'rgba(0,0,0,.25)',
+    borderBottomColor: colors.accentHover,
+    backgroundColor: colors.scrimMild,
   },
   tabBarContent: {
     paddingHorizontal: 8,
@@ -247,19 +248,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.borderSoft,
     maxWidth: 140,
   },
   tabActive: {
-    backgroundColor: '#F99417',
+    backgroundColor: colors.accent,
   },
   tabText: {
-    color: '#c5c5c5',
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
   tabTextActive: {
-    color: '#363062',
+    color: colors.onAccent,
   },
   tabPanelScroll: {
     flex: 1,
@@ -269,13 +270,13 @@ const styles = StyleSheet.create({
   },
   singleRowTitle: {
     flex: 1,
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 15,
   },
   singleRowValue: {
     minWidth: 72,
     textAlign: 'right',
-    color: '#f5f5f5',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },

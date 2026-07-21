@@ -1,5 +1,6 @@
 import React from 'react'
 import { StyleSheet, Text } from 'react-native'
+import { colors } from '../../theme/colors'
 
 const HeaderTitle = () => {
   return (
@@ -9,7 +10,7 @@ const HeaderTitle = () => {
 
 const styles = StyleSheet.create({
   text: {
-    color: '#F99417',
+    color: colors.accent,
     fontWeight: 'bold',
     fontSize: 20
   }

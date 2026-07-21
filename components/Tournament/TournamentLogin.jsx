@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { loginWithPassword } from '../../helpers/authApi';
+import { colors } from '../../theme/colors';
 
 const TournamentLogin = () => {
 	const {
@@ -77,8 +78,8 @@ const TournamentLogin = () => {
 						value={rememberMePreferred}
 						onValueChange={setRememberMePreferred}
 						disabled={loading}
-						trackColor={{ false: '#555', true: '#F99417' }}
-						thumbColor="#f5f5f5"
+						trackColor={{ false: colors.textVeryDim, true: colors.accent }}
+						thumbColor={colors.text}
 					/>
 				</View>
 				<Pressable
@@ -87,7 +88,7 @@ const TournamentLogin = () => {
 					disabled={loading}
 				>
 					{loading ? (
-						<ActivityIndicator color="#363062" size="small" />
+						<ActivityIndicator color={colors.onAccent} size="small" />
 					) : (
 						<Text style={styles.buttonText}>Zaloguj</Text>
 					)}
@@ -106,12 +107,12 @@ const TournamentLogin = () => {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: '#363062',
+		backgroundColor: colors.bg,
 		alignItems: 'center',
 	},
 	title: {
 		fontSize: 24,
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		marginBottom: 40,
 		marginTop: 100,
 	},
@@ -121,15 +122,17 @@ const styles = StyleSheet.create({
 	},
 	errorMessage: {
 		fontSize: 14,
-		color: '#ff1e1e',
+		color: colors.dangerText,
 		marginBottom: 20,
 		textAlign: 'center',
 		minHeight: 18,
 	},
 	input: {
 		marginBottom: 20,
-		color: '#363062',
-		backgroundColor: '#f5f5f5cc',
+		color: colors.text,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
 		borderRadius: 5,
 		width: 260,
 		paddingVertical: 8,
@@ -144,11 +147,11 @@ const styles = StyleSheet.create({
 		marginBottom: 8,
 	},
 	rememberLabel: {
-		color: '#c5c5c5',
+		color: colors.textMuted,
 		fontSize: 15,
 	},
 	rememberHint: {
-		color: '#999',
+		color: colors.placeholder,
 		fontSize: 12,
 		width: 260,
 		textAlign: 'center',
@@ -162,21 +165,22 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 14,
 		minWidth: 100,
 		minHeight: 34,
-		backgroundColor: '#f5f5f5cc',
+		backgroundColor: colors.accent,
 		borderRadius: 5,
 	},
 	buttonDisabled: {
 		opacity: 0.85,
 	},
 	buttonText: {
-		color: '#363062',
+		color: colors.onAccent,
+		fontWeight: '600',
 	},
 	linkButton: {
 		marginTop: 20,
 		padding: 8,
 	},
 	linkText: {
-		color: '#F99417',
+		color: colors.accent,
 		fontSize: 15,
 	},
 });
