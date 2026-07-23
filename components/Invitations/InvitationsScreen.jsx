@@ -28,9 +28,16 @@ const TAB_TOURNAMENT = 'tournament';
 const TAB_POJEDYNEK = 'pojedynek';
 const TAB_FRIENDS = 'friends';
 
-const InvitationsScreen = ({ navigation }) => {
+const VALID_TABS = new Set([TAB_TOURNAMENT, TAB_POJEDYNEK, TAB_FRIENDS]);
+
+function resolveInitialTab(route) {
+  const tab = route?.params?.tab;
+  return VALID_TABS.has(tab) ? tab : TAB_POJEDYNEK;
+}
+
+const InvitationsScreen = ({ navigation, route }) => {
   const { auth } = useAuth();
-  const [activeTab, setActiveTab] = useState(TAB_POJEDYNEK);
+  const [activeTab, setActiveTab] = useState(() => resolveInitialTab(route));
   const [tournamentInvitations, setTournamentInvitations] = useState([]);
   const [lobbyInvitations, setLobbyInvitations] = useState([]);
   const [friendInvitations, setFriendInvitations] = useState([]);
@@ -38,6 +45,13 @@ const InvitationsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [actionId, setActionId] = useState(null);
+
+  useEffect(() => {
+    const tab = route?.params?.tab;
+    if (VALID_TABS.has(tab)) {
+      setActiveTab(tab);
+    }
+  }, [route?.params?.tab]);
 
   const authHeaders = useCallback(
     () => ({

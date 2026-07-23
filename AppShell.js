@@ -6,7 +6,9 @@ import { ExpoKeepAwakeTag, deactivateKeepAwake } from 'expo-keep-awake';
 import { Platform, StatusBar as RNStatusBar, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthProvider';
+import PushNotificationsBootstrap from './components/Common/PushNotificationsBootstrap';
 import Screens from './pages/Screens';
+import { navigationRef } from './helpers/navigationRef';
 import { colors } from './theme/colors';
 
 /**
@@ -38,8 +40,9 @@ export default function AppShell() {
 		<View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
 			<GestureHandlerRootView style={styles.gesture}>
 				<StatusBar style="light" />
-				<NavigationContainer>
+				<NavigationContainer ref={navigationRef}>
 					<AuthProvider>
+						<PushNotificationsBootstrap />
 						<Screens />
 					</AuthProvider>
 				</NavigationContainer>

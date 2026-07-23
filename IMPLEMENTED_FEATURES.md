@@ -81,6 +81,7 @@ Ostatnia aktualizacja: lipiec 2026 — MVP v1 otagowane. Zadania: [`../twentysix
 | Akceptacja zaproszenia znajomego | ✅ | `InvitationsScreen` — tab Znajomi |
 | Usuwanie znajomego | ✅ | `FriendsScreen` |
 | Zaproszenie turniejowe | ✅ |
+| Push przy zaproszeniach | ✅ | `expo-notifications`, tap → `Zaproszenia` + tab |
 
 ---
 

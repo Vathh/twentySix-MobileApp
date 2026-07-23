@@ -12,6 +12,7 @@ import {
 	saveStoredSession,
 	storedSessionToAuth,
 } from '../helpers/authSessionStorage';
+import { unregisterCurrentDevicePushToken } from '../helpers/pushNotifications/unregisterPushToken';
 
 const AuthContext = createContext({
 	auth: {},
@@ -48,6 +49,11 @@ export const AuthProvider = ({ children }) => {
 	const logout = useCallback(async () => {
 		const token = authRef.current?.accessToken;
 		if (token) {
+			try {
+				await unregisterCurrentDevicePushToken(token);
+			} catch {
+				// opcjonalne
+			}
 			try {
 				await logoutAuthSession(token);
 			} catch {

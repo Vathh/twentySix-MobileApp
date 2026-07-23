@@ -280,3 +280,5 @@ export const getTournamentInvitationRejectUrl = (invitationId) =>
 	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
 export const getTournamentInvitationWithdrawUrl = (invitationId) =>
 	API_BASE_URL + TOURNAMENT_INVITATIONS_PREFIX + '/' + invitationId + '/withdraw';
+
+export const PUSH_TOKENS_API_URL = API_BASE_URL + '/push-tokens';

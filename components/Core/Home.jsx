@@ -4,14 +4,17 @@ import { useFocusEffect } from '@react-navigation/native'
 import useAuth from '../../hooks/useAuth'
 import {
 	buildGameScoringParamsFromActiveMatch,
+	clearActiveFfaLobby,
 	resolveActiveFfaMatch,
 } from '../../helpers/activeQuickGameMatch'
+import { postFfaPresence } from '../../helpers/quickGameFfaApi'
 import { colors } from '../../theme/colors'
 
 const Home = ({ navigation }) => {
 
   const { auth } = useAuth()
   const [activeMatch, setActiveMatch] = useState(null)
+  const [leavingMatch, setLeavingMatch] = useState(false)
 
   useFocusEffect(
     useCallback(() => {
@@ -70,6 +73,37 @@ const Home = ({ navigation }) => {
     }
   }
 
+  const leaveMatchHandler = () => {
+    if (!activeMatch?.lobbyId || !auth?.accessToken || leavingMatch) {
+      return
+    }
+
+    const playerCount = activeMatch?.players?.length ?? 0
+    const message =
+      playerCount === 2
+        ? 'Opuścisz mecz bez możliwości powrotu. Przeciwnik wygra walkowerem — tak samo jak przy wyjściu z ekranu gry.'
+        : 'Opuścisz mecz bez możliwości powrotu. To samo zachowanie jak przy wyjściu z ekranu gry.'
+
+    Alert.alert('Opuścić mecz?', message, [
+      { text: 'Anuluj', style: 'cancel' },
+      {
+        text: 'Opuść',
+        style: 'destructive',
+        onPress: async () => {
+          setLeavingMatch(true)
+          try {
+            await postFfaPresence(activeMatch.lobbyId, auth.accessToken, 'left')
+          } catch {
+            // i tak czyścimy lokalny stan — użytkownik chce wyjść
+          }
+          await clearActiveFfaLobby()
+          setActiveMatch(null)
+          setLeavingMatch(false)
+        },
+      },
+    ])
+  }
+
   const trainingHandler = () => {
     navigation.navigate('TrainingMatchSetup')
   }
@@ -85,12 +119,29 @@ const Home = ({ navigation }) => {
       <Text style={styles.title}>Wybierz tryb gry</Text>
       <View style={styles.form}>
         {activeMatch ? (
-          <Pressable style={styles.buttonResume} onPress={resumeMatchHandler}>
-            <Text style={styles.buttonResumeText}>Wróć do meczu</Text>
-            <Text style={styles.buttonHintResume}>
+          <View style={styles.resumeBlock}>
+            <Text style={styles.resumeContext}>
               Quick game z {opponentNames}
             </Text>
-          </Pressable>
+            <View style={styles.resumeRow}>
+              <Pressable
+                style={[styles.buttonResume, styles.resumeRowButton]}
+                onPress={resumeMatchHandler}
+                disabled={leavingMatch}
+              >
+                <Text style={styles.buttonResumeText}>Wróć do meczu</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.buttonLeave, styles.resumeRowButton]}
+                onPress={leaveMatchHandler}
+                disabled={leavingMatch}
+              >
+                <Text style={styles.buttonLeaveText}>
+                  {leavingMatch ? 'Opuszczanie…' : 'Opuść'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
         <Pressable style={styles.button} onPress={tournamentModeHandler}>
           <Text style={styles.buttonText}>Turniej</Text>
@@ -127,23 +178,50 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
   },
+  resumeBlock: {
+    marginBottom: 8,
+  },
+  resumeContext: {
+    marginBottom: 8,
+    fontSize: 12,
+    color: colors.successSoftText,
+    textAlign: 'center',
+  },
+  resumeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  resumeRowButton: {
+    flex: 1,
+  },
   buttonResume: {
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     backgroundColor: colors.successMuted,
     borderRadius: 8,
   },
   buttonResumeText: {
     color: colors.successSoftText,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  buttonHintResume: {
-    marginTop: 4,
-    fontSize: 12,
-    color: colors.successSoftText,
+  buttonLeave: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    backgroundColor: colors.dangerMuted,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  buttonLeaveText: {
+    color: colors.dangerText,
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
   },
   button: {
