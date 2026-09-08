@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { useConfirm } from '../context/ConfirmProvider';
 import {
 	applyGameScoringState,
 	computeStateRevision,
@@ -57,6 +58,7 @@ export function useGameScoring({
 	getCloseLegDoubleStats = null,
 	onAborted = null,
 }) {
+	const confirm = useConfirm();
 	const currentLegIdRef = useRef(null);
 	const lastStateKeyRef = useRef('');
 	const lastLegNumberRef = useRef(null);
@@ -822,20 +824,17 @@ export function useGameScoring({
 					return performUndo();
 				}
 
-				return new Promise((resolve) => {
-					Alert.alert(CLOSED_LEG_UNDO_TITLE, CLOSED_LEG_UNDO_MESSAGE, [
-						{ text: 'Anuluj', style: 'cancel', onPress: () => resolve(null) },
-						{
-							text: 'Cofnij leg',
-							style: 'destructive',
-							onPress: () => {
-								void performUndo().then(resolve);
-							},
-						},
-					]);
+				const ok = await confirm({
+					title: CLOSED_LEG_UNDO_TITLE,
+					message: CLOSED_LEG_UNDO_MESSAGE,
+					confirmLabel: 'Cofnij leg',
 				});
+				if (!ok) {
+					return null;
+				}
+				return performUndo();
 			}),
-		[runSerialized, enabled, transport, applyStateSafe],
+		[runSerialized, enabled, transport, applyStateSafe, confirm],
 	);
 
 	return {

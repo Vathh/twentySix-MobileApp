@@ -1,11 +1,13 @@
 import React from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
 
 /** Menu konta: gdzie gram, profil, zmiana hasła, wylogowanie. */
 const AccountScreen = ({ navigation }) => {
 	const { auth, logout } = useAuth();
+	const confirm = useConfirm();
 
 	const openOwnProfile = () => {
 		const playerId = auth?.playerId;
@@ -19,17 +21,15 @@ const AccountScreen = ({ navigation }) => {
 		});
 	};
 
-	const confirmLogout = () => {
-		Alert.alert('Wylogowanie', 'Na pewno chcesz się wylogować?', [
-			{ text: 'Anuluj', style: 'cancel' },
-			{
-				text: 'Wyloguj',
-				style: 'destructive',
-				onPress: () => {
-					void logout();
-				},
-			},
-		]);
+	const confirmLogout = async () => {
+		const ok = await confirm({
+			title: 'Wylogowanie',
+			message: 'Na pewno chcesz się wylogować?',
+			confirmLabel: 'Wyloguj',
+		});
+		if (ok) {
+			void logout();
+		}
 	};
 
 	return (

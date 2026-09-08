@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import ScreenLoading from '../Common/ScreenLoading';
 import {
   fetchFriends as fetchFriendsRequest,
@@ -26,6 +27,7 @@ const TAB_ADD = 'add';
 
 const FriendsScreen = ({ navigation }) => {
   const { auth } = useAuth();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState(TAB_LIST);
   const [friends, setFriends] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
@@ -116,32 +118,29 @@ const FriendsScreen = ({ navigation }) => {
     }
   };
 
-  const handleRemoveFriend = (friend) => {
+  const handleRemoveFriend = async (friend) => {
     const friendId = friend.id ?? friend.playerId;
     const name = friend.name ?? 'znajomego';
-    Alert.alert('Usuń znajomego', `Usunąć ${name} z listy znajomych?`, [
-      { text: 'Anuluj', style: 'cancel' },
-      {
-        text: 'Usuń',
-        style: 'destructive',
-        onPress: async () => {
-          if (actionId) return;
-          setActionId(`remove-${friendId}`);
-          try {
-            const { ok, data } = await removeFriendRequest(friendId, auth.accessToken);
-            if (ok) {
-              setFriends((prev) => prev.filter((f) => (f.id ?? f.playerId) !== friendId));
-            } else {
-              Alert.alert('Błąd', data?.message || 'Nie udało się usunąć znajomego.');
-            }
-          } catch (e) {
-            Alert.alert('Błąd', 'Błąd połączenia.');
-          } finally {
-            setActionId(null);
-          }
-        },
-      },
-    ]);
+    const confirmed = await confirm({
+      title: 'Usuń znajomego',
+      message: `Usunąć ${name} z listy znajomych?`,
+      confirmLabel: 'Usuń',
+    });
+    if (!confirmed) return;
+    if (actionId) return;
+    setActionId(`remove-${friendId}`);
+    try {
+      const { ok, data } = await removeFriendRequest(friendId, auth.accessToken);
+      if (ok) {
+        setFriends((prev) => prev.filter((f) => (f.id ?? f.playerId) !== friendId));
+      } else {
+        Alert.alert('Błąd', data?.message || 'Nie udało się usunąć znajomego.');
+      }
+    } catch (e) {
+      Alert.alert('Błąd', 'Błąd połączenia.');
+    } finally {
+      setActionId(null);
+    }
   };
 
   const isAlreadyFriend = (userId) =>

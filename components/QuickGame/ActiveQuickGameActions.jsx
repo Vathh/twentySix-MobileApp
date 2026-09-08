@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useConfirm } from '../../context/ConfirmProvider';
 import {
 	activeQuickGameOpponentNames,
 	buildGameScoringParamsFromActiveGame,
@@ -15,6 +16,7 @@ export default function ActiveQuickGameActions({
 	resumeLabel = 'Wróć do gry',
 }) {
 	const [busy, setBusy] = useState(false);
+	const confirm = useConfirm();
 	if (!game?.lobbyId) {
 		return null;
 	}
@@ -32,56 +34,46 @@ export default function ActiveQuickGameActions({
 		}
 	};
 
-	const abortGame = () => {
+	const abortGame = async () => {
 		if (!accessToken || busy) return;
-		Alert.alert(
-			'Skasować grę?',
-			'Gra zostanie unieważniona i usunięta. Wynik się nie zapisze.',
-			[
-				{ text: 'Anuluj', style: 'cancel' },
-				{
-					text: 'Skasuj grę',
-					style: 'destructive',
-					onPress: async () => {
-						setBusy(true);
-						try {
-							await abortFfaGame(game.lobbyId, accessToken);
-							onCleared?.();
-						} catch (err) {
-							Alert.alert('Błąd', err?.message || 'Nie udało się skasować gry');
-						} finally {
-							setBusy(false);
-						}
-					},
-				},
-			],
-		);
+		const ok = await confirm({
+			title: 'Skasować grę?',
+			message: 'Gra zostanie unieważniona i usunięta. Wynik się nie zapisze.',
+			confirmLabel: 'Skasuj grę',
+		});
+		if (!ok) return;
+		setBusy(true);
+		try {
+			await abortFfaGame(game.lobbyId, accessToken);
+			onCleared?.();
+		} catch (err) {
+			Alert.alert('Błąd', err?.message || 'Nie udało się skasować gry');
+		} finally {
+			setBusy(false);
+		}
 	};
 
-	const leaveGame = () => {
+	const leaveGame = async () => {
 		if (!accessToken || busy) return;
 		const playerCount = game?.players?.length ?? 0;
 		const message =
 			playerCount === 2
 				? 'Opuścisz mecz bez możliwości powrotu. Przeciwnik wygra walkowerem.'
 				: 'Opuścisz mecz bez możliwości powrotu.';
-		Alert.alert('Opuścić mecz?', message, [
-			{ text: 'Anuluj', style: 'cancel' },
-			{
-				text: 'Opuść',
-				style: 'destructive',
-				onPress: async () => {
-					setBusy(true);
-					try {
-						await postFfaPresence(game.lobbyId, accessToken, 'left');
-					} catch {
-						// i tak czyścimy lokalny stan — użytkownik chce wyjść
-					}
-					onCleared?.();
-					setBusy(false);
-				},
-			},
-		]);
+		const ok = await confirm({
+			title: 'Opuścić mecz?',
+			message,
+			confirmLabel: 'Opuść',
+		});
+		if (!ok) return;
+		setBusy(true);
+		try {
+			await postFfaPresence(game.lobbyId, accessToken, 'left');
+		} catch {
+			// i tak czyścimy lokalny stan — użytkownik chce wyjść
+		}
+		onCleared?.();
+		setBusy(false);
 	};
 
 	return (

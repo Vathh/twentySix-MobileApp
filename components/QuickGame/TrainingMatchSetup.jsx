@@ -29,6 +29,7 @@ import {
 	dropStaleSelfSlots,
 } from '../../helpers/persistTrainingPlayers';
 import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { removeTempPlayerStats } from '../../helpers/trainingHistory/persistTempPlayerStats';
 import { colors } from '../../theme/colors';
 
@@ -37,6 +38,7 @@ const MAX_PLAYERS = 8;
 
 const TrainingMatchSetup = ({ navigation, route }) => {
 	const { auth } = useAuth();
+	const confirm = useConfirm();
 	const [players, setPlayers] = useState([]);
 	const [playersLoaded, setPlayersLoaded] = useState(false);
 	const [matchFormat, setMatchFormat] = useState(DEFAULT_MATCH_FORMAT);
@@ -161,24 +163,22 @@ const TrainingMatchSetup = ({ navigation, route }) => {
 		setPlayerModalVisible(false);
 	};
 
-	const handleRemoveFromBase = (name) => {
-		Alert.alert(
-			'Usuń z bazy',
-			`Czy na pewno chcesz usunąć z bazy gracza ${name}?`,
-			[
-				{ text: 'Anuluj', style: 'cancel' },
-				{
-					text: 'Usuń',
-					style: 'destructive',
-					onPress: async () => {
-						await removeCachedTempName(name);
-						await removeTempPlayerStats(name);
-						setCachedPlayerNames((prev) => prev.filter((n) => n !== name));
-						setSelectedNames((prev) => prev.filter((n) => n !== name));
-					},
-				},
-			],
-		);
+	const handleRemoveFromBase = async (name) => {
+		setPlayerModalVisible(false);
+		const ok = await confirm({
+			title: 'Usuń z bazy',
+			message: `Czy na pewno chcesz usunąć z bazy gracza ${name}?`,
+			confirmLabel: 'Usuń',
+		});
+		if (!ok) {
+			setPlayerModalVisible(true);
+			return;
+		}
+		await removeCachedTempName(name);
+		await removeTempPlayerStats(name);
+		setCachedPlayerNames((prev) => prev.filter((n) => n !== name));
+		setSelectedNames((prev) => prev.filter((n) => n !== name));
+		setPlayerModalVisible(true);
 	};
 
 	const removePlayer = (id) => {

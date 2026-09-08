@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { useConfirm } from '../context/ConfirmProvider';
 import { GAME_MODE } from '../helpers/gameScoring';
 import { releaseTournamentGame } from '../helpers/lockTournamentGame';
 import { postFfaPresence } from '../helpers/quickGameFfaApi';
@@ -24,6 +24,8 @@ export function useLeaveGameConfirmation({
 	onClosedLeave,
 	lobbyScoringMode = 'each_own',
 }) {
+	const confirm = useConfirm();
+
 	useEffect(
 		() =>
 			navigation.addListener('beforeRemove', (e) => {
@@ -37,51 +39,44 @@ export function useLeaveGameConfirmation({
 				const isOneDeviceFfa =
 					mode === GAME_MODE.QUICK_FFA && lobbyScoringMode === 'one_device';
 
-				Alert.alert(
-					isOneDeviceFfa ? 'Wyjdź z ekranu gry?' : 'UWAGA',
-					isOneDeviceFfa
-						? 'Gra pozostanie aktywna. Możesz wrócić z ekranu szybkiej gry albo skasować ją tam.'
-						: 'Czy na pewno chcesz opuścić mecz?',
-					[
-						{
-							text: isOneDeviceFfa ? 'ZOSTAŃ' : 'KONTYNUUJ MECZ',
-							style: 'cancel',
-							onPress: () => {},
-						},
-						{
-							text: isOneDeviceFfa ? 'WYJDŹ' : 'OPUŚĆ MECZ',
-							style: 'destructive',
-							onPress: async () => {
-								if (
-									mode === GAME_MODE.TOURNAMENT &&
-									tournamentGame?.id &&
-									accessToken
-								) {
-									await releaseTournamentGame({
-										gameId: tournamentGame.id,
-										type: tournamentGame.type === 'playoff' ? 'playoff' : 'group',
-										accessToken,
-									});
-								}
-								if (
-									mode === GAME_MODE.QUICK_FFA &&
-									syncEnabled &&
-									lobbyId &&
-									accessToken &&
-									!isOneDeviceFfa
-								) {
-									intentionalFfaLeaveRef.current = true;
-									try {
-										await postFfaPresence(lobbyId, accessToken, 'left');
-									} catch {
-										// Wyjście z ekranu i tak dozwolone
-									}
-								}
-								navigation.dispatch(e.data.action);
-							},
-						},
-					],
-				);
+				void (async () => {
+					const ok = await confirm({
+						title: isOneDeviceFfa ? 'Wyjdź z ekranu gry?' : 'Opuścić mecz?',
+						message: isOneDeviceFfa
+							? 'Gra pozostanie aktywna. Możesz wrócić z ekranu szybkiej gry albo skasować ją tam.'
+							: 'Czy na pewno chcesz opuścić mecz?',
+						cancelLabel: isOneDeviceFfa ? 'Zostań' : 'Kontynuuj mecz',
+						confirmLabel: isOneDeviceFfa ? 'Wyjdź' : 'Opuść mecz',
+					});
+					if (!ok) return;
+
+					if (
+						mode === GAME_MODE.TOURNAMENT &&
+						tournamentGame?.id &&
+						accessToken
+					) {
+						await releaseTournamentGame({
+							gameId: tournamentGame.id,
+							type: tournamentGame.type === 'playoff' ? 'playoff' : 'group',
+							accessToken,
+						});
+					}
+					if (
+						mode === GAME_MODE.QUICK_FFA &&
+						syncEnabled &&
+						lobbyId &&
+						accessToken &&
+						!isOneDeviceFfa
+					) {
+						intentionalFfaLeaveRef.current = true;
+						try {
+							await postFfaPresence(lobbyId, accessToken, 'left');
+						} catch {
+							// Wyjście z ekranu i tak dozwolone
+						}
+					}
+					navigation.dispatch(e.data.action);
+				})();
 			}),
 		[
 			navigation,
@@ -94,6 +89,7 @@ export function useLeaveGameConfirmation({
 			intentionalFfaLeaveRef,
 			onClosedLeave,
 			lobbyScoringMode,
+			confirm,
 		],
 	);
 }

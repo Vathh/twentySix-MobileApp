@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { ExpoKeepAwakeTag, deactivateKeepAwake } from 'expo-keep-awake';
 import { AuthProvider } from './context/AuthProvider';
+import { ConfirmProvider } from './context/ConfirmProvider';
 import PushNotificationsBootstrap from './components/Common/PushNotificationsBootstrap';
 import Screens from './pages/Screens';
 import { navigate, navigationRef } from './helpers/navigationRef';
@@ -102,12 +103,14 @@ export default function AppShell() {
 		<View style={styles.container}>
 			<GestureHandlerRootView style={styles.gesture}>
 				<StatusBar style="light" />
-				<NavigationContainer ref={navigationRef} linking={linking}>
-					<AuthProvider>
-						<PushNotificationsBootstrap />
-						<Screens />
-					</AuthProvider>
-				</NavigationContainer>
+				<ConfirmProvider>
+					<NavigationContainer ref={navigationRef} linking={linking}>
+						<AuthProvider>
+							<PushNotificationsBootstrap />
+							<Screens />
+						</AuthProvider>
+					</NavigationContainer>
+				</ConfirmProvider>
 			</GestureHandlerRootView>
 		</View>
 	);

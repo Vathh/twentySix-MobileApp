@@ -1,22 +1,22 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
 
 const LogoutButton = () => {
 	const { logout } = useAuth();
+	const confirm = useConfirm();
 
-	const handleLogoutBtn = () => {
-		Alert.alert('UWAGA', 'Czy na pewno chcesz się wylogować?', [
-			{ text: 'NIE', style: 'cancel' },
-			{
-				text: 'TAK',
-				style: 'destructive',
-				onPress: () => {
-					void logout();
-				},
-			},
-		]);
+	const handleLogoutBtn = async () => {
+		const ok = await confirm({
+			title: 'Wylogowanie',
+			message: 'Czy na pewno chcesz się wylogować?',
+			confirmLabel: 'Wyloguj',
+		});
+		if (ok) {
+			void logout();
+		}
 	};
 
 	return (

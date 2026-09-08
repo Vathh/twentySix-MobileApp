@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import { useConfirm } from '../context/ConfirmProvider';
 import { leaveQuickGameLobby } from '../helpers/quickGameLobbyApi';
 
 function findTabNavigator(navigation) {
@@ -25,6 +25,7 @@ export function useLeaveLobbyOnTabPress({
 	enabled = true,
 }) {
 	const skipNextRemoveRef = useRef(false);
+	const confirm = useConfirm();
 
 	useEffect(() => {
 		if (!lobbyId || !enabled) return undefined;
@@ -40,33 +41,29 @@ export function useLeaveLobbyOnTabPress({
 
 			e.preventDefault();
 
-			Alert.alert(
-				'Opuścić lobby?',
-				'Przejście do innej sekcji opuści lobby. Czy na pewno chcesz wyjść?',
-				[
-					{ text: 'Anuluj', style: 'cancel' },
-					{
-						text: 'Opuść lobby',
-						style: 'destructive',
-						onPress: async () => {
-							try {
-								if (accessToken) {
-									await leaveQuickGameLobby(lobbyId, accessToken);
-								}
-							} catch (err) {
-								console.warn('leave lobby on tabPress', err);
-							}
-							skipNextRemoveRef.current = true;
-							onLeftLobby?.();
-							tabNav.navigate(targetName);
-						},
-					},
-				],
-			);
+			void (async () => {
+				const ok = await confirm({
+					title: 'Opuścić lobby?',
+					message:
+						'Przejście do innej sekcji opuści lobby. Czy na pewno chcesz wyjść?',
+					confirmLabel: 'Opuść lobby',
+				});
+				if (!ok) return;
+				try {
+					if (accessToken) {
+						await leaveQuickGameLobby(lobbyId, accessToken);
+					}
+				} catch (err) {
+					console.warn('leave lobby on tabPress', err);
+				}
+				skipNextRemoveRef.current = true;
+				onLeftLobby?.();
+				tabNav.navigate(targetName);
+			})();
 		});
 
 		return unsubscribe;
-	}, [navigation, lobbyId, accessToken, onLeftLobby, enabled]);
+	}, [navigation, lobbyId, accessToken, onLeftLobby, enabled, confirm]);
 
 	useEffect(() => {
 		if (!lobbyId || !enabled) return undefined;
@@ -79,31 +76,26 @@ export function useLeaveLobbyOnTabPress({
 
 			e.preventDefault();
 
-			Alert.alert(
-				'Opuścić lobby?',
-				'Wyjście z ekranu opuści lobby. Czy na pewno chcesz wyjść?',
-				[
-					{ text: 'Anuluj', style: 'cancel' },
-					{
-						text: 'Opuść lobby',
-						style: 'destructive',
-						onPress: async () => {
-							try {
-								if (accessToken) {
-									await leaveQuickGameLobby(lobbyId, accessToken);
-								}
-							} catch (err) {
-								console.warn('leave lobby on beforeRemove', err);
-							}
-							skipNextRemoveRef.current = true;
-							onLeftLobby?.();
-							navigation.dispatch(e.data.action);
-						},
-					},
-				],
-			);
+			void (async () => {
+				const ok = await confirm({
+					title: 'Opuścić lobby?',
+					message: 'Wyjście z ekranu opuści lobby. Czy na pewno chcesz wyjść?',
+					confirmLabel: 'Opuść lobby',
+				});
+				if (!ok) return;
+				try {
+					if (accessToken) {
+						await leaveQuickGameLobby(lobbyId, accessToken);
+					}
+				} catch (err) {
+					console.warn('leave lobby on beforeRemove', err);
+				}
+				skipNextRemoveRef.current = true;
+				onLeftLobby?.();
+				navigation.dispatch(e.data.action);
+			})();
 		});
 
 		return unsubscribe;
-	}, [navigation, lobbyId, accessToken, onLeftLobby, enabled]);
+	}, [navigation, lobbyId, accessToken, onLeftLobby, enabled, confirm]);
 }
