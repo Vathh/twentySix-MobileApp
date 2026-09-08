@@ -1026,5 +1026,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Counter;
+export default React.memo(Counter);
 

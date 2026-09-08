@@ -5,6 +5,9 @@ import { runCatch40Tests } from '../../catch40/__tests__/catch40Rules.test.js';
 import { runCricket56Tests } from '../../cricket56/__tests__/cricket56Rules.test.js';
 import { runAchievementHandlersTests } from './achievementHandlers.test.js';
 import { runDartHistoryTrackerTests } from './dartHistoryTracker.test.js';
+import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
+import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
+import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
 import {
 	isRetryableScoringError,
 	ScoringRequestError,
@@ -654,6 +657,9 @@ const tests = [
 	['cricket56 rules', runCricket56Tests],
 	['achievement handlers', runAchievementHandlersTests],
 	['dart history tracker', runDartHistoryTrackerTests],
+	['ffa scoring sync', runFfaScoringSyncTests],
+	['ffa transport shared', runFfaTransportSharedTests],
+	['players board reducer', runPlayersBoardReducerTests],
 ];
 
 let passed = 0;
