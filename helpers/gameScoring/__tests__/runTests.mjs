@@ -11,6 +11,7 @@ import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoa
 import {
 	isRetryableScoringError,
 	ScoringRequestError,
+	userErrorMessage,
 } from '../scoringRequestError.js';
 import { applyGameScoringState } from '../applyGameScoringState.js';
 import {
@@ -611,6 +612,12 @@ function testInferAdvancesAfterBust() {
 	assert(partial === 0, 'incomplete visit keeps current player');
 }
 
+function testUserErrorMessage() {
+	assert(userErrorMessage(null, 'fallback') === 'fallback', 'null uses fallback');
+	assert(userErrorMessage({ message: '  Teraz rzuca inny gracz.  ' }) === 'Teraz rzuca inny gracz.', 'trims message');
+	assert(userErrorMessage(new Error(''), 'Nie udało się') === 'Nie udało się', 'empty message uses fallback');
+}
+
 function testScoringRequestErrorRetryable() {
 	assert(
 		isRetryableScoringError(
@@ -650,6 +657,7 @@ const tests = [
 	['infer advances after bust', testInferAdvancesAfterBust],
 	['offline multi-set scoring', testMatchFormatOfflineScoring],
 	['scoring request error retryable', testScoringRequestErrorRetryable],
+	['user error message', testUserErrorMessage],
 	['cricket rules', runCricketTests],
 	['bob27 rules', runBob27Tests],
 	['atc rules', runAtcTests],

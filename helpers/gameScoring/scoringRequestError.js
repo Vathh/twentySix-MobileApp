@@ -33,6 +33,18 @@ export function isRetryableScoringError(error) {
 	);
 }
 
+export function userErrorMessage(error, fallback = 'Coś poszło nie tak') {
+	if (error == null) {
+		return fallback;
+	}
+	if (typeof error === 'string') {
+		const trimmed = error.trim();
+		return trimmed || fallback;
+	}
+	const msg = String(error.message || '').trim();
+	return msg || fallback;
+}
+
 export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 	if (res.ok) {
 		return;
@@ -40,7 +52,10 @@ export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 	const status = res.status;
 	const retryable = status >= 500 || status === 0 || status === 408 || status === 429;
 	throw new ScoringRequestError(
-		(data && data.message) || text || fallbackMessage,
+		userErrorMessage(
+			{ message: (data && data.message) || text },
+			fallbackMessage,
+		),
 		{ status, retryable },
 	);
 }

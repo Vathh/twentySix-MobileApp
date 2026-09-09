@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, Switch } from 'react-native';
 import { SCORING_MODES } from '../../hooks/useGameSettings';
-import { playClick } from '../../helpers/gameSounds';
+import { playClick } from '../../helpers/gameSounds/playGameSound';
 import { colors } from '../../theme/colors';
 
 const VOLUME_STEPS = [0.2, 0.4, 0.6, 0.8, 1];

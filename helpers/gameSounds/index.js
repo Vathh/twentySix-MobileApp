@@ -4,5 +4,5 @@ export {
 	playCheckoutWinSound,
 	playClick,
 	playGameOn,
-	playVisitScore,
 } from './playGameSound';
+export { playVisitScore } from './playVisitScore';

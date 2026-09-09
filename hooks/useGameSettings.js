@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applySoundPrefs } from '../helpers/gameSounds';
+import { applySoundPrefs } from '../helpers/gameSounds/playGameSound';
 
 const STORAGE_KEY = '@match_settings';
 const SCORING_MODES = {

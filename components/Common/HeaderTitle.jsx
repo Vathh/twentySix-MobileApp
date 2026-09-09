@@ -8,8 +8,8 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
-import logoXml from '../../assets/logoXml';
 import IntroLogotypMark from './IntroLogotypMark';
+import { getLogoXml } from '../../helpers/svgAssets';
 import { useIntroOverlay } from '../../context/IntroOverlayContext';
 import {
 	HEADER_LOGO_HEIGHT,
@@ -65,7 +65,7 @@ const HeaderTitle = () => {
 	const logotypRef = useRef(null);
 	const reveal = useSharedValue(introActive ? 0 : 1);
 	const finishedRef = useRef(false);
-	const safeLogoXml = useMemo(() => sanitizeSvgXml(logoXml), []);
+	const safeLogoXml = useMemo(() => sanitizeSvgXml(getLogoXml()), []);
 
 	const measureLogotyp = useCallback(() => {
 		logotypRef.current?.measureInWindow((x, y, width, height) => {
@@ -141,7 +141,9 @@ const HeaderTitle = () => {
 				</View>
 				<Animated.View style={[styles.restClip, restClipStyle]}>
 					<View style={styles.restInner}>
-						<SvgXml xml={safeLogoXml} width={HEADER_LOGO_WIDTH} height={HEADER_LOGO_HEIGHT} />
+						{safeLogoXml ? (
+							<SvgXml xml={safeLogoXml} width={HEADER_LOGO_WIDTH} height={HEADER_LOGO_HEIGHT} />
+						) : null}
 					</View>
 				</Animated.View>
 			</View>

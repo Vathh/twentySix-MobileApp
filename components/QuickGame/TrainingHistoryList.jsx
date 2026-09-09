@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
+	FlatList,
 	Pressable,
-	ScrollView,
 	StyleSheet,
 	Text,
 	View,
@@ -40,42 +40,41 @@ const TrainingHistoryList = ({ navigation }) => {
 	}
 
 	return (
-		<ScrollView
+		<FlatList
 			style={styles.scroll}
 			contentContainerStyle={styles.container}
-		>
-			<Text style={styles.title}>Historia treningów</Text>
-			{games.length === 0 ? (
+			data={games}
+			keyExtractor={(game) => String(game.id)}
+			ListHeaderComponent={<Text style={styles.title}>Historia treningów</Text>}
+			ListEmptyComponent={(
 				<View style={styles.emptyBox}>
 					<Text style={styles.emptyText}>
 						Brak zapisanych treningów. Zagraj mecz treningowy, a wynik pojawi
 						się tutaj.
 					</Text>
 				</View>
-			) : (
-				games.map((game) => (
-					<Pressable
-						key={game.id}
-						style={styles.row}
-						onPress={() =>
-							navigation.navigate('TrainingGameDetail', { gameId: game.id })
-						}
-					>
-						<Text style={styles.rowTitle} numberOfLines={2}>
-							{formatTrainingGameTitle(game)}
-						</Text>
-						<Text style={styles.rowDate}>
-							{formatTrainingGameDate(game.playedAt)}
-						</Text>
-						{game.winnerName ? (
-							<Text style={styles.rowWinner}>
-								Zwycięzca: {game.winnerName}
-							</Text>
-						) : null}
-					</Pressable>
-				))
 			)}
-		</ScrollView>
+			renderItem={({ item: game }) => (
+				<Pressable
+					style={styles.row}
+					onPress={() =>
+						navigation.navigate('TrainingGameDetail', { gameId: game.id })
+					}
+				>
+					<Text style={styles.rowTitle} numberOfLines={2}>
+						{formatTrainingGameTitle(game)}
+					</Text>
+					<Text style={styles.rowDate}>
+						{formatTrainingGameDate(game.playedAt)}
+					</Text>
+					{game.winnerName ? (
+						<Text style={styles.rowWinner}>
+							Zwycięzca: {game.winnerName}
+						</Text>
+					) : null}
+				</Pressable>
+			)}
+		/>
 	);
 };
 

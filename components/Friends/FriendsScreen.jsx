@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -169,48 +169,130 @@ const FriendsScreen = ({ navigation }) => {
     return <ScreenLoading />;
   }
 
-  const renderListTab = () => (
+  const renderFriendRow = ({ item: f }) => {
+    const name = f.name ?? f.playerName ?? f.player?.name ?? 'Znajomy';
+    const key = f.id ?? f.playerId ?? f.player_id;
+    const playerId = f.playerId ?? f.player_id;
+    return (
+      <View style={styles.row}>
+        <Pressable
+          style={styles.rowNamePressable}
+          onPress={() => openPlayerProfile(playerId, name)}
+          disabled={!playerId}
+        >
+          <Text
+            style={[
+              styles.rowText,
+              styles.rowNameText,
+              playerId ? styles.rowNameLink : null,
+            ]}
+          >
+            {name}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.removeButton, actionId && styles.buttonDisabled]}
+          onPress={() => handleRemoveFriend(f)}
+          disabled={!!actionId}
+        >
+          <Text style={styles.removeButtonText}>
+            {actionId === `remove-${key}` ? '…' : 'Usuń'}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
+  const renderSearchRow = ({ item: user }) => {
+    const busy = actionId === `invite-${user.id}`;
+    const disabled = !!actionId || isAlreadyFriend(user.id) || hasPendingInvite(user.id);
+    const name = user.name ?? 'Gracz';
+    const playerId = user.playerId ?? user.player_id;
+    let actionLabel = 'Zaproś';
+    if (isAlreadyFriend(user.id)) actionLabel = 'Znajomy';
+    else if (hasPendingInvite(user.id)) actionLabel = 'Wysłano';
+    else if (busy) actionLabel = 'Wysyłanie…';
+
+    return (
+      <View style={styles.row}>
+        <Pressable
+          style={styles.rowNamePressable}
+          onPress={() => openPlayerProfile(playerId, name)}
+          disabled={!playerId}
+        >
+          <Text
+            style={[
+              styles.rowText,
+              styles.rowNameText,
+              playerId ? styles.rowNameLink : null,
+            ]}
+          >
+            {name}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.inviteButton, disabled && styles.buttonDisabled]}
+          onPress={() => handleInvite(user.id)}
+          disabled={disabled}
+        >
+          <Text style={styles.inviteButtonText}>{actionLabel}</Text>
+        </Pressable>
+      </View>
+    );
+  };
+
+  const listHeader = (
     <>
-      {friends.length === 0 ? (
+      <View style={styles.tabs}>
+        <Pressable
+          style={[styles.tab, activeTab === TAB_LIST && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_LIST)}
+        >
+          <Text style={[styles.tabText, activeTab === TAB_LIST && styles.tabTextActive]}>
+            Lista
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === TAB_ADD && styles.tabActive]}
+          onPress={() => setActiveTab(TAB_ADD)}
+        >
+          <Text style={[styles.tabText, activeTab === TAB_ADD && styles.tabTextActive]}>
+            Dodaj
+          </Text>
+        </Pressable>
+      </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {activeTab === TAB_LIST && friends.length === 0 ? (
         <Text style={styles.hint}>
           Brak znajomych. Przejdź do zakładki „Dodaj”, aby wysłać zaproszenie.
         </Text>
-      ) : (
-        friends.map((f) => {
-          const name = f.name ?? f.playerName ?? f.player?.name ?? 'Znajomy';
-          const key = f.id ?? f.playerId ?? f.player_id;
-          const playerId = f.playerId ?? f.player_id;
-          return (
-            <View key={key} style={styles.row}>
-              <Pressable
-                style={styles.rowNamePressable}
-                onPress={() => openPlayerProfile(playerId, name)}
-                disabled={!playerId}
-              >
-                <Text
-                  style={[
-                    styles.rowText,
-                    styles.rowNameText,
-                    playerId ? styles.rowNameLink : null,
-                  ]}
-                >
-                  {name}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.removeButton, actionId && styles.buttonDisabled]}
-                onPress={() => handleRemoveFriend(f)}
-                disabled={!!actionId}
-              >
-                <Text style={styles.removeButtonText}>
-                  {actionId === `remove-${key}` ? '…' : 'Usuń'}
-                </Text>
-              </Pressable>
-            </View>
-          );
-        })
-      )}
+      ) : null}
 
+      {activeTab === TAB_ADD ? (
+        <>
+          <Text style={styles.hint}>Wpisz min. 2 znaki nazwy gracza, aby wyszukać użytkownika.</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Szukaj gracza…"
+            placeholderTextColor={colors.placeholder}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchLoading ? <ActivityIndicator color={colors.accent} style={styles.searchSpinner} /> : null}
+          {!searchLoading && searchQuery.trim().length >= 2 && searchResults.length === 0 ? (
+            <Text style={styles.hint}>Brak wyników.</Text>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  );
+
+  const listFooter = activeTab === TAB_LIST ? (
+    <>
       {sentInvitations.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Oczekujące zaproszenia</Text>
@@ -244,96 +326,24 @@ const FriendsScreen = ({ navigation }) => {
         <Text style={styles.linkButtonText}>Zaproszenia do zaakceptowania →</Text>
       </Pressable>
     </>
-  );
+  ) : null;
 
-  const renderAddTab = () => (
-    <>
-      <Text style={styles.hint}>Wpisz min. 2 znaki nazwy gracza, aby wyszukać użytkownika.</Text>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Szukaj gracza…"
-        placeholderTextColor={colors.placeholder}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {searchLoading ? <ActivityIndicator color={colors.accent} style={styles.searchSpinner} /> : null}
-      {!searchLoading && searchQuery.trim().length >= 2 && searchResults.length === 0 ? (
-        <Text style={styles.hint}>Brak wyników.</Text>
-      ) : null}
-      {searchResults.map((user) => {
-        const busy = actionId === `invite-${user.id}`;
-        const disabled = !!actionId || isAlreadyFriend(user.id) || hasPendingInvite(user.id);
-        const name = user.name ?? 'Gracz';
-        const playerId = user.playerId ?? user.player_id;
-        let actionLabel = 'Zaproś';
-        if (isAlreadyFriend(user.id)) actionLabel = 'Znajomy';
-        else if (hasPendingInvite(user.id)) actionLabel = 'Wysłano';
-        else if (busy) actionLabel = 'Wysyłanie…';
-
-        return (
-          <View key={user.id} style={styles.row}>
-            <Pressable
-              style={styles.rowNamePressable}
-              onPress={() => openPlayerProfile(playerId, name)}
-              disabled={!playerId}
-            >
-              <Text
-                style={[
-                  styles.rowText,
-                  styles.rowNameText,
-                  playerId ? styles.rowNameLink : null,
-                ]}
-              >
-                {name}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.inviteButton, disabled && styles.buttonDisabled]}
-              onPress={() => handleInvite(user.id)}
-              disabled={disabled}
-            >
-              <Text style={styles.inviteButtonText}>{actionLabel}</Text>
-            </Pressable>
-          </View>
-        );
-      })}
-    </>
-  );
+  const listData = activeTab === TAB_LIST ? friends : searchResults;
 
   return (
-    <ScrollView
+    <FlatList
       style={styles.container}
       contentContainerStyle={styles.content}
+      data={listData}
+      keyExtractor={(item) => String(item.id ?? item.playerId ?? item.player_id)}
+      renderItem={activeTab === TAB_LIST ? renderFriendRow : renderSearchRow}
+      ListHeaderComponent={listHeader}
+      ListFooterComponent={listFooter}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
       }
       keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.tabs}>
-        <Pressable
-          style={[styles.tab, activeTab === TAB_LIST && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_LIST)}
-        >
-          <Text style={[styles.tabText, activeTab === TAB_LIST && styles.tabTextActive]}>
-            Lista
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === TAB_ADD && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_ADD)}
-        >
-          <Text style={[styles.tabText, activeTab === TAB_ADD && styles.tabTextActive]}>
-            Dodaj
-          </Text>
-        </Pressable>
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {activeTab === TAB_LIST ? renderListTab() : renderAddTab()}
-    </ScrollView>
+    />
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import introSvgXml from '../../assets/introLogotypXml';
+import { getIntroLogotypXml } from '../../helpers/svgAssets';
 import {
 	HEADER_LOGO_HEIGHT,
 	HEADER_LOGOTYP_WIDTH,
@@ -17,7 +17,10 @@ const IntroLogotypMark = ({
 	height = HEADER_LOGO_HEIGHT,
 }) => {
 	const { width: windowWidth } = useWindowDimensions();
-	const xml = useMemo(() => settledIntroLogotypXml(introSvgXml), []);
+	const xml = useMemo(() => {
+		const raw = getIntroLogotypXml();
+		return raw ? settledIntroLogotypXml(raw) : '';
+	}, []);
 	const layout = useMemo(
 		() => introLogotypSlotLayout(windowWidth, width, height),
 		[height, width, windowWidth],
@@ -37,7 +40,9 @@ const IntroLogotypMark = ({
 					},
 				]}
 			>
-				<SvgXml xml={xml} width={layout.introBox.width} height={layout.introBox.height} />
+				{xml ? (
+					<SvgXml xml={xml} width={layout.introBox.width} height={layout.introBox.height} />
+				) : null}
 			</View>
 		</View>
 	);

@@ -6,6 +6,7 @@ import {
 	shouldSkipFfaBackupTick,
 	shouldStartFfaBackupPoll,
 } from '../helpers/gameScoring/ffaScoringSync.js';
+import { userErrorMessage } from '../helpers/gameScoring/scoringRequestError.js';
 import { useGameScoringRealtime } from './useGameScoringRealtime';
 
 /**
@@ -76,13 +77,20 @@ export function useFfaScoringSync({
 		return result;
 	}, [markClosed]);
 
-	const loadState = useCallback(async () => {
+	const loadState = useCallback(async ({ notify = true } = {}) => {
 		if (!enabled || !transport?.fetchState) return;
 		try {
 			const state = await transport.fetchState();
 			applyState(state);
 		} catch (e) {
-			console.warn(`${logLabel} loadState`, e);
+			if (notify) {
+				Alert.alert(
+					'Błąd',
+					userErrorMessage(e, 'Nie udało się pobrać stanu gry'),
+				);
+			} else {
+				console.warn(`${logLabel} loadState`, e);
+			}
 		}
 	}, [applyState, enabled, logLabel, transport]);
 
@@ -139,7 +147,7 @@ export function useFfaScoringSync({
 			) {
 				return;
 			}
-			await loadState();
+			await loadState({ notify: false });
 		};
 		void tick();
 		const id = setInterval(tick, FFA_BACKUP_POLL_MS);
@@ -172,8 +180,8 @@ export function useFfaScoringSync({
 						applyState(state);
 					}
 				} catch (e) {
-					Alert.alert('Błąd', e?.message ?? errorMessage);
-					await loadState();
+					Alert.alert('Błąd', userErrorMessage(e, errorMessage));
+					await loadState({ notify: false });
 					throw e;
 				}
 			});

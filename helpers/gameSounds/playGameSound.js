@@ -1,7 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { wouldWinMatch } from '../matchFormat/matchFormatScoring';
-import { SCORE_SOUND_SOURCES } from './scoreSources';
 
 const SETTINGS_KEY = '@match_settings';
 
@@ -137,13 +136,12 @@ export function playClick() {
 	void replay(getClickPlayer(), EVENT_SOURCES.click, null);
 }
 
-export function playVisitScore(score) {
-	const n = Number(score);
-	const source = SCORE_SOUND_SOURCES[n];
+/** Głos (wynik wizyty) — źródło z lazy chunka, nie z mapy eventów. */
+export function playVoiceSource(source, sourceKey) {
 	if (!source) {
 		return;
 	}
-	void replay(getVoicePlayer(), source, `score:${n}`);
+	void replay(getVoicePlayer(), source, sourceKey);
 }
 
 export function playGameOn() {

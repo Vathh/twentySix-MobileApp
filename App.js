@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initTheme } from './theme/colors';
 import AppIntro from './components/Common/AppIntro';
 import { IntroOverlayProvider } from './context/IntroOverlayContext';
+import { preloadSvgAssets } from './helpers/svgAssets';
 
 // pusher-js (web build) oczekuje `self` — w RN jest tylko `global`
 if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
@@ -12,9 +13,9 @@ if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
 }
 
 /**
- * Ładuje motyw z AsyncStorage PRZED require AppShell / Screens,
- * żeby StyleSheet.create dostał właściwe hex z aktywnej palety.
- * Potem pokazuje intro z animowanym logotypem i wlotem do headera.
+ * Ładuje motyw z AsyncStorage i XML logo z plików SVG PRZED require AppShell,
+ * żeby StyleSheet.create dostał właściwe hex z aktywnej palety,
+ * a intro/header nie parsowały 240 KB stringów w JS.
  */
 export default function App() {
 	const [ready, setReady] = useState(false);
@@ -23,7 +24,12 @@ export default function App() {
 	const [introDone, setIntroDone] = useState(false);
 
 	useEffect(() => {
-		initTheme().finally(() => setReady(true));
+		Promise.all([
+			initTheme(),
+			preloadSvgAssets().catch((error) => {
+				console.warn('svg assets', error);
+			}),
+		]).finally(() => setReady(true));
 	}, []);
 
 	const handleDrawComplete = useCallback(() => {

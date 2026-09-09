@@ -10,8 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
 import { WebView } from 'react-native-webview';
-import introSvgXml from '../../assets/introLogotypXml';
 import { useIntroOverlay } from '../../context/IntroOverlayContext';
+import { getIntroLogotypXml } from '../../helpers/svgAssets';
 import {
 	HEADER_LOGO_HEIGHT,
 	HEADER_LOGOTYP_WIDTH,
@@ -109,11 +109,15 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	const slotW = useSharedValue(introBox.width);
 	const slotH = useSharedValue(introBox.height);
 
+	const introSvgXml = getIntroLogotypXml();
 	const html = useMemo(
-		() => buildIntroHtml(introSvgXml, introBox.width),
-		[introBox.width],
+		() => (introSvgXml ? buildIntroHtml(introSvgXml, introBox.width) : ''),
+		[introBox.width, introSvgXml],
 	);
-	const flyXml = useMemo(() => settledIntroXml(introSvgXml), []);
+	const flyXml = useMemo(
+		() => (introSvgXml ? settledIntroXml(introSvgXml) : ''),
+		[introSvgXml],
+	);
 
 	const finishFly = useCallback(() => {
 		if (flyFinishedRef.current) {
@@ -217,12 +221,12 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	return (
 		<View style={styles.root} pointerEvents="auto">
 			<Animated.View style={[styles.bg, bgStyle]} pointerEvents="none" />
-			{phase !== 'flying' ? (
+			{phase !== 'flying' && flyXml ? (
 				<View style={styles.hiddenParse} pointerEvents="none">
 					<SvgXml xml={flyXml} width={introBox.width} height={introBox.height} />
 				</View>
 			) : null}
-			{phase !== 'flying' ? (
+			{phase !== 'flying' && html ? (
 				<WebView
 					originWhitelist={['*']}
 					source={{
@@ -240,7 +244,8 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 					javaScriptEnabled={false}
 					domStorageEnabled={false}
 				/>
-			) : (
+			) : null}
+			{phase === 'flying' && flyXml ? (
 				<Animated.View
 					pointerEvents="none"
 					style={[
@@ -262,7 +267,7 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 						<SvgXml xml={flyXml} width={introBox.width} height={introBox.height} />
 					</Animated.View>
 				</Animated.View>
-			)}
+			) : null}
 		</View>
 	);
 };

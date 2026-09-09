@@ -2,9 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -168,9 +168,28 @@ const GameList = ({ navigation }) => {
     });
   };
 
+  const hasGroupGames = groups.length > 0;
+  const hasPlayoffGames = playoffGames.length > 0;
+
+  const listRows = useMemo(() => {
+    const rows = [];
+    if (hasGroupGames) {
+      rows.push({ type: 'section', id: 'section-groups', title: 'Faza grupowa' });
+      groups.forEach((group) => {
+        rows.push({ type: 'group', id: `group-${group}`, group });
+      });
+    }
+    if (hasPlayoffGames) {
+      rows.push({ type: 'section', id: 'section-playoff', title: 'Playoff' });
+      playoffGames.forEach((game) => {
+        rows.push({ type: 'game', id: `playoff-${game.id}`, game });
+      });
+    }
+    return rows;
+  }, [groups, hasGroupGames, hasPlayoffGames, playoffGames]);
+
   const renderGameRow = (game, showRound = false) => (
     <Pressable
-      key={`${game.type}-${game.id}`}
       style={styles.gameRow}
       onPress={() => handleGamePress(game)}
       disabled={lockingGameId != null}
@@ -198,8 +217,26 @@ const GameList = ({ navigation }) => {
     );
   }
 
-  const hasGroupGames = groups.length > 0;
-  const hasPlayoffGames = playoffGames.length > 0;
+  const renderListRow = ({ item }) => {
+    if (item.type === 'section') {
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{item.title}</Text>
+        </View>
+      );
+    }
+    if (item.type === 'group') {
+      return (
+        <Pressable
+          style={styles.groupButton}
+          onPress={() => openGroupModal(item.group)}
+        >
+          <Text style={styles.groupButtonText}>Grupa {item.group}</Text>
+        </Pressable>
+      );
+    }
+    return renderGameRow(item.game, true);
+  };
 
   return (
     <View style={styles.container}>
@@ -213,29 +250,12 @@ const GameList = ({ navigation }) => {
       {!hasGroupGames && !hasPlayoffGames ? (
         <Text style={styles.hint}>Brak aktywnych meczów.</Text>
       ) : (
-        <ScrollView style={styles.scroll}>
-          {hasGroupGames ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Faza grupowa</Text>
-              {groups.map((group) => (
-                <Pressable
-                  key={group}
-                  style={styles.groupButton}
-                  onPress={() => openGroupModal(group)}
-                >
-                  <Text style={styles.groupButtonText}>Grupa {group}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          {hasPlayoffGames ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Playoff</Text>
-              {playoffGames.map((game) => renderGameRow(game, true))}
-            </View>
-          ) : null}
-        </ScrollView>
+        <FlatList
+          style={styles.scroll}
+          data={listRows}
+          keyExtractor={(item) => item.id}
+          renderItem={renderListRow}
+        />
       )}
 
       <Modal
@@ -249,14 +269,15 @@ const GameList = ({ navigation }) => {
             <Text style={styles.modalTitle}>
               {selectedGroup != null ? `Grupa ${selectedGroup}` : 'Wybierz mecz'}
             </Text>
-            <ScrollView
+            <FlatList
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
               nestedScrollEnabled
               keyboardShouldPersistTaps="handled"
-            >
-              {gamesInGroup.map((game) => renderGameRow(game, false))}
-            </ScrollView>
+              data={gamesInGroup}
+              keyExtractor={(game) => `${game.type}-${game.id}`}
+              renderItem={({ item: game }) => renderGameRow(game, false)}
+            />
             <Pressable style={styles.closeButton} onPress={closeGroupModal}>
               <Text style={styles.closeButtonText}>Zamknij</Text>
             </Pressable>

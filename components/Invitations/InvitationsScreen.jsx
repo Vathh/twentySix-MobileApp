@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -215,6 +215,15 @@ const InvitationsScreen = ({ navigation, route }) => {
     }
   };
 
+  const gameItems = useMemo(
+    () => [
+      ...tournamentInvitations.map((inv) => ({ kind: 'tournament', inv })),
+      ...organizationInvitations.map((inv) => ({ kind: 'organization', inv })),
+      ...lobbyInvitations.map((inv) => ({ kind: 'lobby', inv })),
+    ],
+    [lobbyInvitations, organizationInvitations, tournamentInvitations],
+  );
+
   if (!auth?.accessToken) {
     return (
       <View style={styles.container}>
@@ -333,84 +342,88 @@ const InvitationsScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderGameTab = () => {
-    const hasAny =
-      tournamentInvitations.length > 0
-      || organizationInvitations.length > 0
-      || lobbyInvitations.length > 0;
+  const listData = activeTab === TAB_FRIENDS ? friendInvitations : gameItems;
 
-    if (!hasAny) {
-      return <Text style={styles.hint}>Brak zaproszeń do gry.</Text>;
-    }
-
-    return (
-      <>
-        {tournamentInvitations.map(renderTournamentCard)}
-        {organizationInvitations.map(renderOrganizationCard)}
-        {lobbyInvitations.map(renderLobbyCard)}
-      </>
-    );
-  };
-
-  const renderFriendsTab = () => {
-    if (friendInvitations.length === 0) {
-      return <Text style={styles.hint}>Brak zaproszeń do znajomych.</Text>;
-    }
-
-    return friendInvitations.map((inv) => (
-      <View key={inv.id} style={styles.card}>
-        <Text style={styles.cardTitle}>
-          {inv.sender?.name ?? 'Gracz'} chce dodać Cię do znajomych
-        </Text>
-        <View style={styles.buttons}>
-          <Pressable
-            style={[styles.button, actionId && styles.buttonDisabled]}
-            onPress={() => handleFriendAction(inv.id, 'accept')}
-            disabled={!!actionId}
-          >
-            <Text style={styles.buttonText}>
-              {actionId === `accept-friend-${inv.id}` ? 'Akceptowanie…' : 'Akceptuj'}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.buttonOutlined, actionId && styles.buttonDisabled]}
-            onPress={() => handleFriendAction(inv.id, 'reject')}
-            disabled={!!actionId}
-          >
-            <Text style={styles.buttonOutlinedText}>
-              {actionId === `reject-friend-${inv.id}` ? 'Odrzucanie…' : 'Odrzuć'}
-            </Text>
-          </Pressable>
+  const renderInvitation = ({ item }) => {
+    if (activeTab === TAB_FRIENDS) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {item.sender?.name ?? 'Gracz'} chce dodać Cię do znajomych
+          </Text>
+          <View style={styles.buttons}>
+            <Pressable
+              style={[styles.button, actionId && styles.buttonDisabled]}
+              onPress={() => handleFriendAction(item.id, 'accept')}
+              disabled={!!actionId}
+            >
+              <Text style={styles.buttonText}>
+                {actionId === `accept-friend-${item.id}` ? 'Akceptowanie…' : 'Akceptuj'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.buttonOutlined, actionId && styles.buttonDisabled]}
+              onPress={() => handleFriendAction(item.id, 'reject')}
+              disabled={!!actionId}
+            >
+              <Text style={styles.buttonOutlinedText}>
+                {actionId === `reject-friend-${item.id}` ? 'Odrzucanie…' : 'Odrzuć'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
-    ));
+      );
+    }
+    if (item.kind === 'tournament') {
+      return renderTournamentCard(item.inv);
+    }
+    if (item.kind === 'organization') {
+      return renderOrganizationCard(item.inv);
+    }
+    return renderLobbyCard(item.inv);
   };
+
+  const emptyHint = activeTab === TAB_FRIENDS
+    ? 'Brak zaproszeń do znajomych.'
+    : 'Brak zaproszeń do gry.';
 
   return (
-    <ScrollView
+    <FlatList
       style={styles.container}
       contentContainerStyle={styles.content}
+      data={listData}
+      keyExtractor={(item) => {
+        if (activeTab === TAB_FRIENDS) {
+          return `friend-${item.id}`;
+        }
+        if (item.kind === 'lobby') {
+          return `${item.inv.type === 'league' ? 'league' : 'lobby'}-${item.inv.id}`;
+        }
+        return `${item.kind}-${item.inv.id}`;
+      }}
+      renderItem={renderInvitation}
+      ListHeaderComponent={(
+        <>
+          <View style={styles.tabs}>
+            <Pressable
+              style={[styles.tab, activeTab === TAB_GRA && styles.tabActive]}
+              onPress={() => setActiveTab(TAB_GRA)}
+            >
+              <Text style={[styles.tabText, activeTab === TAB_GRA && styles.tabTextActive]}>Gra</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
+              onPress={() => setActiveTab(TAB_FRIENDS)}
+            >
+              <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
+            </Pressable>
+          </View>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </>
+      )}
+      ListEmptyComponent={<Text style={styles.hint}>{emptyHint}</Text>}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />}
-    >
-      <View style={styles.tabs}>
-        <Pressable
-          style={[styles.tab, activeTab === TAB_GRA && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_GRA)}
-        >
-          <Text style={[styles.tabText, activeTab === TAB_GRA && styles.tabTextActive]}>Gra</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === TAB_FRIENDS && styles.tabActive]}
-          onPress={() => setActiveTab(TAB_FRIENDS)}
-        >
-          <Text style={[styles.tabText, activeTab === TAB_FRIENDS && styles.tabTextActive]}>Znajomi</Text>
-        </Pressable>
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {activeTab === TAB_FRIENDS ? renderFriendsTab() : renderGameTab()}
-    </ScrollView>
+    />
   );
 };
 

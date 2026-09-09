@@ -61,6 +61,12 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 	const [orderedPlayers, setOrderedPlayers] = useState([]);
 	const [wsLive, setWsLive] = useState(false);
 	const hasNavigatedToGameRef = useRef(false);
+	const wsLiveRef = useRef(false);
+
+	const setWsHealth = useCallback((healthy) => {
+		wsLiveRef.current = healthy;
+		setWsLive(healthy);
+	}, []);
 
 	useEffect(() => {
 		loadPersistedMatchFormat('quickGame').then(setMatchFormat);
@@ -199,14 +205,21 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 		accessToken: auth?.accessToken ?? null,
 		enabled: !!lobby?.id && !!auth?.accessToken,
 		onLobbyUpdated: applyLobbyData,
-		onWsHealthChange: setWsLive,
+		onWsHealthChange: setWsHealth,
 	});
 
 	useEffect(() => {
-		if (!lobby?.id || !auth?.accessToken) return undefined;
-		const t = setInterval(() => fetchLobbyById(lobby.id), LOBBY_POLL_MS);
+		if (!lobby?.id || !auth?.accessToken || wsLive) {
+			return undefined;
+		}
+		const t = setInterval(() => {
+			if (wsLiveRef.current) {
+				return;
+			}
+			fetchLobbyById(lobby.id);
+		}, LOBBY_POLL_MS);
 		return () => clearInterval(t);
-	}, [lobby?.id, auth?.accessToken, fetchLobbyById]);
+	}, [lobby?.id, auth?.accessToken, fetchLobbyById, wsLive]);
 
 	return {
 		lobby,
