@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useIsFocused } from '@react-navigation/native';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
 	CATCH40_APPLY,
 	CATCH40_KIND_TIE_RESET,
@@ -18,19 +15,12 @@ import {
 } from '../../helpers/catch40';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
 import { evaluatePerDartVisitAfterDart } from '../../helpers/perDartVisitRules';
-import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
-import {
-	GAME_MODE,
-	resolveGameContext,
-} from '../../helpers/gameScoring';
+import { GAME_MODE } from '../../helpers/gameScoring';
 import { saveCompletedTrainingGame } from '../../helpers/trainingHistory/saveCompletedTrainingGame';
-import useAuth from '../../hooks/useAuth';
 import { useCatch40FfaScoring } from '../../hooks/useCatch40FfaScoring';
-import { notifyFfaGameAborted } from '../../helpers/gameScoring/notifyFfaGameAborted';
-import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
-import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
-import { useLeaveGameConfirmation } from '../../hooks/useLeaveGameConfirmation';
-import { SCORING_MODES, useGameSettings } from '../../hooks/useGameSettings';
+import { useFfaScoringScreenSession } from '../../hooks/useFfaScoringScreenSession';
+import { useIndexedPlayerBoard } from '../../hooks/useIndexedPlayerBoard';
+import { useGameSettings } from '../../hooks/useGameSettings';
 import Settings from '../Core/Settings';
 import Catch40Counter from './Catch40Counter';
 import Counter from './Counter';
@@ -40,9 +30,40 @@ import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
 import { colors } from '../../theme/colors';
 
 export default function Catch40GameScoringScreen({ route, navigation }) {
-	const { auth } = useAuth();
-	const isFocused = useIsFocused();
-	const insets = useSafeAreaInsets();
+	const session = useFfaScoringScreenSession({
+		route,
+		navigation,
+		keepAwakeId: 'catch40-scoring',
+	});
+	const {
+		auth,
+		insets,
+		mode,
+		players,
+		N,
+		matchFormat,
+		legsToWin,
+		syncEnabled,
+		transport,
+		reloadKey,
+		lobbyScoringMode,
+		isModalVisible,
+		gameClosed,
+		setGameClosed,
+		currentPlayerIndex,
+		setCurrentPlayerIndex,
+		currentPlayerIndexRef,
+		legOpenerIndexRef,
+		dartLogRef,
+		matchEndedRef,
+		finishedModalProps,
+		showFinished,
+		makeOnFinishedQuickGameId,
+		isSpectator,
+		computeCanInput,
+		handleSelectOpener,
+		onAborted,
+	} = session;
 	const {
 		scoringMode,
 		setScoringMode,
@@ -54,30 +75,6 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 	} = useGameSettings();
 	const isPerDart = true;
 	const [selectedComponent, setSelectedComponent] = useState('counter');
-	const gameCtx = useMemo(
-		() => resolveGameContext(route.params, auth),
-		[route.params, auth],
-	);
-	const {
-		mode,
-		players,
-		N,
-		matchFormat: routeMatchFormat,
-		showStartModal,
-		isHost,
-		syncEnabled,
-		transport,
-		reloadKey,
-		lobbyId,
-		lobbyScoringMode,
-		myPlayerIndex,
-	} = gameCtx;
-	const matchFormat = normalizeMatchFormat(routeMatchFormat);
-	const legsToWin = matchFormat.legsToWinSet ?? 2;
-
-	const [isModalVisible, setIsModalVisible] = useState(!!showStartModal);
-	const [gameClosed, setGameClosed] = useState(false);
-	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const [currentResult, setCurrentResult] = useState(0);
 	const [resultEdited, setResultEdited] = useState(false);
 	const [localVisitRemaining, setLocalVisitRemaining] = useState(null);
@@ -88,52 +85,14 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 	const visitStartRef = useRef(null);
 	const visitTotalRef = useRef(0);
 	const visitDartsRef = useRef([]);
-	const dartLogRef = useRef([]);
-	const legOpenerIndexRef = useRef(0);
-	const matchEndedRef = useRef(false);
-	const intentionalFfaLeaveRef = useRef(false);
-	const currentPlayerIndexRef = useRef(0);
-	currentPlayerIndexRef.current = currentPlayerIndex;
 
-	const [p1, d1] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p2, d2] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p3, d3] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p4, d4] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p5, d5] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p6, d6] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p7, d7] = useReducer(catch40Reducer, undefined, initialCatch40State);
-	const [p8, d8] = useReducer(catch40Reducer, undefined, initialCatch40State);
-
-	const allStates = [p1, p2, p3, p4, p5, p6, p7, p8];
-	const allDispatches = [d1, d2, d3, d4, d5, d6, d7, d8];
-	const catch40States = allStates.slice(0, N);
-	const catch40Dispatches = allDispatches.slice(0, N);
+	const [catch40States, catch40Dispatches] = useIndexedPlayerBoard(
+		catch40Reducer,
+		initialCatch40State,
+		N,
+	);
 	const catch40StatesRef = useRef(catch40States);
 	catch40StatesRef.current = catch40States;
-
-	const { finishedModalProps, showFinished } = useGameFinishedModal({
-		navigation,
-		mode,
-		isHost,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		players,
-		matchFormat,
-	});
-
-	const onFinishedQuickGameId = useCallback(() => {
-		if (matchEndedRef.current) return;
-		matchEndedRef.current = true;
-		const winnerIdx = catch40StatesRef.current.reduce(
-			(best, s, i, arr) =>
-				(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
-			0,
-		);
-		showFinished({
-			winnerName: players[winnerIdx]?.name ?? 'Zwycięzca',
-			kind: 'quick',
-		});
-	}, [players, showFinished]);
 
 	const {
 		busy,
@@ -148,40 +107,16 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
-		onFinishedQuickGameId,
-		onAborted: () => notifyFfaGameAborted(navigation),
+		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
+			catch40StatesRef.current.reduce(
+				(best, s, i, arr) =>
+					(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
+				0,
+			),
+		),
+		onAborted,
 		reloadKey,
 	});
-
-	useLeaveGameConfirmation({
-		navigation,
-		mode,
-		gameClosed,
-		tournamentGame: null,
-		accessToken: auth?.accessToken,
-		syncEnabled,
-		lobbyId,
-		intentionalFfaLeaveRef,
-		lobbyScoringMode,
-	});
-
-	useFfaPresenceHeartbeat({
-		mode,
-		syncEnabled,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		gameClosed,
-		intentionalFfaLeaveRef,
-	});
-
-	useEffect(() => {
-		if (isFocused) {
-			activateKeepAwakeAsync('catch40-scoring').catch(() => {});
-		} else {
-			deactivateKeepAwake('catch40-scoring');
-		}
-		return () => deactivateKeepAwake('catch40-scoring');
-	}, [isFocused]);
 
 	const nextActiveIndex = useCallback(
 		(fromIndex, states) => {
@@ -303,20 +238,8 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		[applyLocalVisit, players, submitVisit, syncEnabled, transport],
 	);
 
-	const isSpectator =
-		syncEnabled && lobbyScoringMode === 'one_device' && !isHost;
-
-	const canInput =
-		!gameClosed &&
-		!isModalVisible &&
-		!busy &&
-		!isSpectator &&
-		!(catch40States[currentPlayerIndex]?.finished) &&
-		(!syncEnabled || canInputFromServer) &&
-		(!syncEnabled
-			|| lobbyScoringMode !== 'each_own'
-			|| myPlayerIndex === null
-			|| myPlayerIndex === currentPlayerIndex);
+	const canInput = computeCanInput({ busy, canInputFromServer })
+		&& !catch40States[currentPlayerIndex]?.finished;
 
 	const handleNumberBtn = (number) => {
 		if (gameClosed || !canInput) return;
@@ -465,16 +388,6 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		});
 	};
 
-	const handleBullWinnerSelection = (player) => {
-		const idx = players.findIndex(
-			(p) => p === player || p?.id === player?.id || p?.name === player?.name,
-		);
-		const opener = idx >= 0 ? idx : 0;
-		legOpenerIndexRef.current = opener;
-		setCurrentPlayerIndex(opener);
-		setIsModalVisible(false);
-	};
-
 	const playerStates = catch40States.map((s) => ({
 		score: s.finished ? 0 : s.remaining,
 		legsWon: s.legsWon,
@@ -546,7 +459,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 				isOpenerModalVisible={isModalVisible}
 				players={players}
 				playerCount={N}
-				onSelectOpener={handleBullWinnerSelection}
+				onSelectOpener={handleSelectOpener}
 				checkoutModalPlayer={checkoutModalPlayer}
 				isCheckoutModalVisible={isCheckoutModalVisible}
 				onCheckoutDart={handleCheckoutDart}

@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useIsFocused } from '@react-navigation/native';
-import { Alert, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useRef } from 'react';
+import { Alert } from 'react-native';
 import {
 	ATC_APPLY,
 	ATC_LEG_RESET,
@@ -14,103 +11,58 @@ import {
 	initialAtcState,
 } from '../../helpers/atc';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
-import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
-import {
-	GAME_MODE,
-	resolveGameContext,
-} from '../../helpers/gameScoring';
+import { GAME_MODE } from '../../helpers/gameScoring';
 import { saveCompletedTrainingGame } from '../../helpers/trainingHistory/saveCompletedTrainingGame';
-import useAuth from '../../hooks/useAuth';
 import { useAtcFfaScoring } from '../../hooks/useAtcFfaScoring';
-import { notifyFfaGameAborted } from '../../helpers/gameScoring/notifyFfaGameAborted';
-import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
-import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
-import { useLeaveGameConfirmation } from '../../hooks/useLeaveGameConfirmation';
+import { useFfaScoringScreenSession } from '../../hooks/useFfaScoringScreenSession';
+import { useIndexedPlayerBoard } from '../../hooks/useIndexedPlayerBoard';
 import AtcCounter from './AtcCounter';
-import GameFinishedModal from './GameFinishedModal';
-import GameScoringModals from './GameScoringModals';
-import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
-import { colors } from '../../theme/colors';
+import FfaScoringShell from './FfaScoringShell';
 
 export default function AtcGameScoringScreen({ route, navigation }) {
-	const { auth } = useAuth();
-	const isFocused = useIsFocused();
-	const insets = useSafeAreaInsets();
-	const gameCtx = useMemo(
-		() => resolveGameContext(route.params, auth),
-		[route.params, auth],
-	);
+	const session = useFfaScoringScreenSession({
+		route,
+		navigation,
+		keepAwakeId: 'atc-scoring',
+	});
 	const {
+		auth,
+		insets,
 		mode,
 		players,
 		N,
-		matchFormat: routeMatchFormat,
-		showStartModal,
-		isHost,
+		matchFormat,
+		legsToWin,
 		syncEnabled,
 		transport,
 		reloadKey,
-		lobbyId,
 		lobbyScoringMode,
-		myPlayerIndex,
-	} = gameCtx;
-	const matchFormat = normalizeMatchFormat(routeMatchFormat);
-	const legsToWin = matchFormat.legsToWinSet ?? 2;
+		isModalVisible,
+		gameClosed,
+		setGameClosed,
+		currentPlayerIndex,
+		setCurrentPlayerIndex,
+		legOpenerIndexRef,
+		dartLogRef,
+		matchEndedRef,
+		finishedModalProps,
+		showFinished,
+		makeOnFinishedQuickGameId,
+		isSpectator,
+		computeCanInput,
+		handleSelectOpener,
+		onAborted,
+	} = session;
 
-	const [isModalVisible, setIsModalVisible] = useState(!!showStartModal);
-	const [gameClosed, setGameClosed] = useState(false);
-	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-	const legOpenerIndexRef = useRef(0);
-	const dartLogRef = useRef([]);
-	const matchEndedRef = useRef(false);
-	const intentionalFfaLeaveRef = useRef(false);
-	const currentPlayerIndexRef = useRef(0);
-	currentPlayerIndexRef.current = currentPlayerIndex;
-
-	const [p1, d1] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p2, d2] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p3, d3] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p4, d4] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p5, d5] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p6, d6] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p7, d7] = useReducer(atcReducer, undefined, initialAtcState);
-	const [p8, d8] = useReducer(atcReducer, undefined, initialAtcState);
-
-	const allStates = [p1, p2, p3, p4, p5, p6, p7, p8];
-	const allDispatches = [d1, d2, d3, d4, d5, d6, d7, d8];
-	const atcStates = allStates.slice(0, N);
-	const atcDispatches = allDispatches.slice(0, N);
+	const [atcStates, atcDispatches] = useIndexedPlayerBoard(
+		atcReducer,
+		initialAtcState,
+		N,
+	);
 	const atcStatesRef = useRef(atcStates);
 	atcStatesRef.current = atcStates;
 
-	const { finishedModalProps, showFinished } = useGameFinishedModal({
-		navigation,
-		mode,
-		isHost,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		players,
-		matchFormat,
-	});
-
-	const onFinishedQuickGameId = useCallback(() => {
-		if (matchEndedRef.current) return;
-		matchEndedRef.current = true;
-		const winnerIdx = atcStatesRef.current.reduce(
-			(best, s, i, arr) =>
-				(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
-			0,
-		);
-		const name = players[winnerIdx]?.name ?? 'Zwycięzca';
-		showFinished({ winnerName: name, kind: 'quick' });
-	}, [players, showFinished]);
-
-	const {
-		busy,
-		canInputFromServer,
-		submitVisit,
-		submitUndo,
-	} = useAtcFfaScoring({
+	const { busy, canInputFromServer, submitVisit, submitUndo } = useAtcFfaScoring({
 		enabled: syncEnabled && !!transport,
 		transport,
 		N,
@@ -118,40 +70,18 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
-		onFinishedQuickGameId,
-		onAborted: () => notifyFfaGameAborted(navigation),
+		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
+			atcStatesRef.current.reduce(
+				(best, s, i, arr) =>
+					(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
+				0,
+			),
+		),
+		onAborted,
 		reloadKey,
 	});
 
-	useLeaveGameConfirmation({
-		navigation,
-		mode,
-		gameClosed,
-		tournamentGame: null,
-		accessToken: auth?.accessToken,
-		syncEnabled,
-		lobbyId,
-		intentionalFfaLeaveRef,
-		lobbyScoringMode,
-	});
-
-	useFfaPresenceHeartbeat({
-		mode,
-		syncEnabled,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		gameClosed,
-		intentionalFfaLeaveRef,
-	});
-
-	useEffect(() => {
-		if (isFocused) {
-			activateKeepAwakeAsync('atc-scoring').catch(() => {});
-		} else {
-			deactivateKeepAwake('atc-scoring');
-		}
-		return () => deactivateKeepAwake('atc-scoring');
-	}, [isFocused]);
+	const canInput = computeCanInput({ busy, canInputFromServer });
 
 	const nextIndex = useCallback(
 		(fromIndex) => (fromIndex + 1) % N,
@@ -190,7 +120,7 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 				showFinished({ winnerName: name, kind: 'quick' });
 			}
 		},
-		[mode, players, matchFormat, showFinished],
+		[auth?.accessToken, matchEndedRef, matchFormat, mode, players, setGameClosed, showFinished],
 	);
 
 	const closeLegLocal = useCallback(
@@ -215,22 +145,8 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 				[{ text: 'OK' }],
 			);
 		},
-		[N, atcDispatches, finishMatchLocal, legsToWin, players, resetBoardsLocal],
+		[N, atcDispatches, dartLogRef, finishMatchLocal, legOpenerIndexRef, legsToWin, players, resetBoardsLocal, setCurrentPlayerIndex],
 	);
-
-	const isSpectator =
-		syncEnabled && lobbyScoringMode === 'one_device' && !isHost;
-
-	const canInput =
-		!gameClosed &&
-		!isModalVisible &&
-		!busy &&
-		!isSpectator &&
-		(!syncEnabled || canInputFromServer) &&
-		(!syncEnabled
-			|| lobbyScoringMode !== 'each_own'
-			|| myPlayerIndex === null
-			|| myPlayerIndex === currentPlayerIndex);
 
 	const handleVisit = (hits) => {
 		if (!canInput) return;
@@ -289,50 +205,22 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 		});
 	};
 
-	const handleBullWinnerSelection = (player) => {
-		const idx = players.findIndex(
-			(p) => p === player || p?.id === player?.id || p?.name === player?.name,
-		);
-		const opener = idx >= 0 ? idx : 0;
-		legOpenerIndexRef.current = opener;
-		setCurrentPlayerIndex(opener);
-		setIsModalVisible(false);
-	};
-
 	return (
-		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-			<GameScoringModals
-				isOpenerModalVisible={isModalVisible}
-				players={players}
-				playerCount={N}
-				onSelectOpener={handleBullWinnerSelection}
-				checkoutModalPlayer={null}
-				isCheckoutModalVisible={false}
-				onCheckoutDart={() => {}}
-				scoringBusy={busy}
-				scoringBusyLabel="Zapisywanie wizyty…"
-			/>
-
-			<GameFinishedModal {...finishedModalProps} />
-
-			<View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-				<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: 13 }}>
-					Around the Clock · do {legsToWin} {legsToWin === 1 ? 'lega' : 'legów'}
-					{syncEnabled
-						? ` · ${lobbyScoringMode === 'each_own' ? 'online' : '1 urządzenie'}`
-						: ''}
-					{gameClosed ? ' · koniec' : ''}
-				</Text>
-			</View>
-
-			{isSpectator && (
-				<View style={{ padding: 16 }}>
-					<Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-						Tryb jednego urządzenia — wynik wpisuje host. Widzisz stan na żywo.
-					</Text>
-				</View>
-			)}
-
+		<FfaScoringShell
+			insets={insets}
+			isModalVisible={isModalVisible}
+			players={players}
+			playerCount={N}
+			onSelectOpener={handleSelectOpener}
+			busy={busy}
+			busyLabel="Zapisywanie wizyty…"
+			finishedModalProps={finishedModalProps}
+			title={`Around the Clock · do ${legsToWin} ${legsToWin === 1 ? 'lega' : 'legów'}`}
+			gameClosed={gameClosed}
+			syncEnabled={syncEnabled}
+			lobbyScoringMode={lobbyScoringMode}
+			isSpectator={isSpectator}
+		>
 			<AtcCounter
 				players={players}
 				atcStates={atcStates}
@@ -341,6 +229,6 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 				onUndo={handleUndo}
 				gameClosed={gameClosed || isSpectator || (syncEnabled && !canInput)}
 			/>
-		</View>
+		</FfaScoringShell>
 	);
 }

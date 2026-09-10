@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { CATCH40_APPLY } from '../helpers/catch40';
-import { useFfaScoringSync } from './useFfaScoringSync';
+import { useFfaBoardScoring } from './useFfaBoardScoring';
 
 /**
  * Sync Catch 40 FFA. Stan gry jest tu; GET/WS/poll/kolejka w `useFfaScoringSync`.
@@ -17,30 +17,22 @@ export function useCatch40FfaScoring({
 	onAborted,
 	reloadKey = null,
 }) {
-	const dispatchesRef = useRef(catch40Dispatches);
-	dispatchesRef.current = catch40Dispatches;
+	const mapPlayer = useCallback((p) => ({
+		type: CATCH40_APPLY,
+		outNumber: Number(p.outNumber ?? 61),
+		remaining: Number(p.remaining ?? 61),
+		dartsUsed: Number(p.dartsUsed ?? 0),
+		catch40Score: Number(p.catch40Score ?? 0),
+		finished: !!p.finished,
+		legsWon: Number(p.legsWon ?? 0),
+	}), []);
 
-	const applyPlayers = useCallback((state) => {
-		const dispatches = dispatchesRef.current;
-		for (let i = 0; i < N; i += 1) {
-			const p = state.players[i];
-			if (!p || !dispatches[i]) continue;
-			dispatches[i]({
-				type: CATCH40_APPLY,
-				outNumber: Number(p.outNumber ?? 61),
-				remaining: Number(p.remaining ?? 61),
-				dartsUsed: Number(p.dartsUsed ?? 0),
-				catch40Score: Number(p.catch40Score ?? 0),
-				finished: !!p.finished,
-				legsWon: Number(p.legsWon ?? 0),
-			});
-		}
-	}, [N]);
-
-	const { busy, canInputFromServer, runWrite, loadState, submitUndo } = useFfaScoringSync({
+	const { busy, canInputFromServer, runWrite, submitUndo, reload } = useFfaBoardScoring({
 		enabled,
 		transport,
-		applyPlayers,
+		N,
+		dispatches: catch40Dispatches,
+		mapPlayer,
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
@@ -69,6 +61,6 @@ export function useCatch40FfaScoring({
 		canInputFromServer,
 		submitVisit,
 		submitUndo,
-		reload: loadState,
+		reload,
 	};
 }

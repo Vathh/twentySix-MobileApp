@@ -4,6 +4,11 @@ import {
 	ffaInputBlockedMessage,
 	unwrapFfaPayload,
 } from '../transports/ffaTransportShared.js';
+import { resolveFfaTransportKind } from '../resolveFfaTransportKind.js';
+import {
+	ffaScoringCanInput,
+	isFfaOneDeviceSpectator,
+} from '../ffaScoringCanInput.js';
 
 function assert(condition, message) {
 	if (!condition) {
@@ -60,9 +65,72 @@ function testEachOwnGuard() {
 	);
 }
 
+function testResolveKind() {
+	assert(resolveFfaTransportKind({
+		isQuick: true,
+		lobbyId: 1,
+		resolvedGameType: 'cricket',
+		quickGameType: 'cricket',
+	}) === 'cricket', 'cricket');
+	assert(resolveFfaTransportKind({
+		isQuick: true,
+		lobbyId: 1,
+		resolvedGameType: 'x01',
+		quickGameType: '501',
+	}) === 'x01', 'x01 from 501');
+	assert(resolveFfaTransportKind({
+		isQuick: false,
+		lobbyId: 1,
+		resolvedGameType: 'x01',
+	}) === null, 'training has no transport');
+	assert(resolveFfaTransportKind({
+		isQuick: true,
+		lobbyId: 1,
+		resolvedGameType: 'around_the_clock',
+		quickGameType: 'atc',
+	}) === 'atc', 'atc alias');
+}
+
+function testCanInput() {
+	assert(
+		isFfaOneDeviceSpectator(true, 'one_device', false) === true,
+		'spectator',
+	);
+	assert(
+		ffaScoringCanInput({
+			gameClosed: false,
+			isModalVisible: false,
+			busy: false,
+			isSpectator: false,
+			syncEnabled: true,
+			canInputFromServer: true,
+			lobbyScoringMode: 'each_own',
+			myPlayerIndex: 1,
+			currentPlayerIndex: 1,
+		}) === true,
+		'own turn',
+	);
+	assert(
+		ffaScoringCanInput({
+			gameClosed: false,
+			isModalVisible: false,
+			busy: false,
+			isSpectator: false,
+			syncEnabled: true,
+			canInputFromServer: true,
+			lobbyScoringMode: 'each_own',
+			myPlayerIndex: 0,
+			currentPlayerIndex: 1,
+		}) === false,
+		'wait turn',
+	);
+}
+
 export function runFfaTransportSharedTests() {
 	testUnwrap();
 	testRealtimeConfig();
 	testHostGuard();
 	testEachOwnGuard();
+	testResolveKind();
+	testCanInput();
 }

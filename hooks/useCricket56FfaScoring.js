@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { CRICKET56_APPLY } from '../helpers/cricket56';
-import { useFfaScoringSync } from './useFfaScoringSync';
+import { useFfaBoardScoring } from './useFfaBoardScoring';
 
 /**
  * Sync Cricket 56 FFA. Stan gry jest tu; GET/WS/poll/kolejka w `useFfaScoringSync`.
@@ -18,21 +18,11 @@ export function useCricket56FfaScoring({
 	onAborted,
 	reloadKey = null,
 }) {
-	const dispatchesRef = useRef(cricket56Dispatches);
-	dispatchesRef.current = cricket56Dispatches;
-
-	const applyPlayers = useCallback((state) => {
-		const dispatches = dispatchesRef.current;
-		for (let i = 0; i < N; i += 1) {
-			const p = state.players[i];
-			if (!p || !dispatches[i]) continue;
-			dispatches[i]({
-				type: CRICKET56_APPLY,
-				score: Number(p.score ?? 0),
-				legsWon: Number(p.legsWon ?? 0),
-			});
-		}
-	}, [N]);
+	const mapPlayer = useCallback((p) => ({
+		type: CRICKET56_APPLY,
+		score: Number(p.score ?? 0),
+		legsWon: Number(p.legsWon ?? 0),
+	}), []);
 
 	const afterApply = useCallback((state) => {
 		setCurrentRoundIndex?.(Number(state.turn?.currentRoundIndex
@@ -40,10 +30,12 @@ export function useCricket56FfaScoring({
 			?? 0));
 	}, [setCurrentRoundIndex]);
 
-	const { busy, canInputFromServer, runWrite, loadState, submitUndo } = useFfaScoringSync({
+	const { busy, canInputFromServer, runWrite, submitUndo, reload } = useFfaBoardScoring({
 		enabled,
 		transport,
-		applyPlayers,
+		N,
+		dispatches: cricket56Dispatches,
+		mapPlayer,
 		afterApply,
 		setCurrentPlayerIndex,
 		setGameClosed,
@@ -75,6 +67,6 @@ export function useCricket56FfaScoring({
 		canInputFromServer,
 		submitVisit,
 		submitUndo,
-		reload: loadState,
+		reload,
 	};
 }

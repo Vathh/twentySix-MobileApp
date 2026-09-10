@@ -1,13 +1,12 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import {
 	CRICKET_APPLY,
 	normalizeCricketHits,
 } from '../helpers/cricket';
-import { useFfaScoringSync } from './useFfaScoringSync';
+import { useFfaBoardScoring } from './useFfaBoardScoring';
 
 /**
  * Sync cricket FFA. Stan gry (hits/points) jest tu; GET/WS/poll/kolejka w `useFfaScoringSync`.
- * Osobny od `useGameScoring` (X01) — inny kształt stanu, bez normalizeScoringState.
  */
 export function useCricketFfaScoring({
 	enabled,
@@ -22,22 +21,12 @@ export function useCricketFfaScoring({
 	onAborted,
 	reloadKey = null,
 }) {
-	const cricketDispatchesRef = useRef(cricketDispatches);
-	cricketDispatchesRef.current = cricketDispatches;
-
-	const applyPlayers = useCallback((state) => {
-		const dispatches = cricketDispatchesRef.current;
-		for (let i = 0; i < N; i += 1) {
-			const p = state.players[i];
-			if (!p || !dispatches[i]) continue;
-			dispatches[i]({
-				type: CRICKET_APPLY,
-				hits: normalizeCricketHits(p.hits),
-				points: Number(p.points ?? 0),
-				legsWon: Number(p.legsWon ?? 0),
-			});
-		}
-	}, [N]);
+	const mapPlayer = useCallback((p) => ({
+		type: CRICKET_APPLY,
+		hits: normalizeCricketHits(p.hits),
+		points: Number(p.points ?? 0),
+		legsWon: Number(p.legsWon ?? 0),
+	}), []);
 
 	const afterApply = useCallback((state) => {
 		setDartsInVisit(Number(state.turn?.dartsInVisit
@@ -45,10 +34,12 @@ export function useCricketFfaScoring({
 			?? 0));
 	}, [setDartsInVisit]);
 
-	const { busy, canInputFromServer, runWrite, loadState, submitUndo } = useFfaScoringSync({
+	const { busy, canInputFromServer, runWrite, submitUndo, reload } = useFfaBoardScoring({
 		enabled,
 		transport,
-		applyPlayers,
+		N,
+		dispatches: cricketDispatches,
+		mapPlayer,
 		afterApply,
 		setCurrentPlayerIndex,
 		setGameClosed,
@@ -97,6 +88,6 @@ export function useCricketFfaScoring({
 		submitHit,
 		submitMiss,
 		submitUndo,
-		reload: loadState,
+		reload,
 	};
 }

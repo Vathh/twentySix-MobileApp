@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useIsFocused } from '@react-navigation/native';
-import { Alert, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import {
 	BOB27_APPLY,
 	BOB27_KIND_BUST,
@@ -21,110 +18,66 @@ import {
 	shouldEliminateBob27,
 } from '../../helpers/bob27';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
-import { includesBob27Bull, normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
-import {
-	GAME_MODE,
-	resolveGameContext,
-} from '../../helpers/gameScoring';
+import { includesBob27Bull } from '../../helpers/matchFormat/matchFormat';
+import { GAME_MODE } from '../../helpers/gameScoring';
 import { saveCompletedTrainingGame } from '../../helpers/trainingHistory/saveCompletedTrainingGame';
-import useAuth from '../../hooks/useAuth';
 import { useBob27FfaScoring } from '../../hooks/useBob27FfaScoring';
-import { notifyFfaGameAborted } from '../../helpers/gameScoring/notifyFfaGameAborted';
-import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
-import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
-import { useLeaveGameConfirmation } from '../../hooks/useLeaveGameConfirmation';
+import { useFfaScoringScreenSession } from '../../hooks/useFfaScoringScreenSession';
+import { useIndexedPlayerBoard } from '../../hooks/useIndexedPlayerBoard';
 import Bob27Counter from './Bob27Counter';
-import GameFinishedModal from './GameFinishedModal';
-import GameScoringModals from './GameScoringModals';
-import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
-import { colors } from '../../theme/colors';
+import FfaScoringShell from './FfaScoringShell';
 
 export default function Bob27GameScoringScreen({ route, navigation }) {
-	const { auth } = useAuth();
-	const isFocused = useIsFocused();
-	const insets = useSafeAreaInsets();
-	const gameCtx = useMemo(
-		() => resolveGameContext(route.params, auth),
-		[route.params, auth],
-	);
+	const session = useFfaScoringScreenSession({
+		route,
+		navigation,
+		keepAwakeId: 'bob27-scoring',
+	});
 	const {
+		auth,
+		insets,
 		mode,
 		players,
 		N,
-		matchFormat: routeMatchFormat,
-		showStartModal,
-		isHost,
+		matchFormat,
+		legsToWin,
 		syncEnabled,
 		transport,
 		reloadKey,
-		lobbyId,
 		lobbyScoringMode,
-		myPlayerIndex,
-	} = gameCtx;
-	const matchFormat = normalizeMatchFormat(routeMatchFormat);
-	const legsToWin = matchFormat.legsToWinSet ?? 2;
+		isModalVisible,
+		gameClosed,
+		setGameClosed,
+		currentPlayerIndex,
+		setCurrentPlayerIndex,
+		legOpenerIndexRef,
+		dartLogRef,
+		matchEndedRef,
+		finishedModalProps,
+		showFinished,
+		makeOnFinishedQuickGameId,
+		isSpectator,
+		computeCanInput,
+		handleSelectOpener,
+		onAborted,
+	} = session;
 	const bob27Mode = normalizeBob27Mode(matchFormat.bob27Mode);
 	const includeBull = includesBob27Bull(matchFormat);
 	const lastTargetIndex = bob27LastTargetIndex(includeBull);
 
-	const [isModalVisible, setIsModalVisible] = useState(!!showStartModal);
-	const [gameClosed, setGameClosed] = useState(false);
-	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const [dartsInVisit, setDartsInVisit] = useState(0);
 	const [hitsInVisit, setHitsInVisit] = useState(0);
 	const [currentTargetIndex, setCurrentTargetIndex] = useState(0);
 	const thrownThisTargetRef = useRef({});
-	const legOpenerIndexRef = useRef(0);
-	const dartLogRef = useRef([]);
-	const matchEndedRef = useRef(false);
-	const intentionalFfaLeaveRef = useRef(false);
-	const currentPlayerIndexRef = useRef(0);
-	currentPlayerIndexRef.current = currentPlayerIndex;
-
-	const [p1, d1] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p2, d2] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p3, d3] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p4, d4] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p5, d5] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p6, d6] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p7, d7] = useReducer(bob27Reducer, undefined, initialBob27State);
-	const [p8, d8] = useReducer(bob27Reducer, undefined, initialBob27State);
-
-	const allStates = [p1, p2, p3, p4, p5, p6, p7, p8];
-	const allDispatches = [d1, d2, d3, d4, d5, d6, d7, d8];
-	const bob27States = allStates.slice(0, N);
-	const bob27Dispatches = allDispatches.slice(0, N);
+	const [bob27States, bob27Dispatches] = useIndexedPlayerBoard(
+		bob27Reducer,
+		initialBob27State,
+		N,
+	);
 	const bob27StatesRef = useRef(bob27States);
 	bob27StatesRef.current = bob27States;
 
-	const { finishedModalProps, showFinished } = useGameFinishedModal({
-		navigation,
-		mode,
-		isHost,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		players,
-		matchFormat,
-	});
-
-	const onFinishedQuickGameId = useCallback(() => {
-		if (matchEndedRef.current) return;
-		matchEndedRef.current = true;
-		const winnerIdx = bob27StatesRef.current.reduce(
-			(best, s, i, arr) =>
-				(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
-			0,
-		);
-		const name = players[winnerIdx]?.name ?? 'Zwycięzca';
-		showFinished({ winnerName: name, kind: 'quick' });
-	}, [players, showFinished]);
-
-	const {
-		busy,
-		canInputFromServer,
-		submitVisit,
-		submitUndo,
-	} = useBob27FfaScoring({
+	const { busy, canInputFromServer, submitVisit, submitUndo } = useBob27FfaScoring({
 		enabled: syncEnabled && !!transport,
 		transport,
 		N,
@@ -135,40 +88,19 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 		setCurrentTargetIndex,
 		setGameClosed,
 		legOpenerIndexRef,
-		onFinishedQuickGameId,
-		onAborted: () => notifyFfaGameAborted(navigation),
+		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
+			bob27StatesRef.current.reduce(
+				(best, s, i, arr) =>
+					(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
+				0,
+			),
+		),
+		onAborted,
 		reloadKey,
 	});
 
-	useLeaveGameConfirmation({
-		navigation,
-		mode,
-		gameClosed,
-		tournamentGame: null,
-		accessToken: auth?.accessToken,
-		syncEnabled,
-		lobbyId,
-		intentionalFfaLeaveRef,
-		lobbyScoringMode,
-	});
-
-	useFfaPresenceHeartbeat({
-		mode,
-		syncEnabled,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		gameClosed,
-		intentionalFfaLeaveRef,
-	});
-
-	useEffect(() => {
-		if (isFocused) {
-			activateKeepAwakeAsync('bob27-scoring').catch(() => {});
-		} else {
-			deactivateKeepAwake('bob27-scoring');
-		}
-		return () => deactivateKeepAwake('bob27-scoring');
-	}, [isFocused]);
+	const canInput = computeCanInput({ busy, canInputFromServer })
+		&& !bob27States[currentPlayerIndex]?.eliminated;
 
 	const nextActiveIndex = useCallback(
 		(fromIndex, states) => {
@@ -217,7 +149,7 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 				showFinished({ winnerName: name, kind: 'quick', lost });
 			}
 		},
-		[mode, players, matchFormat, showFinished],
+		[auth?.accessToken, matchEndedRef, matchFormat, mode, players, setGameClosed, showFinished],
 	);
 
 	const closeLegLocal = useCallback(
@@ -242,7 +174,7 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 				[{ text: 'OK' }],
 			);
 		},
-		[N, bob27Dispatches, finishMatchLocal, legsToWin, players, resetBoardsLocal],
+		[N, bob27Dispatches, dartLogRef, finishMatchLocal, legOpenerIndexRef, legsToWin, players, resetBoardsLocal, setCurrentPlayerIndex],
 	);
 
 	const advanceAfterVisitLocal = useCallback(
@@ -293,28 +225,16 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 			bob27Mode,
 			closeLegLocal,
 			currentTargetIndex,
+			dartLogRef,
 			finishMatchLocal,
 			includeBull,
 			lastTargetIndex,
+			legOpenerIndexRef,
 			nextActiveIndex,
 			resetBoardsLocal,
+			setCurrentPlayerIndex,
 		],
 	);
-
-	const isSpectator =
-		syncEnabled && lobbyScoringMode === 'one_device' && !isHost;
-
-	const canInput =
-		!gameClosed &&
-		!isModalVisible &&
-		!busy &&
-		!isSpectator &&
-		!(bob27States[currentPlayerIndex]?.eliminated) &&
-		(!syncEnabled || canInputFromServer) &&
-		(!syncEnabled
-			|| lobbyScoringMode !== 'each_own'
-			|| myPlayerIndex === null
-			|| myPlayerIndex === currentPlayerIndex);
 
 	const handleVisit = (hits) => {
 		if (!canInput) return;
@@ -380,50 +300,22 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 		});
 	};
 
-	const handleBullWinnerSelection = (player) => {
-		const idx = players.findIndex(
-			(p) => p === player || p?.id === player?.id || p?.name === player?.name,
-		);
-		const opener = idx >= 0 ? idx : 0;
-		legOpenerIndexRef.current = opener;
-		setCurrentPlayerIndex(opener);
-		setIsModalVisible(false);
-	};
-
 	return (
-		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-			<GameScoringModals
-				isOpenerModalVisible={isModalVisible}
-				players={players}
-				playerCount={N}
-				onSelectOpener={handleBullWinnerSelection}
-				checkoutModalPlayer={null}
-				isCheckoutModalVisible={false}
-				onCheckoutDart={() => {}}
-				scoringBusy={busy}
-				scoringBusyLabel="Zapisywanie wizyty…"
-			/>
-
-			<GameFinishedModal {...finishedModalProps} />
-
-			<View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-				<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: 13 }}>
-					Bob's 27 · {bob27Mode} · {includeBull ? 'z bullem' : 'bez bulla'} · do {legsToWin} {legsToWin === 1 ? 'lega' : 'legów'}
-					{syncEnabled
-						? ` · ${lobbyScoringMode === 'each_own' ? 'online' : '1 urządzenie'}`
-						: ''}
-					{gameClosed ? ' · koniec' : ''}
-				</Text>
-			</View>
-
-			{isSpectator && (
-				<View style={{ padding: 16 }}>
-					<Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-						Tryb jednego urządzenia — wynik wpisuje host. Widzisz stan na żywo.
-					</Text>
-				</View>
-			)}
-
+		<FfaScoringShell
+			insets={insets}
+			isModalVisible={isModalVisible}
+			players={players}
+			playerCount={N}
+			onSelectOpener={handleSelectOpener}
+			busy={busy}
+			busyLabel="Zapisywanie wizyty…"
+			finishedModalProps={finishedModalProps}
+			title={`Bob's 27 · ${bob27Mode} · ${includeBull ? 'z bullem' : 'bez bulla'} · do ${legsToWin} ${legsToWin === 1 ? 'lega' : 'legów'}`}
+			gameClosed={gameClosed}
+			syncEnabled={syncEnabled}
+			lobbyScoringMode={lobbyScoringMode}
+			isSpectator={isSpectator}
+		>
 			<Bob27Counter
 				players={players}
 				bob27States={bob27States}
@@ -435,6 +327,6 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 				mode={bob27Mode}
 				includeBull={includeBull}
 			/>
-		</View>
+		</FfaScoringShell>
 	);
 }

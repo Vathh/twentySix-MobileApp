@@ -1,8 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useIsFocused } from '@react-navigation/native';
-import { Alert, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import {
 	CRICKET_APPLY,
 	CRICKET_LEG_RESET,
@@ -14,100 +11,62 @@ import {
 	initialCricketState,
 } from '../../helpers/cricket';
 import { computeNextLegOpener } from '../../helpers/computeNextLegOpener';
-import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
-import {
-	GAME_MODE,
-	resolveGameContext,
-} from '../../helpers/gameScoring';
+import { GAME_MODE } from '../../helpers/gameScoring';
 import { saveCompletedTrainingGame } from '../../helpers/trainingHistory/saveCompletedTrainingGame';
-import useAuth from '../../hooks/useAuth';
 import { useCricketFfaScoring } from '../../hooks/useCricketFfaScoring';
-import { notifyFfaGameAborted } from '../../helpers/gameScoring/notifyFfaGameAborted';
-import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
-import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
-import { useLeaveGameConfirmation } from '../../hooks/useLeaveGameConfirmation';
+import { useFfaScoringScreenSession } from '../../hooks/useFfaScoringScreenSession';
+import { useIndexedPlayerBoard } from '../../hooks/useIndexedPlayerBoard';
 import CricketCounter from './CricketCounter';
-import GameFinishedModal from './GameFinishedModal';
-import GameScoringModals from './GameScoringModals';
-import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
-import { colors } from '../../theme/colors';
+import FfaScoringShell from './FfaScoringShell';
 
 /**
  * Scoring cricket: trening lokalny albo quick FFA (one_device / each_own) przez API.
  */
 export default function CricketGameScoringScreen({ route, navigation }) {
-	const { auth } = useAuth();
-	const isFocused = useIsFocused();
-	const insets = useSafeAreaInsets();
-	const gameCtx = useMemo(
-		() => resolveGameContext(route.params, auth),
-		[route.params, auth],
-	);
+	const session = useFfaScoringScreenSession({
+		route,
+		navigation,
+		keepAwakeId: 'cricket-scoring',
+	});
 	const {
+		auth,
+		insets,
 		mode,
 		players,
 		N,
-		matchFormat: routeMatchFormat,
-		showStartModal,
+		matchFormat,
+		legsToWin,
 		isHost,
 		syncEnabled,
 		transport,
 		reloadKey,
 		lobbyId,
 		lobbyScoringMode,
-		myPlayerIndex,
-	} = gameCtx;
-	const matchFormat = normalizeMatchFormat(routeMatchFormat);
-	const legsToWin = matchFormat.legsToWinSet ?? 2;
+		isModalVisible,
+		gameClosed,
+		setGameClosed,
+		currentPlayerIndex,
+		setCurrentPlayerIndex,
+		legOpenerIndexRef,
+		dartLogRef,
+		matchEndedRef,
+		finishedModalProps,
+		showFinished,
+		makeOnFinishedQuickGameId,
+		isSpectator,
+		computeCanInput,
+		handleSelectOpener,
+		onAborted,
+	} = session;
 
-	const [isModalVisible, setIsModalVisible] = useState(!!showStartModal);
-	const [gameClosed, setGameClosed] = useState(false);
-	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	const [dartsInVisit, setDartsInVisit] = useState(0);
-	const legOpenerIndexRef = useRef(0);
-	const dartLogRef = useRef([]);
-	const matchEndedRef = useRef(false);
-	const intentionalFfaLeaveRef = useRef(false);
-	const currentPlayerIndexRef = useRef(0);
-	currentPlayerIndexRef.current = currentPlayerIndex;
-
-	const [p1, d1] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p2, d2] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p3, d3] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p4, d4] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p5, d5] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p6, d6] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p7, d7] = useReducer(cricketReducer, undefined, initialCricketState);
-	const [p8, d8] = useReducer(cricketReducer, undefined, initialCricketState);
-
-	const allStates = [p1, p2, p3, p4, p5, p6, p7, p8];
-	const allDispatches = [d1, d2, d3, d4, d5, d6, d7, d8];
-	const cricketStates = allStates.slice(0, N);
-	const cricketDispatches = allDispatches.slice(0, N);
+	const [cricketStates, cricketDispatches] = useIndexedPlayerBoard(
+		cricketReducer,
+		initialCricketState,
+		N,
+	);
 	const cricketStatesRef = useRef(cricketStates);
 	cricketStatesRef.current = cricketStates;
-
-	const { finishedModalProps, showFinished } = useGameFinishedModal({
-		navigation,
-		mode,
-		isHost,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		players,
-		matchFormat,
-	});
-
-	const onFinishedQuickGameId = useCallback(() => {
-		if (matchEndedRef.current) return;
-		matchEndedRef.current = true;
-		const winnerIdx = cricketStatesRef.current.reduce(
-			(best, s, i, arr) =>
-				(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
-			0,
-		);
-		const name = players[winnerIdx]?.name ?? 'Zwycięzca';
-		showFinished({ winnerName: name, kind: 'quick' });
-	}, [players, showFinished]);
 
 	const {
 		busy,
@@ -124,40 +83,18 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 		setDartsInVisit,
 		setGameClosed,
 		legOpenerIndexRef,
-		onFinishedQuickGameId,
-		onAborted: () => notifyFfaGameAborted(navigation),
+		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
+			cricketStatesRef.current.reduce(
+				(best, s, i, arr) =>
+					(s?.legsWon ?? 0) > (arr[best]?.legsWon ?? 0) ? i : best,
+				0,
+			),
+		),
+		onAborted,
 		reloadKey,
 	});
 
-	useLeaveGameConfirmation({
-		navigation,
-		mode,
-		gameClosed,
-		tournamentGame: null,
-		accessToken: auth?.accessToken,
-		syncEnabled,
-		lobbyId,
-		intentionalFfaLeaveRef,
-		lobbyScoringMode,
-	});
-
-	useFfaPresenceHeartbeat({
-		mode,
-		syncEnabled,
-		lobbyId,
-		accessToken: auth?.accessToken,
-		gameClosed,
-		intentionalFfaLeaveRef,
-	});
-
-	useEffect(() => {
-		if (isFocused) {
-			activateKeepAwakeAsync('cricket-scoring').catch(() => {});
-		} else {
-			deactivateKeepAwake('cricket-scoring');
-		}
-		return () => deactivateKeepAwake('cricket-scoring');
-	}, [isFocused]);
+	const canInput = computeCanInput({ busy, canInputFromServer });
 
 	const finishMatchLocal = useCallback(
 		(winnerIndex, winnerLegsWon) => {
@@ -185,7 +122,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				showFinished({ winnerName: name, kind: 'quick' });
 			}
 		},
-		[mode, players, matchFormat, showFinished],
+		[auth?.accessToken, matchEndedRef, matchFormat, mode, players, setGameClosed, showFinished],
 	);
 
 	const closeLegLocal = useCallback(
@@ -216,7 +153,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				[{ text: 'OK' }],
 			);
 		},
-		[N, cricketDispatches, finishMatchLocal, legsToWin, players],
+		[N, cricketDispatches, dartLogRef, finishMatchLocal, legOpenerIndexRef, legsToWin, players, setCurrentPlayerIndex],
 	);
 
 	const advanceAfterDartLocal = useCallback(
@@ -235,22 +172,8 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				return next;
 			});
 		},
-		[N, closeLegLocal],
+		[N, closeLegLocal, setCurrentPlayerIndex],
 	);
-
-	const isSpectator =
-		syncEnabled && lobbyScoringMode === 'one_device' && !isHost;
-
-	const canInput =
-		!gameClosed &&
-		!isModalVisible &&
-		!busy &&
-		!isSpectator &&
-		(!syncEnabled || canInputFromServer) &&
-		(!syncEnabled
-			|| lobbyScoringMode !== 'each_own'
-			|| myPlayerIndex === null
-			|| myPlayerIndex === currentPlayerIndex);
 
 	const handleCricketHit = (segment, multiplier) => {
 		if (!canInput) return;
@@ -337,50 +260,21 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 		}
 	};
 
-	const handleBullWinnerSelection = (player) => {
-		const idx = players.findIndex(
-			(p) => p === player || p?.id === player?.id || p?.name === player?.name,
-		);
-		const opener = idx >= 0 ? idx : 0;
-		legOpenerIndexRef.current = opener;
-		setCurrentPlayerIndex(opener);
-		setIsModalVisible(false);
-	};
-
 	return (
-		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-			<GameScoringModals
-				isOpenerModalVisible={isModalVisible}
-				players={players}
-				playerCount={N}
-				onSelectOpener={handleBullWinnerSelection}
-				checkoutModalPlayer={null}
-				isCheckoutModalVisible={false}
-				onCheckoutDart={() => {}}
-				scoringBusy={busy}
-				scoringBusyLabel="Zapisywanie rzutu…"
-			/>
-
-			<GameFinishedModal {...finishedModalProps} />
-
-			<View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-				<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: 13 }}>
-					Cricket · do {legsToWin} {legsToWin === 1 ? 'lega' : 'legów'}
-					{syncEnabled
-						? ` · ${lobbyScoringMode === 'each_own' ? 'online' : '1 urządzenie'}`
-						: ''}
-					{gameClosed ? ' · koniec' : ''}
-				</Text>
-			</View>
-
-			{isSpectator && (
-				<View style={{ padding: 16 }}>
-					<Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-						Tryb jednego urządzenia — wynik wpisuje host. Widzisz stan na żywo.
-					</Text>
-				</View>
-			)}
-
+		<FfaScoringShell
+			insets={insets}
+			isModalVisible={isModalVisible}
+			players={players}
+			playerCount={N}
+			onSelectOpener={handleSelectOpener}
+			busy={busy}
+			finishedModalProps={finishedModalProps}
+			title={`Cricket · do ${legsToWin} ${legsToWin === 1 ? 'lega' : 'legów'}`}
+			gameClosed={gameClosed}
+			syncEnabled={syncEnabled}
+			lobbyScoringMode={lobbyScoringMode}
+			isSpectator={isSpectator}
+		>
 			<CricketCounter
 				players={players}
 				cricketStates={cricketStates}
@@ -391,6 +285,6 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				onCricketUndo={handleCricketUndo}
 				gameClosed={gameClosed || isSpectator || (syncEnabled && !canInput)}
 			/>
-		</View>
+		</FfaScoringShell>
 	);
 }

@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { BOB27_APPLY } from '../helpers/bob27';
-import { useFfaScoringSync } from './useFfaScoringSync';
+import { useFfaBoardScoring } from './useFfaBoardScoring';
 
 /**
  * Sync Bob's 27 FFA. Stan gry jest tu; GET/WS/poll/kolejka w `useFfaScoringSync`.
@@ -20,22 +20,12 @@ export function useBob27FfaScoring({
 	onAborted,
 	reloadKey = null,
 }) {
-	const dispatchesRef = useRef(bob27Dispatches);
-	dispatchesRef.current = bob27Dispatches;
-
-	const applyPlayers = useCallback((state) => {
-		const dispatches = dispatchesRef.current;
-		for (let i = 0; i < N; i += 1) {
-			const p = state.players[i];
-			if (!p || !dispatches[i]) continue;
-			dispatches[i]({
-				type: BOB27_APPLY,
-				score: Number(p.score ?? 27),
-				eliminated: !!p.eliminated,
-				legsWon: Number(p.legsWon ?? 0),
-			});
-		}
-	}, [N]);
+	const mapPlayer = useCallback((p) => ({
+		type: BOB27_APPLY,
+		score: Number(p.score ?? 27),
+		eliminated: !!p.eliminated,
+		legsWon: Number(p.legsWon ?? 0),
+	}), []);
 
 	const afterApply = useCallback((state) => {
 		setDartsInVisit(Number(state.turn?.dartsInVisit
@@ -49,10 +39,12 @@ export function useBob27FfaScoring({
 			?? 0));
 	}, [setCurrentTargetIndex, setDartsInVisit, setHitsInVisit]);
 
-	const { busy, canInputFromServer, runWrite, loadState, submitUndo } = useFfaScoringSync({
+	const { busy, canInputFromServer, runWrite, submitUndo, reload } = useFfaBoardScoring({
 		enabled,
 		transport,
-		applyPlayers,
+		N,
+		dispatches: bob27Dispatches,
+		mapPlayer,
 		afterApply,
 		setCurrentPlayerIndex,
 		setGameClosed,
@@ -83,6 +75,6 @@ export function useBob27FfaScoring({
 		canInputFromServer,
 		submitVisit,
 		submitUndo,
-		reload: loadState,
+		reload,
 	};
 }
