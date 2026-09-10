@@ -73,6 +73,10 @@ export function useLeaveLobbyOnTabPress({
 				skipNextRemoveRef.current = false;
 				return;
 			}
+			const targetName = e.data?.action?.payload?.name;
+			if (targetName === 'GameScoring') {
+				return;
+			}
 
 			e.preventDefault();
 

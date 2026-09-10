@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -33,11 +33,9 @@ import {
 import { fetchFriends as fetchFriendsRequest } from '../../helpers/friendsApi';
 import { addCachedTempName, getCachedTempNames } from '../../helpers/tempPlayerCache';
 import MatchFormatPicker, { DEFAULT_MATCH_FORMAT } from './MatchFormatPicker';
-import {
-  formatMatchLabel,
-  normalizeMatchFormat,
-} from '../../helpers/matchFormat/matchFormat';
+import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
 import { savePersistedMatchFormat } from '../../helpers/matchFormat/persistMatchFormat';
+import { navigateToGameScoring } from '../../helpers/navigateFromGameScoring';
 import { colors } from '../../theme/colors';
 
 const MAX_LOBBY_PLAYERS = 8;
@@ -80,6 +78,14 @@ const QuickGameLobby = ({ navigation, route }) => {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [myReady, setMyReady] = useState(false); // po kliknięciu Gotowy – nie pozwalaj klikać ponownie
   const [activeGame, setActiveGame] = useState(null);
+
+  useEffect(() => {
+    const list = orderedPlayers.length ? orderedPlayers : (lobby?.players ?? []);
+    const me = list.find(
+      (p) => p.playerId != null && Number(p.playerId) === Number(auth?.playerId),
+    );
+    setMyReady(Boolean(me?.ready));
+  }, [auth?.playerId, lobby?.id, lobby?.players, orderedPlayers]);
 
   const clearLobbyLocal = useCallback(() => {
     setLobby(null);
@@ -220,17 +226,22 @@ const QuickGameLobby = ({ navigation, route }) => {
 
   const handleInviteFriend = async (friend) => {
     if (!lobby?.id || !auth?.accessToken) return;
-    const playerId = friend.playerId ?? friend.id ?? friend.player_id;
+    const playerId = friend.playerId ?? friend.player_id ?? friend.id;
     const name = friend.name ?? friend.playerName ?? 'Znajomy';
     try {
       const { ok, data } = await inviteToQuickGameLobby(
         lobby.id,
         auth.accessToken,
-        playerId ?? friend.userId ?? friend.user_id,
+        playerId,
       );
       if (ok) {
-        setInvitations((prev) => [...prev, { id: friend.id ?? playerId, name, status: 'sent' }]);
+        setInvitations((prev) => {
+          const id = Number(playerId);
+          if (prev.some((i) => Number(i.id) === id)) return prev;
+          return [...prev, { id, name, status: 'sent' }];
+        });
         setInviteModalVisible(false);
+        fetchLobbyById(lobby.id);
       } else {
         Alert.alert('Błąd', data?.message || 'Nie udało się wysłać zaproszenia');
       }
@@ -310,7 +321,7 @@ const QuickGameLobby = ({ navigation, route }) => {
         const isHost = data.isHost ?? lobby?.youAreHost ?? false;
         const myPlayerIndex = resolveMyPlayerIndex(toPass, data.myPlayerIndex);
         setLobby(null);
-        navigation.navigate('GameScoring', {
+        navigateToGameScoring(navigation, {
           quickGame: {
             players: toPass,
             lobbyId: lobby.id,
@@ -351,22 +362,17 @@ const QuickGameLobby = ({ navigation, route }) => {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.section}>
-          {isHost ? (
-            <MatchFormatPicker
-              value={matchFormat}
-              onChange={(next) => {
-                const withType = normalizeMatchFormat(next);
-                setMatchFormat(withType);
-                setGameType(withType.gameType);
-                handleUpdateSettings({ matchFormat: withType, gameType: withType.gameType });
-              }}
-            />
-          ) : (
-            <>
-              <Text style={styles.label}>Format meczu</Text>
-              <Text style={styles.formatValue}>{formatMatchLabel(matchFormat)}</Text>
-            </>
-          )}
+          <MatchFormatPicker
+            value={matchFormat}
+            disabled={!isHost}
+            onChange={(next) => {
+              if (!isHost) return;
+              const withType = normalizeMatchFormat(next);
+              setMatchFormat(withType);
+              setGameType(withType.gameType);
+              handleUpdateSettings({ matchFormat: withType, gameType: withType.gameType });
+            }}
+          />
         </View>
 
         <View style={styles.section}>
@@ -424,7 +430,7 @@ const QuickGameLobby = ({ navigation, route }) => {
               {invitations.map((inv) => {
                 const statusInfo = INVITATION_STATUS[inv.status] ?? INVITATION_STATUS.sent;
                 return (
-                    <View key={inv.id} style={styles.invitationRow}>
+                    <View key={`${inv.id}-${inv.name}`} style={styles.invitationRow}>
                     <Text style={styles.invitationName}>{inv.name}</Text>
                     <Text style={[styles.invitationStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
                   </View>
@@ -509,7 +515,10 @@ const QuickGameLobby = ({ navigation, route }) => {
                 <ScrollView style={styles.friendsList}>
                   {friends.map((f) => {
                     const name = f.name ?? f.playerName ?? f.player?.name ?? 'Znajomy';
-                    const alreadyInvited = invitations.some((i) => i.id === (f.playerId ?? f.id) || i.name === name);
+                    const playerId = f.playerId ?? f.player_id ?? f.id;
+                    const alreadyInvited = invitations.some(
+                      (i) => Number(i.id) === Number(playerId) || (i.name && i.name === name),
+                    );
                     return (
                       <Pressable
                         key={f.id ?? f.playerId}
@@ -763,13 +772,6 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     marginTop: 4,
     marginBottom: 8,
-  },
-  formatValue: {
-    fontSize: 16,
-    color: colors.bg,
-    fontWeight: '600',
-    marginTop: 4,
-    marginBottom: 4,
   },
   error: {
     fontSize: 14,

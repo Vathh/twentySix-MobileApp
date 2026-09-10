@@ -24,3 +24,16 @@ export function navigateFromGameScoring(navigation, screenName, params = {}) {
 
 	navigation.navigate(screenName, params);
 }
+
+/** Wejście na root `GameScoring` z zagnieżdżonego stacku (lobby w tabie Graj). */
+export function navigateToGameScoring(navigation, params) {
+	let nav = navigation;
+	for (let i = 0; i < 8; i += 1) {
+		const parent = nav?.getParent?.();
+		if (!parent) {
+			break;
+		}
+		nav = parent;
+	}
+	nav.navigate('GameScoring', params);
+}

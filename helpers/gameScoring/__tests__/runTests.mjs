@@ -6,6 +6,7 @@ import { runCricket56Tests } from '../../cricket56/__tests__/cricket56Rules.test
 import { runAchievementHandlersTests } from './achievementHandlers.test.js';
 import { runDartHistoryTrackerTests } from './dartHistoryTracker.test.js';
 import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
+import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
 import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
 import {
@@ -666,6 +667,7 @@ const tests = [
 	['achievement handlers', runAchievementHandlersTests],
 	['dart history tracker', runDartHistoryTrackerTests],
 	['ffa scoring sync', runFfaScoringSyncTests],
+	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
 	['players board reducer', runPlayersBoardReducerTests],
 ];

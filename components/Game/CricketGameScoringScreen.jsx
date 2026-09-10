@@ -67,12 +67,12 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 	);
 	const cricketStatesRef = useRef(cricketStates);
 	cricketStatesRef.current = cricketStates;
+	const pendingVisitRef = useRef([]);
 
 	const {
 		busy,
 		canInputFromServer,
-		submitHit,
-		submitMiss,
+		submitVisit,
 		submitUndo,
 	} = useCricketFfaScoring({
 		enabled: syncEnabled && !!transport,
@@ -175,6 +175,24 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 		[N, closeLegLocal, setCurrentPlayerIndex],
 	);
 
+	const flushPendingOnlineVisit = (playerId) => {
+		const pending = pendingVisitRef.current;
+		if (!playerId || pending.length === 0) return;
+		const darts = pending.map((d) => ({
+			kind: d.kind,
+			segment: d.segment,
+			multiplier: d.multiplier,
+			clientDartId: d.clientDartId,
+		}));
+		submitVisit(playerId, darts)
+			.then(() => {
+				pendingVisitRef.current = [];
+			})
+			.catch(() => {
+				// Stan lokalny zostaje — kolejny tap ponowi wysyłkę tej samej wizyty.
+			});
+	};
+
 	const handleCricketHit = (segment, multiplier) => {
 		if (!canInput) return;
 		if (syncEnabled && transport) {
@@ -184,7 +202,48 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				Alert.alert('Błąd', 'Brak playerId gracza.');
 				return;
 			}
-			submitHit(playerId, segment, multiplier);
+			if (pendingVisitRef.current.length >= 3) {
+				flushPendingOnlineVisit(playerId);
+				return;
+			}
+			const idx = currentPlayerIndex;
+			const states = cricketStatesRef.current;
+			const hitsList = states.map((s) => ({ ...s.hits }));
+			const { hits, pointsScored } = applyCricketDart(
+				hitsList,
+				idx,
+				segment,
+				multiplier,
+			);
+			const pointsBefore = states[idx].points;
+			pendingVisitRef.current.push({
+				kind: 'hit',
+				segment: segment === 'bull' ? 'bull' : String(segment),
+				multiplier,
+				clientDartId: transport.newClientVisitId(),
+				playerIndex: idx,
+				hitsBefore: { ...states[idx].hits },
+				pointsBefore,
+				dartsInVisitBefore: dartsInVisit,
+			});
+			cricketDispatches[idx]({
+				type: CRICKET_APPLY,
+				hits,
+				points: pointsBefore + pointsScored,
+			});
+			const statesAfter = states.map((s, i) =>
+				i === idx
+					? { ...s, hits, points: pointsBefore + pointsScored }
+					: s,
+			);
+			const winnerIdx = findCricketLegWinnerIndex(statesAfter);
+			const nextDarts = dartsInVisit + 1;
+			if (winnerIdx != null || nextDarts >= 3) {
+				setDartsInVisit(nextDarts >= 3 ? 3 : nextDarts);
+				flushPendingOnlineVisit(playerId);
+				return;
+			}
+			setDartsInVisit(nextDarts);
 			return;
 		}
 
@@ -227,7 +286,23 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				Alert.alert('Błąd', 'Brak playerId gracza.');
 				return;
 			}
-			submitMiss(playerId);
+			if (pendingVisitRef.current.length >= 3) {
+				flushPendingOnlineVisit(playerId);
+				return;
+			}
+			pendingVisitRef.current.push({
+				kind: 'miss',
+				clientDartId: transport.newClientVisitId(),
+				playerIndex: currentPlayerIndex,
+				dartsInVisitBefore: dartsInVisit,
+			});
+			const nextDarts = dartsInVisit + 1;
+			if (nextDarts >= 3) {
+				setDartsInVisit(3);
+				flushPendingOnlineVisit(playerId);
+				return;
+			}
+			setDartsInVisit(nextDarts);
 			return;
 		}
 
@@ -242,6 +317,18 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 	const handleCricketUndo = () => {
 		if (gameClosed || isModalVisible || busy || isSpectator) return;
 		if (syncEnabled && transport) {
+			if (pendingVisitRef.current.length > 0) {
+				const last = pendingVisitRef.current.pop();
+				setDartsInVisit(last.dartsInVisitBefore);
+				if (last.kind === 'hit') {
+					cricketDispatches[last.playerIndex]({
+						type: CRICKET_RESTORE,
+						hits: last.hitsBefore,
+						points: last.pointsBefore,
+					});
+				}
+				return;
+			}
 			if (!transport.assertCanUndo?.()) return;
 			submitUndo();
 			return;

@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import ScreenLoading from '../Common/ScreenLoading';
 import {
@@ -85,9 +86,13 @@ const InvitationsScreen = ({ navigation, route }) => {
     }
   }, [auth?.accessToken]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!auth?.accessToken) return undefined;
+      fetchAll();
+      return undefined;
+    }, [auth?.accessToken, fetchAll]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

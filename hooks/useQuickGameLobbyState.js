@@ -7,11 +7,12 @@ import {
 	loadPersistedMatchFormat,
 } from '../helpers/matchFormat/persistMatchFormat';
 import { logReverbWs } from '../helpers/reverbWsLog';
+import { navigateToGameScoring } from '../helpers/navigateFromGameScoring';
 
 export const QUICK_GAME_GAME_TYPES = { X01: 'x01', CRICKET: 'cricket', BOB27: 'bob27', ATC: 'atc', CATCH40: 'catch40', CRICKET56: 'cricket56' };
 export const QUICK_GAME_SCORING_MODES = { ONE_DEVICE: 'one_device', EACH_OWN: 'each_own' };
 
-const LOBBY_POLL_MS = 45000;
+const LOBBY_POLL_MS = 5000;
 
 function resolveYouAreHost(data, prev, auth) {
 	if (typeof data?.youAreHost === 'boolean') {
@@ -62,6 +63,7 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 	const [wsLive, setWsLive] = useState(false);
 	const hasNavigatedToGameRef = useRef(false);
 	const wsLiveRef = useRef(false);
+	const hasServerFormatRef = useRef(false);
 
 	const setWsHealth = useCallback((healthy) => {
 		wsLiveRef.current = healthy;
@@ -69,7 +71,16 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 	}, []);
 
 	useEffect(() => {
-		loadPersistedMatchFormat('quickGame').then(setMatchFormat);
+		let cancelled = false;
+		loadPersistedMatchFormat('quickGame').then((fmt) => {
+			if (cancelled || hasServerFormatRef.current) {
+				return;
+			}
+			setMatchFormat(fmt);
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
 	const resolveMyPlayerIndex = useCallback((players, fromApi) => {
@@ -83,10 +94,17 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 
 	const applyLobbyData = useCallback((data, fallbackLobbyId = null) => {
 		if (!data) return;
-		if (data.matchInProgress && data.status === 'started' && data.players?.length >= 2) {
+		if (data.status === 'waiting') {
+			hasNavigatedToGameRef.current = false;
+		}
+		const startedPlayers = Array.isArray(data.players) ? data.players : [];
+		if (
+			data.status === 'started' &&
+			startedPlayers.length >= 2
+		) {
 			if (hasNavigatedToGameRef.current) return;
 			hasNavigatedToGameRef.current = true;
-			const players = (data.players || []).map((p) => ({
+			const players = startedPlayers.map((p) => ({
 				id: p.id,
 				name: p.name ?? p.tempName ?? 'Gracz',
 				playerId: p.playerId ?? p.player_id,
@@ -100,7 +118,7 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 			const isHost = data.youAreHost ?? lobby?.youAreHost ?? false;
 			const myPlayerIndex = resolveMyPlayerIndex(players, data.myPlayerIndex);
 			setLobby(null);
-			navigation.navigate('GameScoring', {
+			navigateToGameScoring(navigation, {
 				quickGame: {
 					players,
 					lobbyId: data.id ?? fallbackLobbyId ?? lobby?.id ?? null,
@@ -122,6 +140,7 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 			scoringMode: data.scoringMode ?? prev?.scoringMode ?? QUICK_GAME_SCORING_MODES.EACH_OWN,
 		}));
 		if (data.matchFormat != null) {
+			hasServerFormatRef.current = true;
 			setMatchFormat(
 				normalizeMatchFormat({
 					...data.matchFormat,
@@ -148,8 +167,22 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 				return prev.map((p) => incoming.find((i) => key(i) === key(p)) || p).filter(Boolean);
 			});
 			// Lokalna lista „Zaproszenia” — usuń wpis gdy gracz już dołączył do lobby (HTTP/WS).
-			setInvitations((prev) =>
-				prev.filter((inv) => {
+			setInvitations((prev) => {
+				if (Array.isArray(data.pendingInvites)) {
+					const joinedIds = new Set(
+						incoming
+							.map((p) => Number(p.playerId ?? p.player_id))
+							.filter((id) => Number.isFinite(id)),
+					);
+					return data.pendingInvites
+						.filter((inv) => !joinedIds.has(Number(inv.id)))
+						.map((inv) => ({
+							id: Number(inv.id),
+							name: inv.name ?? 'Gracz',
+							status: inv.status ?? 'sent',
+						}));
+				}
+				return prev.filter((inv) => {
 					const joined = incoming.some(
 						(p) =>
 							(inv.id != null &&
@@ -158,8 +191,8 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 							(inv.name && (p.name ?? p.tempName) === inv.name),
 					);
 					return !joined;
-				}),
-			);
+				});
+			});
 		}
 	}, [auth, lobby?.id, lobby?.youAreHost, navigation, resolveMyPlayerIndex]);
 
@@ -186,12 +219,22 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 		useCallback(() => {
 			const initial = route?.params?.initialLobby;
 			if (initial?.id) {
+				if (initial.matchFormat != null) {
+					hasServerFormatRef.current = true;
+				}
 				setLobby(initial);
 				setMatchFormat(normalizeMatchFormat(initial.matchFormat));
 				setGameType(initial.gameType ?? initial.game_type ?? QUICK_GAME_GAME_TYPES.X01);
 				setScoringMode(initial.scoringMode ?? QUICK_GAME_SCORING_MODES.EACH_OWN);
 				const pl = (initial.players || []).map((p) => ({ ...p, name: p.name ?? p.tempName ?? 'Gracz' }));
 				setOrderedPlayers(pl);
+				if (Array.isArray(initial.pendingInvites)) {
+					setInvitations(initial.pendingInvites.map((inv) => ({
+						id: inv.id,
+						name: inv.name ?? 'Gracz',
+						status: inv.status ?? 'sent',
+					})));
+				}
 				navigation.setParams({ initialLobby: undefined });
 			} else if (lobby?.id) {
 				fetchLobbyById(lobby.id);
@@ -212,6 +255,9 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 		if (!lobby?.id || !auth?.accessToken || wsLive) {
 			return undefined;
 		}
+		if ((lobby.status ?? 'waiting') === 'started') {
+			return undefined;
+		}
 		const t = setInterval(() => {
 			if (wsLiveRef.current) {
 				return;
@@ -219,7 +265,7 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 			fetchLobbyById(lobby.id);
 		}, LOBBY_POLL_MS);
 		return () => clearInterval(t);
-	}, [lobby?.id, auth?.accessToken, fetchLobbyById, wsLive]);
+	}, [lobby?.id, lobby?.status, auth?.accessToken, fetchLobbyById, wsLive]);
 
 	return {
 		lobby,

@@ -191,10 +191,21 @@ function testInvalidState() {
 	assert(!result.applied && result.reason === 'invalid', 'invalid');
 }
 
+function testApplyWithoutYouKeepsPreviousCanInput() {
+	const env = makeCtx();
+	applyFfaSyncState(baseState({ you: { canInput: false } }), env.ctx);
+	assert(env.canInput === false, 'you.canInput false applied');
+	const state = baseState({ session: { stateVersion: 4 } });
+	delete state.you;
+	applyFfaSyncState(state, env.ctx);
+	assert(env.canInput === false, 'missing you does not unlock from opponent payload');
+}
+
 export function runFfaScoringSyncTests() {
 	testPollOnlyWhenWsDown();
 	testSkipTickDuringWrites();
 	testApplyPlayersAndTurn();
+	testApplyWithoutYouKeepsPreviousCanInput();
 	testStaleVersionDuringWrite();
 	testFinishedOnce();
 	testAbortStopsApply();

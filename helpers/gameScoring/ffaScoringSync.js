@@ -81,7 +81,9 @@ export function applyFfaSyncState(state, ctx) {
 		);
 	}
 
-	setCanInputFromServer(state.you?.canInput !== false);
+	if (state.you && Object.prototype.hasOwnProperty.call(state.you, 'canInput')) {
+		setCanInputFromServer(state.you.canInput !== false);
+	}
 
 	return { applied: true };
 }

@@ -98,8 +98,13 @@ export function getPusherConstructor() {
 	}
 
 	let lastShape = 'brak modułu';
+	const isBrowser =
+		typeof window !== 'undefined' && typeof window.document !== 'undefined';
+	const loaders = isBrowser
+		? [loadPusherWebModule, loadPusherRnModule]
+		: [loadPusherRnModule, loadPusherWebModule];
 
-	for (const load of [loadPusherRnModule, loadPusherWebModule]) {
+	for (const load of loaders) {
 		const loaded = load();
 		if (loaded == null) {
 			continue;

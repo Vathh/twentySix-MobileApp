@@ -4,7 +4,7 @@ import {
 	getQuickGameFfaVisitUrl,
 	getQuickGameFfaPresenceUrl,
 	getQuickGameFfaAbortUrl,
-	getQuickGameFfaCricketDartUrl,
+	getQuickGameFfaCricketVisitUrl,
 	getQuickGameFfaCricketUndoUrl,
 	getQuickGameFfaBob27DartUrl,
 	getQuickGameFfaBob27UndoUrl,
@@ -23,7 +23,7 @@ export {
 	getQuickGameFfaVisitUrl,
 	getQuickGameFfaUndoUrl,
 	getQuickGameFfaPresenceUrl,
-	getQuickGameFfaCricketDartUrl,
+	getQuickGameFfaCricketVisitUrl,
 	getQuickGameFfaCricketUndoUrl,
 	QUICK_GAME_LOBBY_ACTIVE_MATCH_URL,
 };
@@ -106,20 +106,20 @@ export async function postFfaPresence(lobbyId, accessToken, status) {
 	);
 }
 
-export async function recordFfaCricketDart(lobbyId, accessToken, payload) {
+export async function recordFfaCricketVisit(lobbyId, accessToken, payload) {
 	return ffaPost(
-		getQuickGameFfaCricketDartUrl(lobbyId),
+		getQuickGameFfaCricketVisitUrl(lobbyId),
 		accessToken,
-		'Nie udało się zapisać rzutu',
+		'Nie udało się zapisać wizyty',
 		payload,
 	);
 }
 
-export async function undoFfaCricketDart(lobbyId, accessToken) {
+export async function undoFfaCricketVisit(lobbyId, accessToken) {
 	return ffaPost(
 		getQuickGameFfaCricketUndoUrl(lobbyId),
 		accessToken,
-		'Nie udało się cofnąć rzutu',
+		'Nie udało się cofnąć wizyty',
 	);
 }
 

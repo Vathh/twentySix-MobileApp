@@ -9,6 +9,7 @@ import {
 	normalizeScoringState,
 } from '../helpers/gameScoring/index.js';
 import { consumeFfaAbortPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
+import { announceRemoteVisit } from '../helpers/gameScoring/announceRemoteVisit.js';
 import {
 	clearOutbox,
 	dequeueOutbox,
@@ -74,6 +75,7 @@ export function useGameScoring({
 	const flushInFlightRef = useRef(false);
 	const [wsHealthy, setWsHealthy] = useState(false);
 	const [ffaPresence, setFfaPresence] = useState(null);
+	const [syncPending, setSyncPending] = useState(false);
 	const getCloseLegDoubleStatsRef = useRef(getCloseLegDoubleStats);
 	getCloseLegDoubleStatsRef.current = getCloseLegDoubleStats;
 
@@ -193,7 +195,13 @@ export function useGameScoring({
 			}
 
 			lastRevisionRef.current = revision;
+			const prevVisits = lastSyncStateRef.current?.visits;
 			applyStateInternal(state);
+			const sync = scoringSyncRef.current;
+			const normalized = isNormalizedScoringState(state)
+				? state
+				: normalizeScoringState(state, sync.players);
+			announceRemoteVisit(prevVisits, normalized);
 			return true;
 		},
 		[applyStateInternal],

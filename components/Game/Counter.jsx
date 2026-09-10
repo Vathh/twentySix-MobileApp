@@ -44,6 +44,7 @@ const Counter = ({
   const unitLabel = scoreUnitLabel(format);
   const multiSet = !isSingleSetFormat(format);
   const N = players?.length ?? 0;
+  const isOnePlayer = N === 1;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
   const inputDisabled = !canInput || submitting;
@@ -393,6 +394,67 @@ const Counter = ({
     return (
       <View style={[styles.container, styles.padOnlyContainer]}>
         {renderWaitingOverlay()}
+        {!isPerDart && scoreSection}
+        {isPerDart ? dartPad : numPad}
+      </View>
+    );
+  }
+
+  if (isOnePlayer) {
+    const p0 = players[0];
+    const s0 = playerStates[0];
+    const setScore0 = matchScoreForDisplay(s0, format);
+    const currentSetNumber = multiSet ? setScore0 + 1 : 1;
+    return (
+      <View style={styles.container}>
+        <View style={styles.resultContainer}>
+          <View style={styles.player1Container}>
+            <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
+          </View>
+          <View style={styles.legsContainer}>
+            {multiSet ? (
+              <View style={styles.legsCenterColumn}>
+                <Text style={styles.legsSetLabel}>SET {currentSetNumber}</Text>
+                <Text style={styles.legsInSetScore}>
+                  {legScoreInSetForDisplay(s0)} {unitLabel}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.legsResultText}>{setScore0}</Text>
+                <Text style={styles.legsText}>{unitLabel}</Text>
+              </>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.countersContainer}>
+          <View style={styles.countersScoresRow}>
+            <View style={styles.counterContainer}>
+              <View style={[styles.counterScoreStack, isPerDart && styles.counterScoreStackOverlayRoot]}>
+                {renderLocalVisitRemainingOverlay(0)}
+                <TickingScore
+                  value={s0?.score ?? 501}
+                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}
+                  numberOfLines={1}
+                />
+                {renderVisitDartsUnderScore(0, { overlay: isPerDart })}
+              </View>
+            </View>
+          </View>
+          <View style={styles.averagesRow}>
+            <View style={styles.averagesContainer}>
+              <Text style={styles.averageText}>
+                ms: {hasAverage(s0?.matchAverage) ? formatAverage(s0.matchAverage) : '-'}
+              </Text>
+              <Text style={styles.averageText}>
+                ls: {(s0?.dartsThrown > 0 || hasAverage(s0?.currentLegAverage)) ? formatAverage(s0.currentLegAverage) : '-'}
+              </Text>
+            </View>
+          </View>
+          {renderWaitingOverlay()}
+        </View>
+
         {!isPerDart && scoreSection}
         {isPerDart ? dartPad : numPad}
       </View>

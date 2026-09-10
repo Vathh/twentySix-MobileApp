@@ -85,6 +85,16 @@ const Stats = ({ players, playerStates }) => {
   const isTwoPlayer = N === 2;
   const [activePlayerIndex, setActivePlayerIndex] = useState(0);
 
+  if (N === 1) {
+    return (
+      <View style={styles.container}>
+        <ScrollView style={styles.tabPanelScroll} contentContainerStyle={styles.multiScroll}>
+          <PlayerStatsDetail playerState={playerStates?.[0]} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   if (isTwoPlayer && N >= 2) {
     const s0 = playerStates[0];
     const s1 = playerStates[1];

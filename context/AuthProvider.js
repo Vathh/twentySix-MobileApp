@@ -13,6 +13,7 @@ import {
 	storedSessionToAuth,
 } from '../helpers/authSessionStorage';
 import { unregisterCurrentDevicePushToken } from '../helpers/pushNotifications/unregisterPushToken';
+import { setCurrentAccessToken } from '../helpers/authTokenHolder';
 
 const AuthContext = createContext({
 	auth: {},
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }) => {
 
 	const applyAuthFromApi = useCallback((data) => {
 		const next = mapLoginResponseToAuth(data);
+		setCurrentAccessToken(next.accessToken);
 		setAuth(next);
 		return next;
 	}, []);
@@ -61,6 +63,7 @@ export const AuthProvider = ({ children }) => {
 			}
 		}
 		await clearStoredSession();
+		setCurrentAccessToken(null);
 		setAuth({});
 	}, []);
 
@@ -79,7 +82,9 @@ export const AuthProvider = ({ children }) => {
 			}
 
 			setRememberMePreferred(true);
-			setAuth(storedSessionToAuth(stored));
+			const restored = storedSessionToAuth(stored);
+			setCurrentAccessToken(restored.accessToken);
+			setAuth(restored);
 
 			const { ok, data, status } = await refreshAuthSession(stored.accessToken);
 			if (cancelled) {
@@ -88,10 +93,12 @@ export const AuthProvider = ({ children }) => {
 
 			if (ok) {
 				const next = mapLoginResponseToAuth(data);
+				setCurrentAccessToken(next.accessToken);
 				setAuth(next);
 				await saveStoredSession(buildStoredSession(next, true));
 			} else if (status === 401 || status === 403) {
 				await clearStoredSession();
+				setCurrentAccessToken(null);
 				setAuth({});
 			}
 
@@ -123,10 +130,12 @@ export const AuthProvider = ({ children }) => {
 				const { ok, data, status } = await refreshAuthSession(token);
 				if (ok) {
 					const next = mapLoginResponseToAuth(data);
+					setCurrentAccessToken(next.accessToken);
 					setAuth(next);
 					await saveStoredSession(buildStoredSession(next, true));
 				} else if (status === 401 || status === 403) {
 					await clearStoredSession();
+					setCurrentAccessToken(null);
 					setAuth({});
 				}
 			})();

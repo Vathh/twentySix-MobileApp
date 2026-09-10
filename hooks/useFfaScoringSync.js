@@ -171,8 +171,9 @@ export function useFfaScoringSync({
 	}, []);
 
 	const runWrite = useCallback(
-		(fn, errorMessage) => {
+		(fn, errorMessage, options = {}) => {
 			if (!fn) return Promise.resolve();
+			const { alert: showAlert = true, reloadOnError = true } = options;
 			return enqueueWrite(async () => {
 				try {
 					const state = await fn();
@@ -180,8 +181,12 @@ export function useFfaScoringSync({
 						applyState(state);
 					}
 				} catch (e) {
-					Alert.alert('Błąd', userErrorMessage(e, errorMessage));
-					await loadState({ notify: false });
+					if (showAlert) {
+						Alert.alert('Błąd', userErrorMessage(e, errorMessage));
+					}
+					if (reloadOnError) {
+						await loadState({ notify: false });
+					}
 					throw e;
 				}
 			});

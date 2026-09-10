@@ -11,21 +11,41 @@ const LOBBY_EVENT = 'lobby.updated';
 // Laravel/Echo czasem używa nazwy z kropką na początku — wiążemy obie.
 const LOBBY_EVENT_ALT = '.lobby.updated';
 
-function handleLobbyPayload(raw, onLobbyUpdatedRef) {
+function extractLobby(raw) {
 	const data = normalizePusherPayload(raw);
-	const lobby = data?.lobby ?? null;
+	if (!data || typeof data !== 'object') {
+		return null;
+	}
+	if (data.lobby && typeof data.lobby === 'object') {
+		return data.lobby;
+	}
+	if (data.data?.lobby && typeof data.data.lobby === 'object') {
+		return data.data.lobby;
+	}
+	if (
+		data.id != null &&
+		(data.scoringMode != null || Array.isArray(data.players) || data.matchFormat != null)
+	) {
+		return data;
+	}
+	return null;
+}
+
+function handleLobbyPayload(raw, onLobbyUpdatedRef) {
+	const lobby = extractLobby(raw);
 	if (lobby) {
 		onLobbyUpdatedRef.current?.(lobby);
 		logReverbWs('info', 'quick-game-lobby', 'odebrano lobby.updated', {
 			lobbyId: lobby.id,
 			players: lobby.players?.length,
+			scoringMode: lobby.scoringMode,
 		});
 	} else {
 		logReverbWs(
 			'warn',
 			'quick-game-lobby',
 			'odebrano event bez pola lobby (sprawdź broadcastWith / parsowanie JSON)',
-			data,
+			normalizePusherPayload(raw),
 		);
 	}
 }
@@ -72,9 +92,6 @@ export function useQuickGameLobbyRealtime({
 				authEndpoint: cfg.authEndpoint,
 			});
 
-			pusher.connection.bind('connected', () => {
-				onWsHealthChangeRef.current?.(true);
-			});
 			pusher.connection.bind('disconnected', markWsDown);
 			pusher.connection.bind('unavailable', markWsDown);
 			pusher.connection.bind('failed', markWsDown);

@@ -50,33 +50,17 @@ export function useCricketFfaScoring({
 		logLabel: 'useCricketFfaScoring',
 	});
 
-	const submitHit = useCallback(
-		(playerId, segment, multiplier) => {
-			if (!transport?.recordDart) return Promise.resolve();
+	const submitVisit = useCallback(
+		(playerId, darts) => {
+			if (!transport?.recordVisit) return Promise.resolve();
 			return runWrite(
-				() => transport.recordDart({
+				() => transport.recordVisit({
 					playerId,
-					kind: 'hit',
-					segment: segment === 'bull' ? 'bull' : String(segment),
-					multiplier,
-					clientDartId: transport.newClientDartId(),
+					clientVisitId: transport.newClientVisitId(),
+					darts,
 				}),
-				'Nie udało się zapisać rzutu',
-			);
-		},
-		[runWrite, transport],
-	);
-
-	const submitMiss = useCallback(
-		(playerId) => {
-			if (!transport?.recordDart) return Promise.resolve();
-			return runWrite(
-				() => transport.recordDart({
-					playerId,
-					kind: 'miss',
-					clientDartId: transport.newClientDartId(),
-				}),
-				'Nie udało się zapisać rzutu',
+				'Nie udało się zapisać wizyty',
+				{ reloadOnError: false },
 			);
 		},
 		[runWrite, transport],
@@ -85,8 +69,7 @@ export function useCricketFfaScoring({
 	return {
 		busy,
 		canInputFromServer,
-		submitHit,
-		submitMiss,
+		submitVisit,
 		submitUndo,
 		reload,
 	};

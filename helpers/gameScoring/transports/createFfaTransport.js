@@ -4,13 +4,13 @@ import {
 	recordFfaBob27Dart,
 	recordFfaCatch40Visit,
 	recordFfaCricket56Visit,
-	recordFfaCricketDart,
+	recordFfaCricketVisit,
 	recordFfaVisit,
 	undoFfaAtcVisit,
 	undoFfaBob27Dart,
 	undoFfaCatch40Visit,
 	undoFfaCricket56Visit,
-	undoFfaCricketDart,
+	undoFfaCricketVisit,
 	undoFfaVisit,
 } from '../../quickGameFfaApi';
 import { newClientVisitId } from '../newClientVisitId.js';
@@ -28,9 +28,9 @@ const VARIANTS = {
 	cricket: {
 		format: 'ffa_cricket',
 		scope: 'quick-game-ffa-cricket',
-		record: recordFfaCricketDart,
-		undo: undoFfaCricketDart,
-		write: 'dart',
+		record: recordFfaCricketVisit,
+		undo: undoFfaCricketVisit,
+		write: 'visit',
 	},
 	bob27: {
 		format: 'ffa_bob27',

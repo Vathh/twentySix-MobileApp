@@ -1,19 +1,74 @@
 import { getReverbConfig } from './apiConfig';
+import { getCurrentAccessToken } from './authTokenHolder';
 import { getPusherConstructor, getPusherSourceLabel } from './getPusherConstructor';
 import { logReverbWs } from './reverbWsLog';
+
+function resolveAccessToken(fallbackToken) {
+	return getCurrentAccessToken() || fallbackToken || null;
+}
+
+function authorizePrivateChannel(cfg, fallbackToken, channel, socketId, callback, isRetry = false) {
+	const accessToken = resolveAccessToken(fallbackToken);
+	if (!accessToken) {
+		logReverbWs('error', 'auth', 'brak tokenu do /broadcasting/auth');
+		callback(true, { message: 'Unauthenticated.' });
+		return;
+	}
+
+	logReverbWs('info', 'auth', `POST /broadcasting/auth (${channel.name})`, {
+		socketId: socketId?.slice?.(0, 12),
+		retry: isRetry,
+	});
+	const body = new URLSearchParams({
+		socket_id: socketId,
+		channel_name: channel.name,
+	}).toString();
+	fetch(cfg.authEndpoint, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+			Accept: 'application/json',
+			'Content-Type': 'application/x-www-form-urlencoded',
+		},
+		body,
+	})
+		.then(async (res) => {
+			const data = await res.json().catch(() => ({}));
+			if (res.status === 401 && !isRetry) {
+				logReverbWs('warn', 'auth', 'auth HTTP 401 — ponawiam ze świeżym tokenem');
+				setTimeout(() => {
+					authorizePrivateChannel(cfg, fallbackToken, channel, socketId, callback, true);
+				}, 400);
+				return;
+			}
+			if (!res.ok) {
+				logReverbWs('error', 'auth', `auth HTTP ${res.status}`, data);
+				callback(true, data);
+				return;
+			}
+			logReverbWs('info', 'auth', `auth HTTP ${res.status} OK`);
+			callback(false, data);
+		})
+		.catch((err) => {
+			logReverbWs('error', 'auth', 'auth fetch błąd', err);
+			callback(true, err);
+		});
+}
 
 /**
  * Instancja Pusher pod Laravel Reverb w React Native.
  * Wymaga `pusher-js/react-native` (Metro też wymusza ten entry w metro.config.js).
+ * Token do /broadcasting/auth jest czytany na żywo (po odświeżeniu sesji na unlock).
  */
 export function createReverbPusher(accessToken = null) {
 	const cfg = getReverbConfig();
+	const hasToken = !!resolveAccessToken(accessToken);
 	logReverbWs('info', 'pusher', 'tworzenie klienta Pusher', {
 		host: cfg.wsHost,
 		port: cfg.wsPort,
 		tls: cfg.forceTLS,
 		keyPrefix: cfg.key.slice(0, 4),
-		hasToken: !!accessToken,
+		hasToken,
 	});
 	const options = {
 		// Dummy cluster — przy wsHost łączy z Reverb, nie z pusher.com (Laravel docs: mt1).
@@ -26,39 +81,10 @@ export function createReverbPusher(accessToken = null) {
 		enabledTransports: cfg.enabledTransports,
 	};
 
-	if (accessToken) {
+	if (hasToken) {
 		options.authorizer = (channel) => ({
 			authorize: (socketId, callback) => {
-				logReverbWs('info', 'auth', `POST /broadcasting/auth (${channel.name})`, {
-					socketId: socketId?.slice?.(0, 12),
-				});
-				const body = new URLSearchParams({
-					socket_id: socketId,
-					channel_name: channel.name,
-				}).toString();
-				fetch(cfg.authEndpoint, {
-					method: 'POST',
-					headers: {
-						Authorization: `Bearer ${accessToken}`,
-						Accept: 'application/json',
-						'Content-Type': 'application/x-www-form-urlencoded',
-					},
-					body,
-				})
-					.then(async (res) => {
-						const data = await res.json().catch(() => ({}));
-						if (!res.ok) {
-							logReverbWs('error', 'auth', `auth HTTP ${res.status}`, data);
-							callback(true, data);
-							return;
-						}
-						logReverbWs('info', 'auth', `auth HTTP ${res.status} OK`);
-						callback(false, data);
-					})
-					.catch((err) => {
-						logReverbWs('error', 'auth', 'auth fetch błąd', err);
-						callback(true, err);
-					});
+				authorizePrivateChannel(cfg, accessToken, channel, socketId, callback);
 			},
 		});
 	}
