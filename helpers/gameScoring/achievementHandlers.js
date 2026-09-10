@@ -18,7 +18,7 @@ export function createAchievementHandlers({
 		if (!p) return;
 		const val =
 			visitScore !== undefined && visitScore !== null ? visitScore : currentResult;
-		if (val == 180) {
+		if (Number(val) === 180) {
 			const max = {
 				playerId: p.playerId,
 				tournamentId: activeGame?.tournamentId,

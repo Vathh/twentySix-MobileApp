@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import { getGameScoringChannelName } from '../../apiConfig';
 import {
 	closeGameLeg,

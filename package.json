@@ -9,7 +9,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test:game-scoring": "node helpers/gameScoring/__tests__/runTests.mjs"
+    "test:game-scoring": "node helpers/gameScoring/__tests__/runTests.mjs",
+    "lint": "eslint helpers --max-warnings 0"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -46,7 +47,9 @@
     "react-native-webview": "13.15.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0"
+    "@babel/core": "^7.24.0",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.2"
   },
   "overrides": {
     "react-native-worklets": "0.5.1"

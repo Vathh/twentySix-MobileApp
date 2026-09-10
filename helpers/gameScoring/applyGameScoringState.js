@@ -276,16 +276,10 @@ function resolveNextPlayerIndex(state, ctx) {
 export function applyGameScoringState(inputState, ctx) {
 	const {
 		players,
-		N,
-		dispatches,
 		currentPlayerIndexRef,
 		setCurrentPlayerIndex,
 		setGameClosed,
 		lastStateKeyRef,
-		legOpenerIndexRef,
-		lastLegNumberRef,
-		useLegOpenerRotation = false,
-		lastPlayerSnapRef,
 		onFinishedQuickGameId,
 	} = ctx;
 
