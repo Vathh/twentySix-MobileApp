@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -52,8 +52,11 @@ const InvitationsScreen = ({ navigation, route }) => {
     setActiveTab(resolveInitialTab(route));
   }, [route?.params?.tab]);
 
+  const fetchSeqRef = useRef(0);
+
   const fetchAll = useCallback(async () => {
     if (!auth?.accessToken) return;
+    const seq = ++fetchSeqRef.current;
     try {
       const [tournamentRes, organizationRes, lobbyRes, leagueRes, friendsRes] = await Promise.all([
         fetchTournamentInvitationsReceived(auth.accessToken),
@@ -62,6 +65,10 @@ const InvitationsScreen = ({ navigation, route }) => {
         fetchLeagueGameInvitations(auth.accessToken),
         fetchFriendInvitationsReceived(auth.accessToken),
       ]);
+
+      if (seq !== fetchSeqRef.current) {
+        return;
+      }
 
       setTournamentInvitations(tournamentRes.ok ? (tournamentRes.data?.invitations ?? []) : []);
       setOrganizationInvitations(organizationRes.ok ? (organizationRes.data?.invitations ?? []) : []);
@@ -79,8 +86,18 @@ const InvitationsScreen = ({ navigation, route }) => {
 
       setError('');
     } catch (e) {
+      if (seq !== fetchSeqRef.current) {
+        return;
+      }
+      setTournamentInvitations([]);
+      setOrganizationInvitations([]);
+      setLobbyInvitations([]);
+      setFriendInvitations([]);
       setError('Błąd połączenia.');
     } finally {
+      if (seq !== fetchSeqRef.current) {
+        return;
+      }
       setLoading(false);
       setRefreshing(false);
     }
@@ -89,8 +106,12 @@ const InvitationsScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       if (!auth?.accessToken) return undefined;
-      fetchAll();
-      return undefined;
+      setError('');
+      setLoading(true);
+      void fetchAll();
+      return () => {
+        fetchSeqRef.current += 1;
+      };
     }, [auth?.accessToken, fetchAll]),
   );
 

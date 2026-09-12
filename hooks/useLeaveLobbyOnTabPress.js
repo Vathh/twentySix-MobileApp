@@ -13,8 +13,9 @@ function findTabNavigator(navigation) {
 }
 
 /**
- * Gdy użytkownik jest w aktywnym lobby quick game (waiting) i klika dolny tab
- * albo wychodzi wstecz — zapytaj o potwierdzenie, wywołaj leave API.
+ * Lobby waiting zostaje przy zmianie taba. Ponowne tapnięcie „Graj”
+ * wraca do tego lobby (bez pop-to-top). Pytanie o opuszczenie tylko przy
+ * prawdziwym wyjściu ze stosu (wstecz / Opuść lobby).
  */
 export function useLeaveLobbyOnTabPress({
 	navigation,
@@ -37,33 +38,22 @@ export function useLeaveLobbyOnTabPress({
 			const state = tabNav.getState?.();
 			const targetRoute = state?.routes?.find((r) => r.key === e.target);
 			const targetName = targetRoute?.name;
+			const currentName = state?.routes?.[state.index]?.name;
 			if (!targetName) return;
 
-			e.preventDefault();
+			// Tap w inną zakładkę: zostaw lobby w stosie Graj, bez pytania.
+			if (targetName !== 'Graj') {
+				return;
+			}
 
-			void (async () => {
-				const ok = await confirm({
-					title: 'Opuścić lobby?',
-					message:
-						'Przejście do innej sekcji opuści lobby. Czy na pewno chcesz wyjść?',
-					confirmLabel: 'Opuść lobby',
-				});
-				if (!ok) return;
-				try {
-					if (accessToken) {
-						await leaveQuickGameLobby(lobbyId, accessToken);
-					}
-				} catch (err) {
-					console.warn('leave lobby on tabPress', err);
-				}
-				skipNextRemoveRef.current = true;
-				onLeftLobby?.();
-				tabNav.navigate(targetName);
-			})();
+			// Ponowny tap Graj przy już otwartym tabie robi pop-to-top i zdejmuje lobby.
+			if (currentName === 'Graj') {
+				e.preventDefault();
+			}
 		});
 
 		return unsubscribe;
-	}, [navigation, lobbyId, accessToken, onLeftLobby, enabled, confirm]);
+	}, [navigation, lobbyId, enabled]);
 
 	useEffect(() => {
 		if (!lobbyId || !enabled) return undefined;

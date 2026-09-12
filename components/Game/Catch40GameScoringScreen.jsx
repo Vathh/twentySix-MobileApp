@@ -62,6 +62,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	} = session;
 	const {
@@ -107,6 +108,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
 			catch40StatesRef.current.reduce(
 				(best, s, i, arr) =>
@@ -505,7 +507,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 				</Text>
 			) : null}
 
-			{renderContent()}
+			{!isModalVisible ? renderContent() : null}
 		</View>
 	);
 }

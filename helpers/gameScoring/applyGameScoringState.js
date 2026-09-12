@@ -263,6 +263,33 @@ function resolveNextPlayerIndex(state, ctx) {
 	});
 }
 
+export function scoringStateHasProgress(state) {
+	if (!state) {
+		return false;
+	}
+	if ((state.visits?.length ?? 0) > 0) {
+		return true;
+	}
+	if ((state.legs?.length ?? 0) > 0) {
+		return true;
+	}
+	if (
+		(state.game?.player1LegsWon ?? 0) + (state.game?.player2LegsWon ?? 0) >
+		0
+	) {
+		return true;
+	}
+	if ((state.players ?? []).some((p) => (p.legsWon ?? 0) > 0)) {
+		return true;
+	}
+	const legNumber =
+		state.currentLeg?.legNumber
+		?? state.turn?.legNumber
+		?? state.session?.currentLegNumber
+		?? 0;
+	return Number(legNumber) > 1;
+}
+
 /**
  * Mapuje znormalizowany stan meczu na reducery graczy.
  * Akceptuje też surową odpowiedź API — zostanie znormalizowana w locie.
@@ -317,13 +344,20 @@ export function applyGameScoringState(inputState, ctx) {
 		syncPlayersH2h(state, ctx);
 	}
 
-	updateLegOpenerRefs(state, ctx);
+	const lockLocalTurn = Boolean(ctx.openerChosenRef?.current)
+		&& !scoringStateHasProgress(state);
+	if (!lockLocalTurn) {
+		updateLegOpenerRefs(state, ctx);
+	}
 
 	const nextPlayerIndex = resolveNextPlayerIndex(state, ctx);
+	const appliedIndex = lockLocalTurn
+		? (currentPlayerIndexRef?.current ?? nextPlayerIndex)
+		: nextPlayerIndex;
 	if (currentPlayerIndexRef) {
-		currentPlayerIndexRef.current = nextPlayerIndex;
+		currentPlayerIndexRef.current = appliedIndex;
 	}
-	setCurrentPlayerIndex?.(nextPlayerIndex);
+	setCurrentPlayerIndex?.(appliedIndex);
 
 	const finishedQuickGameId = state.meta?.quickGameId ?? null;
 	if (state.meta?.status === 'finished') {
@@ -333,7 +367,7 @@ export function applyGameScoringState(inputState, ctx) {
 
 	return {
 		currentLegId: state.currentLeg?.id ?? null,
-		currentPlayerIndex: nextPlayerIndex,
+		currentPlayerIndex: appliedIndex,
 		finishedQuickGameId,
 	};
 }

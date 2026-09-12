@@ -16,6 +16,7 @@ import { saveCompletedTrainingGame } from '../../helpers/trainingHistory/saveCom
 import { useCricketFfaScoring } from '../../hooks/useCricketFfaScoring';
 import { useFfaScoringScreenSession } from '../../hooks/useFfaScoringScreenSession';
 import { useIndexedPlayerBoard } from '../../hooks/useIndexedPlayerBoard';
+import { playClick } from '../../helpers/gameSounds';
 import CricketCounter from './CricketCounter';
 import FfaScoringShell from './FfaScoringShell';
 
@@ -56,6 +57,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	} = session;
 
@@ -83,6 +85,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 		setDartsInVisit,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
 			cricketStatesRef.current.reduce(
 				(best, s, i, arr) =>
@@ -206,6 +209,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				flushPendingOnlineVisit(playerId);
 				return;
 			}
+			playClick();
 			const idx = currentPlayerIndex;
 			const states = cricketStatesRef.current;
 			const hitsList = states.map((s) => ({ ...s.hits }));
@@ -247,6 +251,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 			return;
 		}
 
+		playClick();
 		const idx = currentPlayerIndex;
 		const states = cricketStatesRef.current;
 		const hitsList = states.map((s) => ({ ...s.hits }));
@@ -290,6 +295,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 				flushPendingOnlineVisit(playerId);
 				return;
 			}
+			playClick();
 			pendingVisitRef.current.push({
 				kind: 'miss',
 				clientDartId: transport.newClientVisitId(),
@@ -306,6 +312,7 @@ export default function CricketGameScoringScreen({ route, navigation }) {
 			return;
 		}
 
+		playClick();
 		dartLogRef.current.push({
 			playerIndex: currentPlayerIndex,
 			kind: 'miss',

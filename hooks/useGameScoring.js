@@ -58,6 +58,7 @@ export function useGameScoring({
 	onMatchFormat = null,
 	getCloseLegDoubleStats = null,
 	onAborted = null,
+	openerChosenRef = null,
 }) {
 	const confirm = useConfirm();
 	const currentLegIdRef = useRef(null);
@@ -147,6 +148,7 @@ export function useGameScoring({
 				lastLegNumberRef,
 				useLegOpenerRotation: h2h && useLegOpenerRotation,
 				lastPlayerSnapRef: h2h ? lastPlayerSnapRef : undefined,
+				openerChosenRef,
 				onFinishedQuickGameId: (id) => {
 					if (id) {
 						finishedQuickGameIdRef.current = id;
@@ -165,6 +167,7 @@ export function useGameScoring({
 			setGameClosed,
 			legOpenerIndexRef,
 			useLegOpenerRotation,
+			openerChosenRef,
 		],
 	);
 

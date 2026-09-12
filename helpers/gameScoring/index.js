@@ -1,4 +1,4 @@
-export { applyGameScoringState } from './applyGameScoringState.js';
+export { applyGameScoringState, scoringStateHasProgress } from './applyGameScoringState.js';
 export {
 	consumeFfaAbortPayload,
 	ffaSessionStatus,

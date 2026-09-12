@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors } from '../../theme/colors';
 
 const CRICKET_SEGMENTS = [20, 19, 18, 17, 16, 15, 'bull'];
@@ -56,7 +56,6 @@ const CricketCounter = ({
   return (
     <View style={styles.container}>
       <View style={styles.tableWrapper}>
-      <ScrollView style={styles.tableScroll} contentContainerStyle={styles.tableContent} horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.table}>
           <View style={styles.tableCols}>
             <View style={[styles.col, styles.colName]}>
@@ -75,10 +74,12 @@ const CricketCounter = ({
                       i === currentPlayerIndex && styles.cellActive,
                     ]}
                   >
-                    <Text style={styles.cellText} numberOfLines={1} ellipsizeMode="tail">
-                      {p?.name ?? 'Gracz'}
+                    <View style={styles.nameRow}>
+                      <Text style={styles.nameText} numberOfLines={1} ellipsizeMode="tail">
+                        {p?.name ?? 'Gracz'}
+                      </Text>
                       <Text style={styles.legsInline}> ({legs})</Text>
-                    </Text>
+                    </View>
                   </View>
                 );
               })}
@@ -128,7 +129,6 @@ const CricketCounter = ({
             </View>
           </View>
         </View>
-      </ScrollView>
       </View>
 
       <View style={styles.bottomSection}>
@@ -199,7 +199,6 @@ const CricketCounter = ({
   );
 };
 
-const COL_NAME = 110;
 const COL_SEGMENT = 34;
 const COL_BULL = 38;
 const COL_PTS = 42;
@@ -218,30 +217,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-  },
-  tableScroll: {
-    flex: 1,
-  },
-  tableContent: {
-    paddingLeft: 0,
-    paddingRight: 0,
     paddingVertical: 12,
-    flexGrow: 1,
   },
   table: {
     flex: 1,
-    minWidth: COL_NAME + COL_SEGMENT * 6 + COL_BULL + COL_PTS,
+    width: '100%',
   },
   tableCols: {
     flexDirection: 'row',
     flex: 1,
+    width: '100%',
   },
   col: {
     flexDirection: 'column',
   },
   colName: {
     flex: 1,
-    minWidth: COL_NAME,
+    minWidth: 0,
     backgroundColor: 'transparent',
   },
   colSegment: { width: COL_SEGMENT, flex: 0 },
@@ -255,9 +247,10 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
   },
   cellName: {
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     paddingLeft: 6,
     overflow: 'hidden',
+    minWidth: 0,
   },
   cellCenter: {
     alignItems: 'center',
@@ -271,6 +264,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    width: '100%',
+  },
+  nameText: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.textSecondary,
+    fontSize: 15,
+  },
   cellText: {
     color: colors.textSecondary,
     fontSize: 15,
@@ -278,6 +283,7 @@ const styles = StyleSheet.create({
   legsInline: {
     color: colors.accent,
     fontWeight: '700',
+    flexShrink: 0,
   },
   hitSymbol: {
     fontSize: 18,

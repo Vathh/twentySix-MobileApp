@@ -59,6 +59,7 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	} = session;
 	const bob27Mode = normalizeBob27Mode(matchFormat.bob27Mode);
@@ -88,6 +89,7 @@ export default function Bob27GameScoringScreen({ route, navigation }) {
 		setCurrentTargetIndex,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
 			bob27StatesRef.current.reduce(
 				(best, s, i, arr) =>

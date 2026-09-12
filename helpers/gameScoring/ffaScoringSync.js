@@ -13,6 +13,19 @@ export function shouldSkipFfaBackupTick({ pendingWrites, wsHealthy }) {
 	return pendingWrites > 0 || Boolean(wsHealthy);
 }
 
+export function ffaStateHasTurnProgress(state) {
+	if (Number(state?.turn?.dartsInVisit ?? state?.session?.dartsInVisit ?? 0) > 0) {
+		return true;
+	}
+	if ((state?.visits?.length ?? 0) > 0) {
+		return true;
+	}
+	if ((state?.players ?? []).some((p) => Number(p.legsWon ?? 0) > 0)) {
+		return true;
+	}
+	return Number(state?.session?.currentLegNumber ?? state?.turn?.legNumber ?? 1) > 1;
+}
+
 /**
  * Wspólne apply stanu FFA (abort, wersja, finished, tura).
  * Mapowanie graczy zostaje w `applyPlayers` (inny kształt per tryb gry).
@@ -31,6 +44,7 @@ export function applyFfaSyncState(state, ctx) {
 		setCurrentPlayerIndex,
 		setCanInputFromServer,
 		legOpenerIndexRef = null,
+		openerChosenRef = null,
 		applyPlayers,
 		afterApply = null,
 	} = ctx;
@@ -67,19 +81,22 @@ export function applyFfaSyncState(state, ctx) {
 
 	applyPlayers?.(state);
 
-	setCurrentPlayerIndex(Number(
-		state.turn?.currentPlayerIndex
-		?? state.session.currentPlayerIndex
-		?? 0,
-	));
+	const lockLocalTurn = Boolean(openerChosenRef?.current) && !ffaStateHasTurnProgress(state);
+	if (!lockLocalTurn) {
+		setCurrentPlayerIndex(Number(
+			state.turn?.currentPlayerIndex
+			?? state.session.currentPlayerIndex
+			?? 0,
+		));
+
+		if (legOpenerIndexRef) {
+			legOpenerIndexRef.current = Number(
+				state.turn?.legOpenerIndex ?? state.session.legOpenerIndex ?? 0,
+			);
+		}
+	}
 
 	afterApply?.(state);
-
-	if (legOpenerIndexRef) {
-		legOpenerIndexRef.current = Number(
-			state.turn?.legOpenerIndex ?? state.session.legOpenerIndex ?? 0,
-		);
-	}
 
 	if (state.you && Object.prototype.hasOwnProperty.call(state.you, 'canInput')) {
 		setCanInputFromServer(state.you.canInput !== false);

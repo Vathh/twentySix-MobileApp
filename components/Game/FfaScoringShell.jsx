@@ -40,7 +40,7 @@ export default function FfaScoringShell({
 
 			<GameFinishedModal {...finishedModalProps} />
 
-			{title ? (
+			{!isModalVisible && title ? (
 				<View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
 					<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: 13 }}>
 						{title}
@@ -60,7 +60,7 @@ export default function FfaScoringShell({
 				</View>
 			) : null}
 
-			{children}
+			{!isModalVisible ? children : null}
 		</View>
 	);
 }

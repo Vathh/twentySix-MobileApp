@@ -20,7 +20,8 @@ export function useFfaScoringSync({
 	afterApply = null,
 	setCurrentPlayerIndex,
 	setGameClosed,
-	legOpenerIndexRef = null,
+		legOpenerIndexRef = null,
+	openerChosenRef = null,
 	onFinishedQuickGameId = null,
 	onAborted = null,
 	reloadKey = null,
@@ -44,6 +45,7 @@ export function useFfaScoringSync({
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId,
 		onAborted,
 	};
@@ -68,6 +70,7 @@ export function useFfaScoringSync({
 			setCurrentPlayerIndex: ctx.setCurrentPlayerIndex,
 			setCanInputFromServer,
 			legOpenerIndexRef: ctx.legOpenerIndexRef,
+			openerChosenRef: ctx.openerChosenRef,
 			applyPlayers: ctx.applyPlayers,
 			afterApply: ctx.afterApply,
 		});

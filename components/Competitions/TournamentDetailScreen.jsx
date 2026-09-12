@@ -30,15 +30,6 @@ const RESULTS_COLUMNS_BASE = [
 	{ key: 'stageLabel', label: 'Etap', width: 120, align: 'left' },
 ];
 
-const GROUP_STANDINGS_COLUMNS = [
-	{ key: 'place', label: '#', width: 36 },
-	{ key: 'player', label: 'Zawodnik', width: 130, align: 'left', player: true },
-	{ key: 'gamesWon', label: 'Z', width: 36 },
-	{ key: 'gamesLost', label: 'P', width: 36 },
-	{ key: 'matchUnitsDifference', label: '+/−', width: 44 },
-	{ key: 'points', label: 'Pkt', width: 44 },
-];
-
 const TournamentDetailScreen = ({ navigation, route }) => {
 	const { auth } = useAuth();
 	const tournamentId = route.params?.id;
@@ -199,42 +190,23 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 								(data?.groups ?? []).length === 0 ? (
 									<Text style={styles.empty}>Brak grup.</Text>
 								) : (
-									(data?.groups ?? []).map((group) => (
-										<View key={group.groupNumber} style={styles.groupBlock}>
-											<Text style={styles.sectionTitle}>
-												Grupa {group.groupNumber}
-											</Text>
-											<CompetitionTable
-												columns={GROUP_STANDINGS_COLUMNS}
-												rows={(group.standings ?? []).map((row) => ({
-													...row,
-													player: {
-														text: row.playerName,
-														playerId: row.userId ? row.playerId : null,
-														name: row.playerName,
-													},
-												}))}
-												emptyText="Brak tabeli."
-												onPlayerPress={openPlayer}
-											/>
-											<Text style={styles.subSection}>Mecze</Text>
-											{(group.games ?? []).length === 0 ? (
-												<Text style={styles.empty}>Brak meczów.</Text>
-											) : (
-												(group.games ?? []).map((game) => (
-													<View key={game.id} style={styles.gameRow}>
-														<Text style={styles.gameNames} numberOfLines={1}>
-															{game.player1?.name ?? 'TBD'} —{' '}
-															{game.player2?.name ?? 'TBD'}
-														</Text>
-														<Text style={styles.gameScore}>
-															{formatScore(game)}
-														</Text>
-													</View>
-												))
-											)}
-										</View>
-									))
+									(data?.groups ?? []).map((group) => {
+										const matrix = buildGroupMatrix(group);
+										return (
+											<View key={group.groupNumber} style={styles.groupBlock}>
+												<Text style={styles.sectionTitle}>
+													Grupa {group.groupNumber}
+												</Text>
+												<CompetitionTable
+													columns={matrix.columns}
+													rows={matrix.rows}
+													emptyText="Brak tabeli."
+													onPlayerPress={openPlayer}
+													showHorizontalScroll
+												/>
+											</View>
+										);
+									})
 								)
 							) : null}
 
@@ -275,11 +247,77 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 	);
 };
 
-function formatScore(game) {
-	if (game.status === 'scheduled') return 'vs';
+function shortPlayerLabel(name) {
+	const text = String(name ?? '').trim();
+	if (text.length <= 10) return text || '—';
+	return `${text.slice(0, 9)}…`;
+}
+
+function matrixScoreForRow(game, rowPlayerId) {
+	if (!game) return '—';
+	if (game.status === 'scheduled') return '—';
 	const s1 = game.score1 ?? 0;
 	const s2 = game.score2 ?? 0;
-	return `${s1} : ${s2}`;
+	if (Number(game.player1?.id) === Number(rowPlayerId)) {
+		return `${s1} - ${s2}`;
+	}
+	return `${s2} - ${s1}`;
+}
+
+function buildGroupMatrix(group) {
+	const standings = group.standings ?? [];
+	const games = group.games ?? [];
+	const byPair = new Map();
+	games.forEach((game) => {
+		const a = game.player1?.id;
+		const b = game.player2?.id;
+		if (a == null || b == null) return;
+		byPair.set(`${a}-${b}`, game);
+		byPair.set(`${b}-${a}`, game);
+	});
+
+	const columns = [
+		{ key: 'player', label: 'Zawodnik', width: 120, align: 'left', player: true },
+		...standings.map((row) => ({
+			key: `vs_${row.playerId}`,
+			label: shortPlayerLabel(row.playerName),
+			width: 64,
+		})),
+		{ key: 'gamesWon', label: 'W', width: 36 },
+		{ key: 'gamesLost', label: 'L', width: 36 },
+		{ key: 'matchUnitsDifference', label: 'Wynik', width: 52 },
+		{ key: 'points', label: 'Pkt', width: 40 },
+		{ key: 'place', label: 'Pozycja', width: 58 },
+	];
+
+	const rows = standings.map((row) => {
+		const next = {
+			key: `p-${row.playerId}`,
+			player: {
+				text: row.playerName,
+				playerId: row.userId ? row.playerId : null,
+				name: row.playerName,
+			},
+			gamesWon: row.gamesWon,
+			gamesLost: row.gamesLost,
+			matchUnitsDifference: row.matchUnitsDifference,
+			points: row.points,
+			place: row.place,
+		};
+		standings.forEach((col) => {
+			if (row.playerId === col.playerId) {
+				next[`vs_${col.playerId}`] = 'X';
+				return;
+			}
+			next[`vs_${col.playerId}`] = matrixScoreForRow(
+				byPair.get(`${row.playerId}-${col.playerId}`),
+				row.playerId,
+			);
+		});
+		return next;
+	});
+
+	return { columns, rows };
 }
 
 const styles = StyleSheet.create({
@@ -299,33 +337,6 @@ const styles = StyleSheet.create({
 		fontSize: 15,
 		fontWeight: '700',
 		color: colors.text,
-	},
-	subSection: {
-		marginTop: 12,
-		marginBottom: 8,
-		fontSize: 13,
-		fontWeight: '600',
-		color: colors.textMuted,
-	},
-	gameRow: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-		gap: 12,
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		backgroundColor: colors.bgElevated,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: colors.border,
-		marginBottom: 8,
-	},
-	gameNames: { flex: 1, color: colors.text, fontSize: 14 },
-	gameScore: {
-		color: colors.textSecondary,
-		fontSize: 14,
-		fontWeight: '700',
-		fontVariant: ['tabular-nums'],
 	},
 	achCard: {
 		padding: 14,

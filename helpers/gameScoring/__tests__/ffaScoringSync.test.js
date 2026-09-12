@@ -191,6 +191,38 @@ function testInvalidState() {
 	assert(!result.applied && result.reason === 'invalid', 'invalid');
 }
 
+function testLockLocalTurnAfterOpenerUntilProgress() {
+	const env = makeCtx({
+		openerChosenRef: { current: true },
+	});
+	env.ctx.setCurrentPlayerIndex(1);
+	const result = applyFfaSyncState(
+		baseState({
+			session: { stateVersion: 1, currentPlayerIndex: 0, currentLegNumber: 1 },
+			turn: { currentPlayerIndex: 0, legOpenerIndex: 0, dartsInVisit: 0 },
+		}),
+		env.ctx,
+	);
+	assert(result.applied, 'applied players');
+	assert(env.currentIdx === 1, 'local opener kept');
+	assert(env.ctx.legOpenerIndexRef.current === null, 'opener ref not overwritten');
+}
+
+function testProgressUnlocksTurnAfterOpener() {
+	const env = makeCtx({
+		openerChosenRef: { current: true },
+	});
+	env.ctx.setCurrentPlayerIndex(1);
+	applyFfaSyncState(
+		baseState({
+			session: { stateVersion: 2, currentPlayerIndex: 0, currentLegNumber: 1 },
+			turn: { currentPlayerIndex: 0, dartsInVisit: 1 },
+		}),
+		env.ctx,
+	);
+	assert(env.currentIdx === 0, 'server turn after progress');
+}
+
 function testApplyWithoutYouKeepsPreviousCanInput() {
 	const env = makeCtx();
 	applyFfaSyncState(baseState({ you: { canInput: false } }), env.ctx);
@@ -205,6 +237,8 @@ export function runFfaScoringSyncTests() {
 	testPollOnlyWhenWsDown();
 	testSkipTickDuringWrites();
 	testApplyPlayersAndTurn();
+	testLockLocalTurnAfterOpenerUntilProgress();
+	testProgressUnlocksTurnAfterOpener();
 	testApplyWithoutYouKeepsPreviousCanInput();
 	testStaleVersionDuringWrite();
 	testFinishedOnce();

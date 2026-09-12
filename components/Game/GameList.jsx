@@ -277,6 +277,11 @@ const GameList = ({ navigation }) => {
               data={gamesInGroup}
               keyExtractor={(game) => `${game.type}-${game.id}`}
               renderItem={({ item: game }) => renderGameRow(game, false)}
+              ListEmptyComponent={
+                <Text style={styles.modalEmpty}>
+                  Wszystkie mecze w tej grupie zostały już rozegrane.
+                </Text>
+              }
             />
             <Pressable style={styles.closeButton} onPress={closeGroupModal}>
               <Text style={styles.closeButtonText}>Zamknij</Text>
@@ -394,6 +399,13 @@ const styles = StyleSheet.create({
   },
   modalScrollContent: {
     paddingBottom: 4,
+  },
+  modalEmpty: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 8,
   },
   closeButton: {
     marginTop: 16,

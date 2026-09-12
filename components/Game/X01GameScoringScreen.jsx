@@ -171,7 +171,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		askOpenerOnMount || (showStartModal && !isH2hOnline),
 	);
 	const [openerCheckPending, setOpenerCheckPending] =
-		useState(isH2hOnline && !askOpenerOnMount);
+		useState(isH2hOnline);
 	const matchOpenerChosenRef = useRef(
 		!askOpenerOnMount && !showStartModal && !isH2hOnline,
 	);
@@ -276,6 +276,10 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			}
 			setAudioStartReady(true);
 			if (!isH2hOnline || matchOpenerChosenRef.current) {
+				setOpenerCheckPending(false);
+				if (matchOpenerChosenRef.current) {
+					setIsModalVisible(false);
+				}
 				return;
 			}
 			if (hasProgress) {
@@ -336,6 +340,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		gameClosed,
 		isPerDartMode,
 		legOpenerIndexRef,
+		openerChosenRef: matchOpenerChosenRef,
 		useLegOpenerRotation: isH2hOnline,
 		onFinishedQuickGameId: setFfaFinishedQuickGameId,
 		onStateLoaded: handleScoringStateLoaded,
@@ -557,18 +562,20 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		setCurrentPlayerIndex(nextOpener);
 	}, [N, setLocalRemaining]);
 
-	const handleBullWinnerSelection = (player) => {
-		const idx = players.findIndex(
-			(p) => p === player || (p?.id === player?.id && p?.name === player?.name),
-		);
+	const handleBullWinnerSelection = (index) => {
+		const idx = Number.isInteger(index) && index >= 0 && index < players.length
+			? index
+			: -1;
 		if (idx >= 0) {
 			legOpenerIndexRef.current = idx;
 			currentPlayerIndexRef.current = idx;
 			setCurrentPlayerIndex(idx);
 		}
 		matchOpenerChosenRef.current = true;
-		setOpenerCheckPending(false);
 		setIsModalVisible(false);
+		if (!isH2hOnline) {
+			setOpenerCheckPending(false);
+		}
 	};
 
 	const handleNumberBtn = (number) => {
@@ -1173,6 +1180,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 				}}
 			/>
 
+			{!(isModalVisible || openerCheckPending) ? (
+				<>
 			<View style={styles.navigationContainer}>
 				<Pressable
 					style={
@@ -1224,6 +1233,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			)}
 
 			{renderContent()}
+				</>
+			) : null}
 		</View>
 	);
 };

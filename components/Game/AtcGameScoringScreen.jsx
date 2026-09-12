@@ -51,6 +51,7 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	} = session;
 
@@ -70,6 +71,7 @@ export default function AtcGameScoringScreen({ route, navigation }) {
 		setCurrentPlayerIndex,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
 			atcStatesRef.current.reduce(
 				(best, s, i, arr) =>

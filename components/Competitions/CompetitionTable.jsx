@@ -13,13 +13,19 @@ const CompetitionTable = ({
 	rows,
 	emptyText = 'Brak danych.',
 	onPlayerPress,
+	showHorizontalScroll = false,
 }) => {
 	if (!rows || rows.length === 0) {
 		return <Text style={styles.empty}>{emptyText}</Text>;
 	}
 
 	return (
-		<ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
+		<ScrollView
+			horizontal
+			showsHorizontalScrollIndicator={showHorizontalScroll}
+			nestedScrollEnabled
+			style={styles.scroll}
+		>
 			<View>
 				<View style={styles.headerRow}>
 					{columns.map((col) => (

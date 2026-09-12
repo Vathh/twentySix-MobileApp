@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
 	ActivityIndicator,
 	Modal,
@@ -22,6 +22,22 @@ export default function GameScoringModals({
 	scoringBusy,
 	scoringBusyLabel,
 }) {
+	const selectingOpenerRef = useRef(false);
+
+	useEffect(() => {
+		if (!isOpenerModalVisible) {
+			selectingOpenerRef.current = false;
+		}
+	}, [isOpenerModalVisible]);
+
+	const handleOpenerPress = (index) => {
+		if (selectingOpenerRef.current) {
+			return;
+		}
+		selectingOpenerRef.current = true;
+		onSelectOpener(index);
+	};
+
 	return (
 		<>
 			<Modal visible={isOpenerModalVisible}>
@@ -37,7 +53,7 @@ export default function GameScoringModals({
 							<Pressable
 								key={i}
 								style={styles.modalBtn}
-								onPress={() => onSelectOpener(p)}
+								onPress={() => handleOpenerPress(i)}
 							>
 								<Text style={styles.modalBtnText} numberOfLines={1}>
 									{p?.name ?? 'Gracz'}

@@ -55,6 +55,7 @@ export default function Cricket56GameScoringScreen({ route, navigation }) {
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	} = session;
 
@@ -77,6 +78,7 @@ export default function Cricket56GameScoringScreen({ route, navigation }) {
 		setCurrentRoundIndex,
 		setGameClosed,
 		legOpenerIndexRef,
+		openerChosenRef,
 		onFinishedQuickGameId: makeOnFinishedQuickGameId(() =>
 			cricket56StatesRef.current.reduce(
 				(best, s, i, arr) =>

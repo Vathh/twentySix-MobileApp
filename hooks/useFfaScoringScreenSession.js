@@ -54,6 +54,7 @@ export function useFfaScoringScreenSession({
 	const [gameClosed, setGameClosed] = useState(false);
 	const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 	currentPlayerIndexRef.current = currentPlayerIndex;
+	const openerChosenRef = useRef(!showStartModal);
 
 	const legOpenerIndexRef = useRef(0);
 	const dartLogRef = useRef([]);
@@ -133,15 +134,16 @@ export function useFfaScoringScreenSession({
 		],
 	);
 
-	const handleSelectOpener = useCallback((player) => {
-		const idx = players.findIndex(
-			(p) => p === player || p?.id === player?.id || p?.name === player?.name,
-		);
-		const opener = idx >= 0 ? idx : 0;
+	const handleSelectOpener = useCallback((index) => {
+		const opener = Number.isInteger(index) && index >= 0 && index < players.length
+			? index
+			: 0;
 		legOpenerIndexRef.current = opener;
+		currentPlayerIndexRef.current = opener;
+		openerChosenRef.current = true;
 		setCurrentPlayerIndex(opener);
 		setIsModalVisible(false);
-	}, [players]);
+	}, [players.length]);
 
 	const onAborted = useCallback(
 		() => notifyFfaGameAborted(navigation),
@@ -181,6 +183,7 @@ export function useFfaScoringScreenSession({
 		isSpectator,
 		computeCanInput,
 		handleSelectOpener,
+		openerChosenRef,
 		onAborted,
 	};
 }
