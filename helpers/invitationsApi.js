@@ -2,13 +2,19 @@ import {
 	FRIENDS_ACCEPT_URL,
 	FRIENDS_INVITATIONS_RECEIVED_URL,
 	FRIENDS_REJECT_URL,
+	LEAGUE_MEMBERSHIP_INVITATIONS_RECEIVED_URL,
 	ORGANIZATION_INVITATIONS_RECEIVED_URL,
 	QUICK_GAME_LOBBY_INVITATIONS_URL,
+	SEASON_INVITATIONS_RECEIVED_URL,
 	TOURNAMENT_INVITATIONS_RECEIVED_URL,
+	getLeagueMembershipInvitationAcceptUrl,
+	getLeagueMembershipInvitationRejectUrl,
 	getOrganizationInvitationAcceptUrl,
 	getOrganizationInvitationRejectUrl,
 	getQuickGameLobbyRejectInvitationUrl,
 	getQuickGameLobbyUrl,
+	getSeasonInvitationAcceptUrl,
+	getSeasonInvitationRejectUrl,
 	getTournamentInvitationAcceptUrl,
 	getTournamentInvitationRejectUrl,
 	getTournamentInvitationWithdrawUrl,
@@ -21,6 +27,14 @@ export async function fetchTournamentInvitationsReceived(accessToken) {
 
 export async function fetchOrganizationInvitationsReceived(accessToken) {
 	return apiRequest(ORGANIZATION_INVITATIONS_RECEIVED_URL, { accessToken });
+}
+
+export async function fetchSeasonInvitationsReceived(accessToken) {
+	return apiRequest(SEASON_INVITATIONS_RECEIVED_URL, { accessToken });
+}
+
+export async function fetchLeagueMembershipInvitationsReceived(accessToken) {
+	return apiRequest(LEAGUE_MEMBERSHIP_INVITATIONS_RECEIVED_URL, { accessToken });
 }
 
 export async function fetchQuickGameLobbyInvitations(accessToken) {
@@ -72,6 +86,36 @@ const ORGANIZATION_INVITATION_URL_BY_ACTION = {
 
 export async function actOnOrganizationInvitation(invitationId, action, accessToken) {
 	const buildUrl = ORGANIZATION_INVITATION_URL_BY_ACTION[action];
+	return apiRequest(buildUrl(invitationId), {
+		method: 'POST',
+		accessToken,
+		json: true,
+		body: {},
+	});
+}
+
+const SEASON_INVITATION_URL_BY_ACTION = {
+	accept: getSeasonInvitationAcceptUrl,
+	reject: getSeasonInvitationRejectUrl,
+};
+
+export async function actOnSeasonInvitation(invitationId, action, accessToken) {
+	const buildUrl = SEASON_INVITATION_URL_BY_ACTION[action];
+	return apiRequest(buildUrl(invitationId), {
+		method: 'POST',
+		accessToken,
+		json: true,
+		body: {},
+	});
+}
+
+const LEAGUE_MEMBERSHIP_INVITATION_URL_BY_ACTION = {
+	accept: getLeagueMembershipInvitationAcceptUrl,
+	reject: getLeagueMembershipInvitationRejectUrl,
+};
+
+export async function actOnLeagueMembershipInvitation(invitationId, action, accessToken) {
+	const buildUrl = LEAGUE_MEMBERSHIP_INVITATION_URL_BY_ACTION[action];
 	return apiRequest(buildUrl(invitationId), {
 		method: 'POST',
 		accessToken,

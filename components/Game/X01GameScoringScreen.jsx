@@ -146,16 +146,22 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	const tournamentIdForSession =
 		auth?.tournamentId ?? activeGame?.tournamentId ?? tournamentGame?.tournamentId ?? null;
 
-	/** Po finale turnieju nie wylogowuj od razu — najpierw modal meczu + statystyki. */
+	/** Po końcu turnieju nie wylogowuj od razu — najpierw modal meczu + statystyki. */
 	const pendingTournamentLogoutRef = useRef(false);
+	const applyTournamentEndedRef = useRef(() => {});
 
-	const logoutAfterTournamentIfNeeded = useCallback(() => {
-		if (!pendingTournamentLogoutRef.current) {
-			return;
-		}
+	const endTournamentTabletSession = useCallback(() => {
 		pendingTournamentLogoutRef.current = false;
 		setAuth({});
 	}, [setAuth]);
+
+	const logoutAfterTournamentIfNeeded = useCallback(() => {
+		if (!pendingTournamentLogoutRef.current) {
+			return false;
+		}
+		endTournamentTabletSession();
+		return true;
+	}, [endTournamentTabletSession]);
 
 	useTournamentFinishedRealtime({
 		tournamentId: tournamentIdForSession,
@@ -163,6 +169,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		onFinished: () => {
 			pendingTournamentLogoutRef.current = true;
 			markTournamentFinishedPrompted(tournamentIdForSession);
+			applyTournamentEndedRef.current();
 		},
 	});
 
@@ -466,7 +473,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		gameClosed,
 	]);
 
-	const { finishedModalProps, showFinished } = useGameFinishedModal({
+	const { finishedModalProps, showFinished, applyTournamentEnded } = useGameFinishedModal({
 		navigation,
 		mode,
 		isHost,
@@ -474,7 +481,9 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		accessToken: auth?.accessToken,
 		players,
 		matchFormat,
+		onLeaveTournamentSession: endTournamentTabletSession,
 	});
+	applyTournamentEndedRef.current = applyTournamentEnded;
 
 	const showMatchFinished = useCallback(
 		(args) => {
@@ -1166,19 +1175,14 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 				onCheckoutDart={handleQFModalBtn}
 				scoringBusy={scoringBusy}
 				scoringBusyLabel={scoringBusyLabel}
+				onLeaveScoring={
+					mode === GAME_MODE.TOURNAMENT && !gameClosed
+						? () => navigation.goBack()
+						: undefined
+				}
 			/>
 
-			<GameFinishedModal
-				{...finishedModalProps}
-				onLeave={() => {
-					if (pendingTournamentLogoutRef.current) {
-						finishedModalProps.onStay();
-						logoutAfterTournamentIfNeeded();
-						return;
-					}
-					finishedModalProps.onLeave();
-				}}
-			/>
+			<GameFinishedModal {...finishedModalProps} />
 
 			{!(isModalVisible || openerCheckPending) ? (
 				<>

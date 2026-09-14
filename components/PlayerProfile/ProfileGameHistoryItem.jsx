@@ -4,8 +4,9 @@ import { colors } from '../../theme/colors';
 
 function typeLabel(type) {
 	if (type === 'quick') return 'Szybki mecz';
-	if (type === 'group') return 'Grupa';
-	if (type === 'playoff') return 'Play-off';
+	if (type === 'group' || type === 'playoff') return 'Turniej';
+	if (type === 'league') return 'Liga';
+	if (type === 'training') return 'Trening';
 	return type || '–';
 }
 

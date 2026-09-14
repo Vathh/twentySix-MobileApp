@@ -28,6 +28,7 @@ export function useGameFinishedModal({
 	accessToken,
 	players,
 	matchFormat,
+	onLeaveTournamentSession,
 }) {
 	const [visible, setVisible] = useState(false);
 	const [variant, setVariant] = useState('tournament');
@@ -36,6 +37,7 @@ export function useGameFinishedModal({
 	const [phase, setPhase] = useState('options');
 	const [busy, setBusy] = useState(false);
 	const [errorMessage, setErrorMessage] = useState(null);
+	const leaveToAppHomeRef = useRef(false);
 
 	const navigatedRef = useRef(false);
 	const waitingRef = useRef(false);
@@ -61,6 +63,7 @@ export function useGameFinishedModal({
 		setErrorMessage(null);
 		setBusy(false);
 		setPhase('options');
+		leaveToAppHomeRef.current = Boolean(tournamentEnded);
 
 		if (kind === 'training') {
 			setVariant('training');
@@ -91,6 +94,16 @@ export function useGameFinishedModal({
 		setVisible(true);
 	}, []);
 
+	const applyTournamentEnded = useCallback(() => {
+		leaveToAppHomeRef.current = true;
+		setMessage((prev) => {
+			if (!prev || prev.includes('Turniej zakończony')) {
+				return prev || 'Turniej zakończony — możesz jeszcze obejrzeć statystyki.';
+			}
+			return `${prev}\n\nTurniej zakończony — możesz jeszcze obejrzeć statystyki.`;
+		});
+	}, []);
+
 	const handleStay = useCallback(() => {
 		waitingRef.current = false;
 		setPhase('options');
@@ -102,12 +115,16 @@ export function useGameFinishedModal({
 	const handleLeave = useCallback(() => {
 		waitingRef.current = false;
 		setVisible(false);
+		if (leaveToAppHomeRef.current) {
+			onLeaveTournamentSession?.();
+			return;
+		}
 		if (navigation.canGoBack()) {
 			navigation.goBack();
 		} else {
 			navigateFromGameScoring(navigation, 'GrajHome');
 		}
-	}, [navigation]);
+	}, [navigation, onLeaveTournamentSession]);
 
 	const handlePlayAgain = useCallback(async () => {
 		setErrorMessage(null);
@@ -281,6 +298,7 @@ export function useGameFinishedModal({
 			onLeave: handleLeave,
 		},
 		showFinished,
+		applyTournamentEnded,
 	};
 }
 

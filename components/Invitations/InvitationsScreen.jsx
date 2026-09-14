@@ -13,11 +13,15 @@ import useAuth from '../../hooks/useAuth';
 import ScreenLoading from '../Common/ScreenLoading';
 import {
   actOnFriendInvitation,
+  actOnLeagueMembershipInvitation,
   actOnOrganizationInvitation,
+  actOnSeasonInvitation,
   actOnTournamentInvitation,
   fetchFriendInvitationsReceived,
+  fetchLeagueMembershipInvitationsReceived,
   fetchOrganizationInvitationsReceived,
   fetchQuickGameLobbyInvitations,
+  fetchSeasonInvitationsReceived,
   fetchTournamentInvitationsReceived,
   joinQuickGameLobby,
   rejectQuickGameLobbyInvitation,
@@ -40,7 +44,7 @@ const InvitationsScreen = ({ navigation, route }) => {
   const { auth } = useAuth();
   const [activeTab, setActiveTab] = useState(() => resolveInitialTab(route));
   const [tournamentInvitations, setTournamentInvitations] = useState([]);
-  const [organizationInvitations, setOrganizationInvitations] = useState([]);
+  const [membershipInvitations, setMembershipInvitations] = useState([]);
   const [lobbyInvitations, setLobbyInvitations] = useState([]);
   const [friendInvitations, setFriendInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +62,19 @@ const InvitationsScreen = ({ navigation, route }) => {
     if (!auth?.accessToken) return;
     const seq = ++fetchSeqRef.current;
     try {
-      const [tournamentRes, organizationRes, lobbyRes, leagueRes, friendsRes] = await Promise.all([
+      const [
+        tournamentRes,
+        organizationRes,
+        seasonRes,
+        leagueMembershipRes,
+        lobbyRes,
+        leagueRes,
+        friendsRes,
+      ] = await Promise.all([
         fetchTournamentInvitationsReceived(auth.accessToken),
         fetchOrganizationInvitationsReceived(auth.accessToken),
+        fetchSeasonInvitationsReceived(auth.accessToken),
+        fetchLeagueMembershipInvitationsReceived(auth.accessToken),
         fetchQuickGameLobbyInvitations(auth.accessToken),
         fetchLeagueGameInvitations(auth.accessToken),
         fetchFriendInvitationsReceived(auth.accessToken),
@@ -71,7 +85,16 @@ const InvitationsScreen = ({ navigation, route }) => {
       }
 
       setTournamentInvitations(tournamentRes.ok ? (tournamentRes.data?.invitations ?? []) : []);
-      setOrganizationInvitations(organizationRes.ok ? (organizationRes.data?.invitations ?? []) : []);
+      const organizationInvites = organizationRes.ok ? (organizationRes.data?.invitations ?? []) : [];
+      const seasonInvites = seasonRes.ok ? (seasonRes.data?.invitations ?? []) : [];
+      const leagueMembershipInvites = leagueMembershipRes.ok
+        ? (leagueMembershipRes.data?.invitations ?? [])
+        : [];
+      setMembershipInvitations([
+        ...organizationInvites.map((inv) => ({ ...inv, membershipKind: 'organization' })),
+        ...seasonInvites.map((inv) => ({ ...inv, membershipKind: 'season' })),
+        ...leagueMembershipInvites.map((inv) => ({ ...inv, membershipKind: 'league' })),
+      ]);
       const quickInvites = lobbyRes.ok ? (lobbyRes.data?.invitations ?? []) : [];
       const leagueInvites = leagueRes.ok ? (leagueRes.data?.invitations ?? []) : [];
       setLobbyInvitations([...leagueInvites, ...quickInvites]);
@@ -90,7 +113,7 @@ const InvitationsScreen = ({ navigation, route }) => {
         return;
       }
       setTournamentInvitations([]);
-      setOrganizationInvitations([]);
+      setMembershipInvitations([]);
       setLobbyInvitations([]);
       setFriendInvitations([]);
       setError('Błąd połączenia.');
@@ -139,12 +162,17 @@ const InvitationsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleOrganizationAction = async (invitationId, action) => {
+  const handleMembershipAction = async (invitation, action) => {
     if (!auth?.accessToken || actionId) return;
-    setActionId(`${action}-org-${invitationId}`);
+    setActionId(`${action}-${invitation.membershipKind}-${invitation.id}`);
 
     try {
-      const { ok, data } = await actOnOrganizationInvitation(invitationId, action, auth.accessToken);
+      const act = invitation.membershipKind === 'season'
+        ? actOnSeasonInvitation
+        : invitation.membershipKind === 'league'
+          ? actOnLeagueMembershipInvitation
+          : actOnOrganizationInvitation;
+      const { ok, data } = await act(invitation.id, action, auth.accessToken);
 
       if (ok) {
         await fetchAll();
@@ -244,10 +272,10 @@ const InvitationsScreen = ({ navigation, route }) => {
   const gameItems = useMemo(
     () => [
       ...tournamentInvitations.map((inv) => ({ kind: 'tournament', inv })),
-      ...organizationInvitations.map((inv) => ({ kind: 'organization', inv })),
+      ...membershipInvitations.map((inv) => ({ kind: 'membership', inv })),
       ...lobbyInvitations.map((inv) => ({ kind: 'lobby', inv })),
     ],
-    [lobbyInvitations, organizationInvitations, tournamentInvitations],
+    [lobbyInvitations, membershipInvitations, tournamentInvitations],
   );
 
   if (!auth?.accessToken) {
@@ -310,33 +338,43 @@ const InvitationsScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderOrganizationCard = (inv) => (
-    <View key={`organization-${inv.id}`} style={styles.card}>
-      <Text style={styles.cardKind}>Organizacja</Text>
-      <Text style={styles.cardTitle}>{inv.organizationName}</Text>
-      <Text style={styles.cardSub}>{inv.statusLabel ?? inv.status}</Text>
-      <View style={styles.buttons}>
-        <Pressable
-          style={[styles.button, actionId && styles.buttonDisabled]}
-          onPress={() => handleOrganizationAction(inv.id, 'accept')}
-          disabled={!!actionId}
-        >
-          <Text style={styles.buttonText}>
-            {actionId === `accept-org-${inv.id}` ? 'Akceptowanie…' : 'Akceptuj'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.buttonOutlined, actionId && styles.buttonDisabled]}
-          onPress={() => handleOrganizationAction(inv.id, 'reject')}
-          disabled={!!actionId}
-        >
-          <Text style={styles.buttonOutlinedText}>
-            {actionId === `reject-org-${inv.id}` ? 'Odrzucanie…' : 'Odrzuć'}
-          </Text>
-        </Pressable>
+  const renderMembershipCard = (inv) => {
+    const kindLabel = inv.membershipKind === 'season'
+      ? 'Sezon'
+      : inv.membershipKind === 'league'
+        ? 'Liga'
+        : 'Organizacja';
+    const title = inv.seasonName ?? inv.leagueName ?? inv.organizationName;
+    const actionKey = (action) => `${action}-${inv.membershipKind}-${inv.id}`;
+
+    return (
+      <View key={`${inv.membershipKind}-${inv.id}`} style={styles.card}>
+        <Text style={styles.cardKind}>{kindLabel}</Text>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardSub}>{inv.statusLabel ?? inv.status}</Text>
+        <View style={styles.buttons}>
+          <Pressable
+            style={[styles.button, actionId && styles.buttonDisabled]}
+            onPress={() => handleMembershipAction(inv, 'accept')}
+            disabled={!!actionId}
+          >
+            <Text style={styles.buttonText}>
+              {actionId === actionKey('accept') ? 'Akceptowanie…' : 'Akceptuj'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.buttonOutlined, actionId && styles.buttonDisabled]}
+            onPress={() => handleMembershipAction(inv, 'reject')}
+            disabled={!!actionId}
+          >
+            <Text style={styles.buttonOutlinedText}>
+              {actionId === actionKey('reject') ? 'Odrzucanie…' : 'Odrzuć'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderLobbyCard = (inv) => (
     <View key={`${inv.type === 'league' ? 'league' : 'lobby'}-${inv.id}`} style={styles.card}>
@@ -403,8 +441,8 @@ const InvitationsScreen = ({ navigation, route }) => {
     if (item.kind === 'tournament') {
       return renderTournamentCard(item.inv);
     }
-    if (item.kind === 'organization') {
-      return renderOrganizationCard(item.inv);
+    if (item.kind === 'membership') {
+      return renderMembershipCard(item.inv);
     }
     return renderLobbyCard(item.inv);
   };
@@ -423,7 +461,10 @@ const InvitationsScreen = ({ navigation, route }) => {
           return `friend-${item.id}`;
         }
         if (item.kind === 'lobby') {
-          return `${item.inv.type === 'league' ? 'league' : 'lobby'}-${item.inv.id}`;
+          return `${item.inv.type === 'league' ? 'league-game' : 'lobby'}-${item.inv.id}`;
+        }
+        if (item.kind === 'membership') {
+          return `${item.inv.membershipKind}-${item.inv.id}`;
         }
         return `${item.kind}-${item.inv.id}`;
       }}

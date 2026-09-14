@@ -391,7 +391,6 @@ const Screens = () => {
 				options={{
 					...headerOptions,
 					headerTitle: (props) => <HeaderTitle {...props} />,
-					headerRight: () => <LogoutButton />,
 					contentStyle: { backgroundColor: colors.bg },
 				}}
 			/>

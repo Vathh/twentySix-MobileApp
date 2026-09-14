@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { formatAverage } from '../../helpers/formatAverage';
 import { colors } from '../../theme/colors';
 
 const ROWS = [
 	{ key: 'games', label: 'Rozegrane mecze' },
-	{ key: 'avg_three_darts', label: 'Średnia (3 lotki)' },
+	{ key: 'avg_three_darts', label: 'Średnia (3 lotki)', format: (v) => (v == null || v === '' ? '–' : formatAverage(v)) },
 	{ key: 'highest_hf', label: 'Najwyższy finish (HF)' },
 	{ key: 'fastest_qf', label: 'Najszybsza lotka (QF)', format: (v) => (v != null ? `${v} lotek` : '–') },
 	{ key: 'count_max', label: 'Ilość 180 (max)' },

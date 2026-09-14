@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import {
+  markTournamentFinishedPrompted,
   promptTournamentFinishedLogout,
   useTournamentFinishedRealtime,
 } from '../../hooks/useTournamentFinishedRealtime';
@@ -40,11 +41,16 @@ const GameList = ({ navigation }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [lockingGameId, setLockingGameId] = useState(null);
+  const [loading, setLoading] = useState(() => auth?.tournamentId != null);
 
   useTournamentFinishedRealtime({
     tournamentId: auth?.tournamentId,
     enabled: !!auth?.accessToken && auth?.tournamentId != null,
     onFinished: (payload) => {
+      if (!navigation.isFocused()) {
+        markTournamentFinishedPrompted(auth?.tournamentId);
+        return;
+      }
       promptTournamentFinishedLogout(
         setAuth,
         auth?.tournamentId,
@@ -55,6 +61,7 @@ const GameList = ({ navigation }) => {
 
   const fetchGames = useCallback(async () => {
     if (!auth?.accessToken || auth?.tournamentId == null) return;
+    setLoading(true);
     try {
       const result = await fetchActiveGames(auth.tournamentId, auth.accessToken);
       if (result.status === 401) {
@@ -70,6 +77,8 @@ const GameList = ({ navigation }) => {
       }
     } catch (e) {
       console.warn('fetchGames', e);
+    } finally {
+      setLoading(false);
     }
   }, [auth?.accessToken, auth?.tournamentId, setAuth]);
 
@@ -242,21 +251,33 @@ const GameList = ({ navigation }) => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Mecze turnieju</Text>
-        <Pressable onPress={fetchGames} style={styles.refreshButton}>
+        <Pressable
+          onPress={fetchGames}
+          style={styles.refreshButton}
+          disabled={loading}
+          accessibilityLabel="Odśwież listę meczów"
+        >
           <FontAwesome5 name="sync" size={22} color={colors.accent} />
         </Pressable>
       </View>
 
-      {!hasGroupGames && !hasPlayoffGames ? (
-        <Text style={styles.hint}>Brak aktywnych meczów.</Text>
-      ) : (
-        <FlatList
-          style={styles.scroll}
-          data={listRows}
-          keyExtractor={(item) => item.id}
-          renderItem={renderListRow}
-        />
-      )}
+      <View style={styles.listHost}>
+        {!hasGroupGames && !hasPlayoffGames && !loading ? (
+          <Text style={styles.hint}>Brak aktywnych meczów.</Text>
+        ) : (
+          <FlatList
+            style={styles.scroll}
+            data={listRows}
+            keyExtractor={(item) => item.id}
+            renderItem={renderListRow}
+          />
+        )}
+        {loading ? (
+          <View style={styles.loadingOverlay} pointerEvents="none">
+            <ActivityIndicator size="large" color={colors.accent} />
+          </View>
+        ) : null}
+      </View>
 
       <Modal
         visible={isModalVisible}
@@ -312,6 +333,14 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     padding: 8,
+  },
+  listHost: {
+    flex: 1,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   hint: {
     fontSize: 16,

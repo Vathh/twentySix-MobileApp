@@ -377,6 +377,22 @@ export const getOrganizationInvitationAcceptUrl = (invitationId) =>
 export const getOrganizationInvitationRejectUrl = (invitationId) =>
 	API_BASE_URL + ORGANIZATION_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
 
+const SEASON_INVITATIONS_PREFIX = '/seasons/invitations';
+export const SEASON_INVITATIONS_RECEIVED_URL =
+	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/received';
+export const getSeasonInvitationAcceptUrl = (invitationId) =>
+	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/' + invitationId + '/accept';
+export const getSeasonInvitationRejectUrl = (invitationId) =>
+	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
+
+const LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX = '/leagues/invitations';
+export const LEAGUE_MEMBERSHIP_INVITATIONS_RECEIVED_URL =
+	API_BASE_URL + LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX + '/received';
+export const getLeagueMembershipInvitationAcceptUrl = (invitationId) =>
+	API_BASE_URL + LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX + '/' + invitationId + '/accept';
+export const getLeagueMembershipInvitationRejectUrl = (invitationId) =>
+	API_BASE_URL + LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
+
 export const getTournamentJoinPreviewUrl = (code) =>
 	API_BASE_URL + '/tournaments/join/' + encodeURIComponent(code);
 export const getTournamentJoinApplyUrl = (code) =>

@@ -10,7 +10,7 @@ import { postFfaPresence } from '../helpers/quickGameFfaApi';
  * one_device: wyjście nie kasuje gry — host wraca z ekranu szybkiej gry.
  * Po zakończeniu meczu (gameClosed) wyjście bez dodatkowego alertu.
  *
- * @param {() => void} [onClosedLeave] — np. wylogowanie tabletu po finale turnieju
+ * @param {() => boolean | void} [onClosedLeave] — np. wylogowanie tabletu po końcu turnieju; `true` = obsłużono nawigację
  */
 export function useLeaveGameConfirmation({
 	navigation,
@@ -30,7 +30,9 @@ export function useLeaveGameConfirmation({
 		() =>
 			navigation.addListener('beforeRemove', (e) => {
 				if (gameClosed) {
-					onClosedLeave?.();
+					if (onClosedLeave?.()) {
+						e.preventDefault();
+					}
 					return;
 				}
 
@@ -40,13 +42,20 @@ export function useLeaveGameConfirmation({
 					mode === GAME_MODE.QUICK_FFA && lobbyScoringMode === 'one_device';
 
 				void (async () => {
+					const isTournament = mode === GAME_MODE.TOURNAMENT;
 					const ok = await confirm({
-						title: isOneDeviceFfa ? 'Wyjdź z ekranu gry?' : 'Opuścić mecz?',
+						title: isOneDeviceFfa
+							? 'Wyjdź z ekranu gry?'
+							: isTournament
+								? 'Wyjdź z sędziowania?'
+								: 'Opuścić mecz?',
 						message: isOneDeviceFfa
 							? 'Gra pozostanie aktywna. Możesz wrócić z ekranu szybkiej gry albo skasować ją tam.'
-							: 'Czy na pewno chcesz opuścić mecz?',
+							: isTournament
+								? 'Mecz wróci do listy oczekujących na sędziowanie.'
+								: 'Czy na pewno chcesz opuścić mecz?',
 						cancelLabel: isOneDeviceFfa ? 'Zostań' : 'Kontynuuj mecz',
-						confirmLabel: isOneDeviceFfa ? 'Wyjdź' : 'Opuść mecz',
+						confirmLabel: isOneDeviceFfa ? 'Wyjdź' : isTournament ? 'Wyjdź' : 'Opuść mecz',
 					});
 					if (!ok) return;
 

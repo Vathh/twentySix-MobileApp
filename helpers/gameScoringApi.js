@@ -8,6 +8,7 @@ import {
 import { throwIfScoringResponseNotOk } from './gameScoring/scoringRequestError.js';
 
 const jsonHeaders = (accessToken) => ({
+	Accept: 'application/json',
 	'Content-Type': 'application/json',
 	...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 });

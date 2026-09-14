@@ -53,9 +53,20 @@ export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 	const retryable = status >= 500 || status === 0 || status === 408 || status === 429;
 	throw new ScoringRequestError(
 		userErrorMessage(
-			{ message: (data && data.message) || text },
+			{ message: jsonOrPlainMessage(data, text) },
 			fallbackMessage,
 		),
 		{ status, retryable },
 	);
+}
+
+function jsonOrPlainMessage(data, text) {
+	if (data && typeof data.message === 'string' && data.message.trim()) {
+		return data.message.trim();
+	}
+	const raw = String(text || '').trim();
+	if (!raw || raw.startsWith('<') || /<!doctype/i.test(raw)) {
+		return '';
+	}
+	return raw;
 }

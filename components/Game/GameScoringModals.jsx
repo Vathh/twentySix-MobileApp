@@ -7,7 +7,9 @@ import {
 	Text,
 	View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
+import { TournamentScoringLeaveIcon } from './TournamentScoringLeaveButton';
 
 export default function GameScoringModals({
 	isOpenerModalVisible,
@@ -21,7 +23,9 @@ export default function GameScoringModals({
 	checkoutPrompt = null,
 	scoringBusy,
 	scoringBusyLabel,
+	onLeaveScoring,
 }) {
+	const insets = useSafeAreaInsets();
 	const selectingOpenerRef = useRef(false);
 
 	useEffect(() => {
@@ -42,6 +46,11 @@ export default function GameScoringModals({
 		<>
 			<Modal visible={isOpenerModalVisible}>
 				<View style={styles.modalContainer}>
+					{onLeaveScoring ? (
+						<View style={[styles.leaveButtonWrap, { top: Math.max(insets.top, 8) }]}>
+							<TournamentScoringLeaveIcon onPress={onLeaveScoring} />
+						</View>
+					) : null}
 					<Text style={styles.modalText}>Kto zaczyna mecz?</Text>
 					<View
 						style={[
@@ -104,6 +113,11 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		backgroundColor: colors.bg,
+	},
+	leaveButtonWrap: {
+		position: 'absolute',
+		right: 12,
+		zIndex: 20,
 	},
 	modalText: {
 		color: colors.textMuted,
