@@ -5,6 +5,7 @@ import { getTournamentsUrl } from '../../helpers/apiConfig';
 const TournamentsListScreen = ({ navigation }) => (
 	<CompetitionList
 		title="Turnieje"
+		icon="trophy-outline"
 		emptyTitle="Brak turniejów"
 		emptyDescription="Turnieje pojawią się po utworzeniu ich na webie."
 		buildUrl={getTournamentsUrl}

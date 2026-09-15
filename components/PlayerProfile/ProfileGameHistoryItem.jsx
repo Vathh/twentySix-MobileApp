@@ -1,89 +1,130 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import {
+	formatScore,
+	gameTypeLabel,
+	historyDate,
+	historyTime,
+	resultLabel,
+} from '../../helpers/profileMetrics';
+import { typePillStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 
-function typeLabel(type) {
-	if (type === 'quick') return 'Szybki mecz';
-	if (type === 'group' || type === 'playoff') return 'Turniej';
-	if (type === 'league') return 'Liga';
-	if (type === 'training') return 'Trening';
-	return type || '–';
-}
-
-const ProfileGameHistoryItem = ({ item }) => {
+const ProfileGameHistoryItem = ({ item, first, last }) => {
 	const won = item?.result === 'wygrana';
+	const pill = typePillStyle(item?.type);
 
 	return (
-		<View style={styles.card}>
-			<View style={styles.topRow}>
-				<Text style={styles.date}>{item?.date_formatted || '–'}</Text>
-				<Text style={styles.type}>{typeLabel(item?.type)}</Text>
-			</View>
-			<Text style={styles.opponents}>{item?.opponents || '–'}</Text>
-			<View style={styles.bottomRow}>
-				<Text style={[styles.result, won ? styles.won : styles.lost]}>
-					{item?.result || '–'}
+		<View style={[styles.row, first && styles.rowFirst, last && styles.rowLast]}>
+			<View style={[styles.body, !last && styles.bodyDivider]}>
+				<View style={styles.top}>
+					<View>
+						<Text style={styles.date}>{historyDate(item?.date_formatted)}</Text>
+						{historyTime(item?.date_formatted) ? (
+							<Text style={styles.time}>{historyTime(item?.date_formatted)}</Text>
+						) : null}
+					</View>
+					<View style={[styles.type, pill]}>
+						<Text style={[styles.typeText, { color: pill.color }]}>
+							{gameTypeLabel(item?.type)}
+						</Text>
+					</View>
+				</View>
+				<Text style={styles.opponents} numberOfLines={2}>
+					{item?.opponents || '–'}
 				</Text>
-				<Text style={styles.score}>{item?.score || '–'}</Text>
+				<View style={styles.bottom}>
+					<Text style={[styles.result, won ? styles.won : styles.lost]}>
+						{resultLabel(item?.result)}
+					</Text>
+					<Text style={styles.score}>{formatScore(item?.score) || '–'}</Text>
+				</View>
+				{item?.tournament_name ? (
+					<Text style={styles.event} numberOfLines={1}>
+						{item.tournament_name}
+					</Text>
+				) : null}
 			</View>
-			{item?.tournament_name ? (
-				<Text style={styles.tournament}>{item.tournament_name}</Text>
-			) : null}
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
-	card: {
+	row: {
 		backgroundColor: colors.bgElevated,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.border,
-		padding: 14,
-		marginBottom: 10,
+		paddingHorizontal: 14,
 	},
-	topRow: {
+	rowFirst: {
+		borderTopLeftRadius: 10,
+		borderTopRightRadius: 10,
+	},
+	rowLast: {
+		borderBottomLeftRadius: 10,
+		borderBottomRightRadius: 10,
+	},
+	body: {
+		paddingVertical: 12,
+	},
+	bodyDivider: {
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: colors.border,
+	},
+	top: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		marginBottom: 6,
+		alignItems: 'flex-start',
+		marginBottom: 4,
 	},
 	date: {
 		color: colors.textMuted,
-		fontSize: 13,
+		fontSize: 12,
+		fontWeight: '600',
+	},
+	time: {
+		color: colors.textDim,
+		fontSize: 11,
+		marginTop: 1,
 	},
 	type: {
-		color: colors.accent,
-		fontSize: 13,
-		fontWeight: '600',
+		overflow: 'hidden',
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+		borderRadius: 999,
+	},
+	typeText: {
+		fontSize: 10,
+		fontWeight: '700',
+		letterSpacing: 0.6,
+		textTransform: 'uppercase',
 	},
 	opponents: {
 		color: colors.text,
 		fontSize: 15,
 		fontWeight: '600',
-		marginBottom: 8,
+		marginBottom: 6,
 	},
-	bottomRow: {
+	bottom: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 	},
 	result: {
-		fontSize: 14,
+		fontSize: 13,
 		fontWeight: '600',
-		textTransform: 'capitalize',
 	},
 	won: {
-		color: colors.accent,
+		color: colors.successBright,
 	},
 	lost: {
 		color: colors.textMuted,
 	},
 	score: {
 		color: colors.textSecondary,
-		fontSize: 14,
+		fontSize: 13,
+		fontWeight: '600',
 	},
-	tournament: {
-		marginTop: 8,
+	event: {
+		marginTop: 6,
 		color: colors.textDim,
 		fontSize: 12,
 	},

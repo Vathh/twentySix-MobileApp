@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import {
 	ActivityIndicator,
+	KeyboardAvoidingView,
+	Platform,
 	Pressable,
+	ScrollView,
 	StyleSheet,
 	Text,
 	TextInput,
@@ -70,77 +73,92 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 	};
 
 	return (
-		<View style={styles.container}>
-			<Text style={styles.title}>Edycja profilu</Text>
-			<View style={styles.form}>
-				{!!errorMsg && <Text style={styles.errorMessage}>{errorMsg}</Text>}
-				<Text style={styles.label}>Opis</Text>
-				<TextInput
-					style={styles.input}
-					placeholder="Napisz coś o sobie…"
-					placeholderTextColor={colors.placeholder}
-					value={description}
-					onChangeText={setDescription}
-					multiline
-					textAlignVertical="top"
-					maxLength={MAX_DESCRIPTION}
-					editable={!loading}
-				/>
-				<Text style={styles.counter}>
-					{description.length}/{MAX_DESCRIPTION}
-				</Text>
-				<Pressable
-					style={[styles.button, loading && styles.buttonDisabled]}
-					onPress={handleSubmit}
-					disabled={loading}
-				>
-					{loading ? (
-						<ActivityIndicator color={colors.onAccent} size="small" />
-					) : (
-						<Text style={styles.buttonText}>Zapisz</Text>
-					)}
-				</Pressable>
-				<Pressable
-					style={styles.linkButton}
-					onPress={() => navigation.goBack()}
-					disabled={loading}
-				>
-					<Text style={styles.linkText}>Anuluj</Text>
-				</Pressable>
-			</View>
-		</View>
+		<KeyboardAvoidingView
+			style={styles.flex}
+			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+		>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={styles.content}
+				keyboardShouldPersistTaps="handled"
+			>
+				<View style={styles.form}>
+					<Text style={styles.hint}>Krótki opis widoczny na Twoim profilu.</Text>
+					{errorMsg ? <Text style={styles.errorMessage}>{errorMsg}</Text> : null}
+					<Text style={styles.fieldLabel}>Opis</Text>
+					<TextInput
+						style={styles.input}
+						placeholder="Napisz coś o sobie…"
+						placeholderTextColor={colors.placeholder}
+						value={description}
+						onChangeText={setDescription}
+						multiline
+						textAlignVertical="top"
+						maxLength={MAX_DESCRIPTION}
+						editable={!loading}
+					/>
+					<Text style={styles.counter}>
+						{description.length}/{MAX_DESCRIPTION}
+					</Text>
+					<Pressable
+						style={({ pressed }) => [
+							styles.button,
+							loading && styles.buttonDisabled,
+							pressed && !loading && styles.buttonPressed,
+						]}
+						onPress={handleSubmit}
+						disabled={loading}
+					>
+						{loading ? (
+							<ActivityIndicator color={colors.onAccent} size="small" />
+						) : (
+							<Text style={styles.buttonText}>Zapisz</Text>
+						)}
+					</Pressable>
+				</View>
+			</ScrollView>
+		</KeyboardAvoidingView>
 	);
 };
 
 const styles = StyleSheet.create({
-	container: {
+	flex: {
 		flex: 1,
 		backgroundColor: colors.bg,
-		alignItems: 'center',
 	},
-	title: {
-		fontSize: 24,
-		color: colors.textMuted,
-		marginBottom: 24,
-		marginTop: 40,
+	scroll: {
+		flex: 1,
+		backgroundColor: colors.bg,
+	},
+	content: {
+		flexGrow: 1,
+		alignItems: 'center',
+		paddingHorizontal: 24,
+		paddingVertical: 24,
+		paddingBottom: 40,
 	},
 	form: {
 		alignItems: 'stretch',
-		paddingHorizontal: 24,
 		width: '100%',
-		maxWidth: 360,
+		maxWidth: 400,
 	},
-	label: {
-		color: colors.accent,
-		fontWeight: '600',
+	hint: {
+		fontSize: 13,
+		lineHeight: 18,
+		color: colors.textMuted,
+		marginBottom: 18,
+	},
+	fieldLabel: {
 		marginBottom: 8,
-		fontSize: 14,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.4,
+		color: colors.textDim,
 	},
 	errorMessage: {
 		fontSize: 14,
 		color: colors.dangerText,
-		marginBottom: 16,
-		textAlign: 'center',
+		marginBottom: 14,
 	},
 	input: {
 		minHeight: 140,
@@ -149,43 +167,35 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
 		borderColor: colors.border,
-		borderRadius: 5,
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		fontSize: 16,
+		borderRadius: 10,
+		paddingVertical: 12,
+		paddingHorizontal: 14,
+		fontSize: 15,
 	},
 	counter: {
 		alignSelf: 'flex-end',
-		color: colors.accent,
-		fontSize: 13,
-		marginBottom: 20,
+		color: colors.textDim,
+		fontSize: 12,
+		marginBottom: 16,
 	},
 	button: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		alignSelf: 'center',
-		paddingVertical: 7,
-		paddingHorizontal: 14,
-		minWidth: 120,
-		minHeight: 34,
+		paddingVertical: 14,
 		backgroundColor: colors.accent,
-		borderRadius: 5,
+		borderRadius: 10,
+		minHeight: 48,
+	},
+	buttonPressed: {
+		backgroundColor: colors.accentHover,
 	},
 	buttonDisabled: {
-		opacity: 0.85,
+		opacity: 0.7,
 	},
 	buttonText: {
 		color: colors.onAccent,
-		fontWeight: '600',
-	},
-	linkButton: {
-		marginTop: 16,
-		padding: 8,
-		alignSelf: 'center',
-	},
-	linkText: {
-		color: colors.accent,
-		fontSize: 15,
+		fontSize: 16,
+		fontWeight: '700',
 	},
 });
 

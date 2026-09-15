@@ -1,4 +1,4 @@
-import { getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
+import { getPlayerCareerUrl, getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
 import { apiRequest } from './apiClient';
 
 /**
@@ -38,6 +38,31 @@ export async function fetchPlayerGames(playerId, accessToken, page = 1) {
 			return {
 				ok: false,
 				message: data.message || 'Nie udało się wczytać historii.',
+			};
+		}
+		return { ok: true, data };
+	} catch {
+		return { ok: false, message: 'Błąd połączenia.' };
+	}
+}
+
+/**
+ * @returns {Promise<{ ok: true, data: object } | { ok: false, message: string }>}
+ */
+export async function fetchPlayerCareer(playerId, accessToken, windowKey = '90d', source = 'all') {
+	if (!playerId || !accessToken) {
+		return { ok: false, message: 'Brak danych logowania.' };
+	}
+
+	try {
+		const { ok, data } = await apiRequest(
+			getPlayerCareerUrl(playerId, windowKey, source),
+			{ accessToken },
+		);
+		if (!ok) {
+			return {
+				ok: false,
+				message: data.message || 'Nie udało się wczytać kariery.',
 			};
 		}
 		return { ok: true, data };

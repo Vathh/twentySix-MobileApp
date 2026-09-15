@@ -5,7 +5,8 @@ import { getOrganizationsUrl } from '../../helpers/apiConfig';
 const OrganizationsListScreen = ({ navigation }) => (
 	<CompetitionList
 		title="Organizacje"
-		emptyTitle="Brak lig"
+		icon="business-outline"
+		emptyTitle="Brak organizacji"
 		emptyDescription="Utwórz pierwszą organizację na webie, aby organizować sezony i turnieje."
 		buildUrl={getOrganizationsUrl}
 		detailRoute="OrganizationDetail"

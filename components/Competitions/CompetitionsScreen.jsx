@@ -1,24 +1,28 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import ModeTile from '../Common/ModeTile';
 import { colors } from '../../theme/colors';
 
 const SECTIONS = [
 	{
 		key: 'organizations',
+		icon: 'business-outline',
 		label: 'Organizacje',
-		hint: 'Przeglądaj dostępne organizacje',
+		hint: 'Ligi, sezony i składy',
 		route: 'OrganizationsList',
 	},
 	{
 		key: 'seasons',
+		icon: 'calendar-outline',
 		label: 'Sezony',
-		hint: 'Przeglądaj sezony',
+		hint: 'Tabele i podziały ligowe',
 		route: 'SeasonsList',
 	},
 	{
 		key: 'tournaments',
+		icon: 'trophy-outline',
 		label: 'Turnieje',
-		hint: 'Przeglądaj turnieje',
+		hint: 'Grupy, drabinki i wyniki',
 		route: 'TournamentsList',
 	},
 ];
@@ -26,64 +30,51 @@ const SECTIONS = [
 /** Hub: Organizacje / Sezony / Turnieje (przeglądanie jak na webie). */
 const CompetitionsScreen = ({ navigation }) => {
 	return (
-		<View style={styles.container}>
-			<Text style={styles.title}>Rozgrywki</Text>
+		<ScrollView
+			style={styles.scroll}
+			contentContainerStyle={styles.container}
+			showsVerticalScrollIndicator={false}
+		>
 			<View style={styles.form}>
+				<Text style={styles.sectionLabel}>Przeglądaj</Text>
 				{SECTIONS.map((section) => (
-					<Pressable
+					<ModeTile
 						key={section.key}
-						style={styles.button}
+						icon={section.icon}
+						title={section.label}
+						hint={section.hint}
 						onPress={() => navigation.navigate(section.route)}
-					>
-						<Text style={styles.buttonText}>{section.label}</Text>
-						<Text style={styles.buttonHint}>{section.hint}</Text>
-					</Pressable>
+					/>
 				))}
 			</View>
-		</View>
+		</ScrollView>
 	);
 };
 
 const styles = StyleSheet.create({
-	container: {
+	scroll: {
 		flex: 1,
 		backgroundColor: colors.bg,
+	},
+	container: {
+		flexGrow: 1,
+		justifyContent: 'center',
 		alignItems: 'center',
 		paddingHorizontal: 24,
-	},
-	title: {
-		fontSize: 24,
-		color: colors.textMuted,
-		marginBottom: 48,
-		marginTop: 100,
-		textAlign: 'center',
+		paddingVertical: 24,
 	},
 	form: {
 		alignItems: 'stretch',
 		width: '100%',
-		maxWidth: 320,
+		maxWidth: 400,
 	},
-	button: {
-		alignItems: 'center',
-		marginTop: 16,
-		paddingVertical: 12,
-		paddingHorizontal: 14,
-		backgroundColor: colors.bgElevated,
-		borderWidth: 1.5,
-		borderColor: colors.borderStrong,
-		borderRadius: 8,
-	},
-	buttonText: {
-		color: colors.text,
-		fontSize: 17,
-		fontWeight: '600',
-	},
-	buttonHint: {
-		marginTop: 5,
-		fontSize: 13,
-		color: colors.text,
-		opacity: 0.85,
-		textAlign: 'center',
+	sectionLabel: {
+		marginBottom: 10,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.8,
+		textTransform: 'uppercase',
+		color: colors.textDim,
 	},
 });
 

@@ -1,37 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { formatAverage } from '../../helpers/formatAverage';
+import { CAREER_DETAIL_ROWS, formatFormValue } from '../../helpers/profileMetrics';
 import { colors } from '../../theme/colors';
-
-const ROWS = [
-	{ key: 'games', label: 'Rozegrane mecze' },
-	{ key: 'avg_three_darts', label: 'Średnia (3 lotki)', format: (v) => (v == null || v === '' ? '–' : formatAverage(v)) },
-	{ key: 'highest_hf', label: 'Najwyższy finish (HF)' },
-	{ key: 'fastest_qf', label: 'Najszybsza lotka (QF)', format: (v) => (v != null ? `${v} lotek` : '–') },
-	{ key: 'count_max', label: 'Ilość 180 (max)' },
-	{ key: 'count_170_plus', label: 'Ilość 170+ (bez 180)' },
-	{ key: 'count_hf', label: 'Ilość finishów 100+ (HF)' },
-	{ key: 'count_qf', label: 'Ilość szybkich lotek (QF)' },
-];
-
-function formatValue(row, stats) {
-	const raw = stats?.[row.key];
-	if (row.format) return row.format(raw);
-	if (raw === null || raw === undefined || raw === '') return '–';
-	return String(raw);
-}
 
 const ProfileStatsTable = ({ stats }) => {
 	return (
-		<View style={styles.table}>
-			<View style={[styles.row, styles.headerRow]}>
-				<Text style={styles.headerCell}>Metryka</Text>
-				<Text style={styles.headerCell}>Wartość</Text>
-			</View>
-			{ROWS.map((row) => (
-				<View key={row.key} style={styles.row}>
+		<View style={styles.grid}>
+			{CAREER_DETAIL_ROWS.map((row) => (
+				<View key={row.key} style={styles.cell}>
 					<Text style={styles.label}>{row.label}</Text>
-					<Text style={styles.value}>{formatValue(row, stats)}</Text>
+					<Text style={styles.value}>{formatFormValue(stats, row.key)}</Text>
 				</View>
 			))}
 		</View>
@@ -39,39 +17,28 @@ const ProfileStatsTable = ({ stats }) => {
 };
 
 const styles = StyleSheet.create({
-	table: {
-		backgroundColor: colors.bgElevated,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.border,
-		overflow: 'hidden',
-	},
-	row: {
+	grid: {
 		flexDirection: 'row',
-		justifyContent: 'space-between',
+		flexWrap: 'wrap',
+		gap: 8,
+	},
+	cell: {
+		width: '47%',
+		flexGrow: 1,
 		paddingVertical: 10,
-		paddingHorizontal: 14,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
-	},
-	headerRow: {
-		backgroundColor: colors.bgDeep,
-	},
-	headerCell: {
-		color: colors.textMuted,
-		fontWeight: '600',
-		fontSize: 13,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		backgroundColor: colors.bg,
 	},
 	label: {
-		flex: 1,
-		paddingRight: 12,
-		color: colors.textSecondary,
-		fontSize: 14,
+		fontSize: 11,
+		color: colors.textDim,
 	},
 	value: {
+		marginTop: 3,
+		fontSize: 16,
+		fontWeight: '700',
 		color: colors.text,
-		fontSize: 14,
-		fontWeight: '600',
 	},
 });
 

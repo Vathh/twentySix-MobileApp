@@ -111,6 +111,11 @@ function RozgrywkiStack() {
 			<Stack.Screen name="SeasonDetail" component={SeasonDetailScreen} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen
+				name="EditPlayerProfile"
+				component={EditPlayerProfileScreen}
+				options={{ title: 'Edycja profilu' }}
+			/>
 		</Stack.Navigator>
 	);
 }
@@ -120,6 +125,11 @@ function ZnajomiStack() {
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="ZnajomiHome" component={FriendsScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen
+				name="EditPlayerProfile"
+				component={EditPlayerProfileScreen}
+				options={{ title: 'Edycja profilu' }}
+			/>
 		</Stack.Navigator>
 	);
 }

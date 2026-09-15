@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import {
 	ActivityIndicator,
+	KeyboardAvoidingView,
+	Platform,
 	Pressable,
+	ScrollView,
 	StyleSheet,
 	Text,
 	TextInput,
@@ -11,7 +14,7 @@ import useAuth from '../../hooks/useAuth';
 import { changePassword } from '../../helpers/authApi';
 import { colors } from '../../theme/colors';
 
-const ChangePasswordScreen = ({ navigation }) => {
+const ChangePasswordScreen = () => {
 	const { auth } = useAuth();
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [password, setPassword] = useState('');
@@ -85,129 +88,152 @@ const ChangePasswordScreen = ({ navigation }) => {
 	};
 
 	return (
-		<View style={styles.container}>
-			<Text style={styles.title}>Zmień hasło</Text>
-			<View style={styles.form}>
-				{!!errorMsg && <Text style={styles.errorMessage}>{errorMsg}</Text>}
-				{!!successMsg && <Text style={styles.successMessage}>{successMsg}</Text>}
-				<TextInput
-					style={styles.input}
-					placeholder="Aktualne hasło"
-					placeholderTextColor={colors.placeholder}
-					value={currentPassword}
-					onChangeText={setCurrentPassword}
-					secureTextEntry
-					autoCapitalize="none"
-					editable={!loading}
-				/>
-				<TextInput
-					style={styles.input}
-					placeholder="Nowe hasło"
-					placeholderTextColor={colors.placeholder}
-					value={password}
-					onChangeText={setPassword}
-					secureTextEntry
-					autoCapitalize="none"
-					editable={!loading}
-				/>
-				<TextInput
-					style={styles.input}
-					placeholder="Powtórz nowe hasło"
-					placeholderTextColor={colors.placeholder}
-					value={passwordConfirmation}
-					onChangeText={setPasswordConfirmation}
-					secureTextEntry
-					autoCapitalize="none"
-					editable={!loading}
-				/>
-				<Pressable
-					style={[styles.button, loading && styles.buttonDisabled]}
-					onPress={handleSubmit}
-					disabled={loading}
-				>
-					{loading ? (
-						<ActivityIndicator color={colors.onAccent} size="small" />
-					) : (
-						<Text style={styles.buttonText}>Zapisz hasło</Text>
-					)}
-				</Pressable>
-				<Pressable
-					style={styles.linkButton}
-					onPress={() => navigation.goBack()}
-					disabled={loading}
-				>
-					<Text style={styles.linkText}>Wróć</Text>
-				</Pressable>
-			</View>
-		</View>
+		<KeyboardAvoidingView
+			style={styles.flex}
+			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+		>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={styles.content}
+				keyboardShouldPersistTaps="handled"
+			>
+				<View style={styles.form}>
+					<Text style={styles.hint}>
+						Nowe hasło musi mieć co najmniej 8 znaków.
+					</Text>
+
+					{errorMsg ? <Text style={styles.errorMessage}>{errorMsg}</Text> : null}
+					{successMsg ? <Text style={styles.successMessage}>{successMsg}</Text> : null}
+
+					<Text style={styles.fieldLabel}>Aktualne hasło</Text>
+					<TextInput
+						style={styles.input}
+						placeholder="Aktualne hasło"
+						placeholderTextColor={colors.placeholder}
+						value={currentPassword}
+						onChangeText={setCurrentPassword}
+						secureTextEntry
+						autoCapitalize="none"
+						editable={!loading}
+					/>
+					<Text style={styles.fieldLabel}>Nowe hasło</Text>
+					<TextInput
+						style={styles.input}
+						placeholder="Nowe hasło"
+						placeholderTextColor={colors.placeholder}
+						value={password}
+						onChangeText={setPassword}
+						secureTextEntry
+						autoCapitalize="none"
+						editable={!loading}
+					/>
+					<Text style={styles.fieldLabel}>Powtórz nowe hasło</Text>
+					<TextInput
+						style={styles.input}
+						placeholder="Powtórz nowe hasło"
+						placeholderTextColor={colors.placeholder}
+						value={passwordConfirmation}
+						onChangeText={setPasswordConfirmation}
+						secureTextEntry
+						autoCapitalize="none"
+						editable={!loading}
+					/>
+
+					<Pressable
+						style={({ pressed }) => [
+							styles.button,
+							loading && styles.buttonDisabled,
+							pressed && !loading && styles.buttonPressed,
+						]}
+						onPress={handleSubmit}
+						disabled={loading}
+					>
+						{loading ? (
+							<ActivityIndicator color={colors.onAccent} size="small" />
+						) : (
+							<Text style={styles.buttonText}>Zapisz hasło</Text>
+						)}
+					</Pressable>
+				</View>
+			</ScrollView>
+		</KeyboardAvoidingView>
 	);
 };
 
 const styles = StyleSheet.create({
-	container: {
+	flex: {
 		flex: 1,
 		backgroundColor: colors.bg,
-		alignItems: 'center',
 	},
-	title: {
-		fontSize: 24,
-		color: colors.textMuted,
-		marginBottom: 40,
-		marginTop: 60,
+	scroll: {
+		flex: 1,
+		backgroundColor: colors.bg,
 	},
-	form: {
+	content: {
+		flexGrow: 1,
 		alignItems: 'center',
 		paddingHorizontal: 24,
+		paddingVertical: 24,
+		paddingBottom: 40,
+	},
+	form: {
+		alignItems: 'stretch',
+		width: '100%',
+		maxWidth: 400,
+	},
+	hint: {
+		fontSize: 13,
+		lineHeight: 18,
+		color: colors.textMuted,
+		marginBottom: 18,
+	},
+	fieldLabel: {
+		marginBottom: 8,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.4,
+		color: colors.textDim,
 	},
 	errorMessage: {
 		fontSize: 14,
 		color: colors.dangerText,
-		marginBottom: 16,
-		textAlign: 'center',
+		marginBottom: 14,
 	},
 	successMessage: {
 		fontSize: 14,
 		color: colors.successBright,
-		marginBottom: 16,
-		textAlign: 'center',
+		marginBottom: 14,
 	},
 	input: {
-		marginBottom: 20,
+		marginBottom: 14,
 		color: colors.text,
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
 		borderColor: colors.border,
-		borderRadius: 5,
-		width: 260,
-		paddingVertical: 8,
-		paddingHorizontal: 10,
-		fontSize: 16,
+		borderRadius: 10,
+		paddingVertical: 12,
+		paddingHorizontal: 14,
+		fontSize: 15,
 	},
 	button: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginTop: 12,
-		paddingVertical: 7,
-		paddingHorizontal: 14,
-		minWidth: 120,
-		minHeight: 34,
+		marginTop: 8,
+		paddingVertical: 14,
 		backgroundColor: colors.accent,
-		borderRadius: 5,
+		borderRadius: 10,
+		minHeight: 48,
+	},
+	buttonPressed: {
+		backgroundColor: colors.accentHover,
 	},
 	buttonDisabled: {
-		opacity: 0.85,
+		opacity: 0.7,
 	},
 	buttonText: {
 		color: colors.onAccent,
-		fontWeight: '600',
-	},
-	linkButton: {
-		marginTop: 20,
-		padding: 8,
-	},
-	linkText: {
-		color: colors.accent,
-		fontSize: 15,
+		fontSize: 16,
+		fontWeight: '700',
 	},
 });
 

@@ -14,11 +14,30 @@ import ProfileHeader from './ProfileHeader';
 import ProfileFriendshipActions from './ProfileFriendshipActions';
 import ProfileStatsOverview from './ProfileStatsOverview';
 import ProfileGameHistory from './ProfileGameHistory';
+import ProfileCareerDashboard from './ProfileCareerDashboard';
+import ProfileBadges from './ProfileBadges';
 import { colors } from '../../theme/colors';
 import ScreenLoading from '../Common/ScreenLoading';
 
 const TAB_OVERVIEW = 'overview';
 const TAB_HISTORY = 'history';
+const TAB_CAREER = 'career';
+const TAB_BADGES = 'badges';
+
+const TABS = [
+	{ key: TAB_OVERVIEW, label: 'Przegląd' },
+	{ key: TAB_HISTORY, label: 'Historia' },
+	{ key: TAB_CAREER, label: 'Kariera' },
+	{ key: TAB_BADGES, label: '100+' },
+];
+
+function relationLabel(friendship) {
+	if (!friendship || friendship.isSelf) return null;
+	if (friendship.isFriend) return 'Znajomy';
+	if (friendship.pendingSent) return 'Zaproszenie wysłane';
+	if (friendship.pendingReceived?.id) return 'Zaproszenie od tego gracza';
+	return null;
+}
 
 const PlayerProfileScreen = ({ navigation, route }) => {
 	const { auth } = useAuth();
@@ -69,12 +88,20 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 		return (
 			<View style={styles.centered}>
 				<Text style={styles.error}>{error}</Text>
-				<Pressable style={styles.retry} onPress={() => { setLoading(true); loadProfile(); }}>
+				<Pressable
+					style={styles.retry}
+					onPress={() => {
+						setLoading(true);
+						loadProfile();
+					}}
+				>
 					<Text style={styles.retryText}>Spróbuj ponownie</Text>
 				</Pressable>
 			</View>
 		);
 	}
+
+	const friendship = profile?.friendship;
 
 	return (
 		<ScrollView
@@ -84,58 +111,82 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 				<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
 			}
 		>
-			<ProfileHeader
-				name={profile?.player?.name}
-				registeredAt={profile?.player?.registeredAt}
-				description={profile?.player?.description}
-				isSelf={!!profile?.friendship?.isSelf}
-				onEditPress={() =>
-					navigation.navigate('EditPlayerProfile', {
-						playerId,
-						description: profile?.player?.description ?? '',
-					})
-				}
-			/>
-			<ProfileFriendshipActions
-				friendship={profile?.friendship}
-				userId={profile?.player?.userId}
-				accessToken={auth?.accessToken}
-				onChanged={loadProfile}
-			/>
+			<View style={styles.form}>
+				<ProfileHeader
+					name={profile?.player?.name}
+					initials={profile?.player?.initials}
+					registeredAt={profile?.player?.registeredAt}
+					description={profile?.player?.description}
+					isSelf={!!friendship?.isSelf}
+					relationLabel={relationLabel(friendship)}
+					liveGames={profile?.liveGames}
+					onEditPress={() =>
+						navigation.navigate('EditPlayerProfile', {
+							playerId,
+							description: profile?.player?.description ?? '',
+						})
+					}
+				>
+					<ProfileFriendshipActions
+						friendship={friendship}
+						userId={profile?.player?.userId}
+						accessToken={auth?.accessToken}
+						onChanged={loadProfile}
+					/>
+				</ProfileHeader>
 
-			<View style={styles.tabs}>
-				<Pressable
-					style={[styles.tab, activeTab === TAB_OVERVIEW && styles.tabActive]}
-					onPress={() => setActiveTab(TAB_OVERVIEW)}
-				>
-					<Text style={[styles.tabText, activeTab === TAB_OVERVIEW && styles.tabTextActive]}>
-						Przegląd
-					</Text>
-				</Pressable>
-				<Pressable
-					style={[styles.tab, activeTab === TAB_HISTORY && styles.tabActive]}
-					onPress={() => setActiveTab(TAB_HISTORY)}
-				>
-					<Text style={[styles.tabText, activeTab === TAB_HISTORY && styles.tabTextActive]}>
-						Historia meczów
-					</Text>
-				</Pressable>
+				<View style={styles.segment}>
+					{TABS.map((tab) => {
+						const on = activeTab === tab.key;
+						return (
+							<Pressable
+								key={tab.key}
+								style={[styles.segmentItem, on && styles.segmentItemActive]}
+								onPress={() => setActiveTab(tab.key)}
+							>
+								<Text style={[styles.segmentText, on && styles.segmentTextActive]}>
+									{tab.label}
+								</Text>
+							</Pressable>
+						);
+					})}
+				</View>
+
+				{activeTab === TAB_OVERVIEW ? (
+					<ProfileStatsOverview
+						overview={profile?.overview}
+						overviewSplit={profile?.overviewSplit}
+						onRivalPress={(rival) =>
+							navigation.push('PlayerProfile', {
+								playerId: rival.id,
+								name: rival.name,
+							})
+						}
+					/>
+				) : null}
+
+				{activeTab === TAB_HISTORY ? (
+					<ProfileGameHistory
+						key={`${playerId}-${profile?.gameHistory?.items?.length ?? 0}`}
+						playerId={playerId}
+						accessToken={auth?.accessToken}
+						initialItems={profile?.gameHistory?.items}
+						initialHasMore={profile?.gameHistory?.hasMore}
+					/>
+				) : null}
+
+				{activeTab === TAB_CAREER ? (
+					<ProfileCareerDashboard
+						playerId={playerId}
+						accessToken={auth?.accessToken}
+						initialCareer={profile?.career}
+					/>
+				) : null}
+
+				{activeTab === TAB_BADGES ? (
+					<ProfileBadges checkoutItems={profile?.checkoutItems} />
+				) : null}
 			</View>
-
-			{activeTab === TAB_OVERVIEW ? (
-				<ProfileStatsOverview
-					quickStats={profile?.quickStats}
-					tournamentStats={profile?.tournamentStats}
-				/>
-			) : (
-				<ProfileGameHistory
-					key={`${playerId}-${profile?.gameHistory?.items?.length ?? 0}`}
-					playerId={playerId}
-					accessToken={auth?.accessToken}
-					initialItems={profile?.gameHistory?.items}
-					initialHasMore={profile?.gameHistory?.hasMore}
-				/>
-			)}
 		</ScrollView>
 	);
 };
@@ -146,8 +197,16 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.bg,
 	},
 	content: {
-		padding: 16,
-		paddingBottom: 32,
+		flexGrow: 1,
+		alignItems: 'center',
+		paddingHorizontal: 24,
+		paddingVertical: 24,
+		paddingBottom: 40,
+	},
+	form: {
+		alignItems: 'stretch',
+		width: '100%',
+		maxWidth: 400,
 	},
 	centered: {
 		flex: 1,
@@ -162,40 +221,41 @@ const styles = StyleSheet.create({
 		marginBottom: 16,
 	},
 	retry: {
-		backgroundColor: colors.accent,
+		backgroundColor: colors.accentMuted,
 		borderRadius: 8,
 		paddingVertical: 10,
 		paddingHorizontal: 16,
 	},
 	retryText: {
-		color: colors.onAccent,
+		color: colors.accent,
 		fontWeight: '600',
 	},
-	tabs: {
+	segment: {
 		flexDirection: 'row',
-		gap: 8,
+		backgroundColor: colors.bgElevated,
+		borderRadius: 10,
+		padding: 3,
 		marginBottom: 16,
-		borderBottomWidth: 1,
-		borderBottomColor: colors.border,
-		paddingBottom: 8,
-	},
-	tab: {
-		paddingVertical: 8,
-		paddingHorizontal: 14,
-		borderRadius: 8,
 		borderWidth: 1,
 		borderColor: colors.border,
+		gap: 2,
 	},
-	tabActive: {
-		backgroundColor: colors.successMuted,
-		borderColor: colors.border,
+	segmentItem: {
+		flex: 1,
+		alignItems: 'center',
+		paddingVertical: 8,
+		borderRadius: 8,
 	},
-	tabText: {
-		color: colors.textSecondary,
+	segmentItemActive: {
+		backgroundColor: colors.accentMuted,
+	},
+	segmentText: {
+		fontSize: 11,
 		fontWeight: '600',
+		color: colors.textMuted,
 	},
-	tabTextActive: {
-		color: colors.successSoftText,
+	segmentTextActive: {
+		color: colors.accent,
 	},
 });
 

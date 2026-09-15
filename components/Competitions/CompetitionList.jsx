@@ -8,6 +8,7 @@ import {
 	View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { fetchCompetitionPage } from '../../helpers/competitionsApi';
 import { colors } from '../../theme/colors';
@@ -21,6 +22,7 @@ import { STATUS_STYLES } from './DetailHeader';
  *   title: string,
  *   emptyTitle: string,
  *   emptyDescription: string,
+ *   icon?: string,
  *   buildUrl: (page: number) => string,
  *   detailRoute: string,
  *   navigation: object,
@@ -30,6 +32,7 @@ const CompetitionList = ({
 	title,
 	emptyTitle,
 	emptyDescription,
+	icon,
 	buildUrl,
 	detailRoute,
 	navigation,
@@ -110,61 +113,82 @@ const CompetitionList = ({
 				<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
 			}
 		>
-			<Text style={styles.heading}>{title}</Text>
+			<View style={styles.form}>
+				<Text style={styles.sectionLabel}>{title}</Text>
 
-			{error ? <Text style={styles.error}>{error}</Text> : null}
+				{error ? <Text style={styles.error}>{error}</Text> : null}
 
-			{!error && items.length === 0 ? (
-				<View style={styles.empty}>
-					<Text style={styles.emptyTitle}>{emptyTitle}</Text>
-					<Text style={styles.emptyDescription}>{emptyDescription}</Text>
-				</View>
-			) : null}
+				{!error && items.length === 0 ? (
+					<View style={styles.empty}>
+						{icon ? (
+							<View style={styles.emptyIcon}>
+								<Ionicons name={icon} size={26} color={colors.accent} />
+							</View>
+						) : null}
+						<Text style={styles.emptyTitle}>{emptyTitle}</Text>
+						<Text style={styles.emptyDescription}>{emptyDescription}</Text>
+					</View>
+				) : null}
 
-			{items.map((item) => {
-				const subtitle = item.subtitle_missing
-					? 'Data rozgrywek: nie ustawiono'
-					: item.subtitle || null;
-				const statusStyle = item.status_variant
-					? STATUS_STYLES[item.status_variant] ?? STATUS_STYLES.finished
-					: null;
+				{items.map((item) => {
+					const subtitle = item.subtitle_missing
+						? 'Data rozgrywek: nie ustawiono'
+						: item.subtitle || null;
+					const statusStyle = item.status_variant
+						? STATUS_STYLES[item.status_variant] ?? STATUS_STYLES.finished
+						: null;
 
-				return (
-					<Pressable
-						key={item.id}
-						style={styles.card}
-						onPress={() => {
-							if (detailRoute && navigation) {
-								navigation.navigate(detailRoute, { id: item.id });
-							}
-						}}
-					>
-						<View style={styles.cardHeader}>
-							<Text style={styles.cardTitle}>{item.title}</Text>
-							{item.status_label && statusStyle ? (
-								<View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-									<Text style={[styles.badgeText, { color: statusStyle.text }]}>
-										{item.status_label}
-									</Text>
+					return (
+						<Pressable
+							key={item.id}
+							accessibilityRole="button"
+							accessibilityLabel={item.title}
+							style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+							onPress={() => {
+								if (detailRoute && navigation) {
+									navigation.navigate(detailRoute, { id: item.id });
+								}
+							}}
+						>
+							{icon ? (
+								<View style={styles.cardIcon}>
+									<Ionicons name={icon} size={20} color={colors.accent} />
 								</View>
 							) : null}
-						</View>
-						{subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
-					</Pressable>
-				);
-			})}
+							<View style={styles.cardBody}>
+								<View style={styles.cardHeader}>
+									<Text style={styles.cardTitle}>{item.title}</Text>
+									{item.status_label && statusStyle ? (
+										<View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
+											<Text style={[styles.badgeText, { color: statusStyle.text }]}>
+												{item.status_label}
+											</Text>
+										</View>
+									) : null}
+								</View>
+								{subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
+							</View>
+							<Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+						</Pressable>
+					);
+				})}
 
-			{hasMore ? (
-				<Pressable
-					style={[styles.loadMore, loadingMore && styles.loadMoreDisabled]}
-					onPress={onLoadMore}
-					disabled={loadingMore}
-				>
-					<Text style={styles.loadMoreText}>
-						{loadingMore ? 'Ładowanie…' : 'Załaduj więcej'}
-					</Text>
-				</Pressable>
-			) : null}
+				{hasMore ? (
+					<Pressable
+						style={({ pressed }) => [
+							styles.loadMore,
+							loadingMore && styles.loadMoreDisabled,
+							pressed && !loadingMore && styles.cardPressed,
+						]}
+						onPress={onLoadMore}
+						disabled={loadingMore}
+					>
+						<Text style={styles.loadMoreText}>
+							{loadingMore ? 'Ładowanie…' : 'Załaduj więcej'}
+						</Text>
+					</Pressable>
+				) : null}
+			</View>
 		</ScrollView>
 	);
 };
@@ -175,20 +199,24 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.bg,
 	},
 	content: {
-		padding: 24,
+		flexGrow: 1,
+		alignItems: 'center',
+		paddingHorizontal: 24,
+		paddingVertical: 24,
 		paddingBottom: 40,
 	},
-	centered: {
-		flex: 1,
-		backgroundColor: colors.bg,
-		justifyContent: 'center',
-		alignItems: 'center',
+	form: {
+		alignItems: 'stretch',
+		width: '100%',
+		maxWidth: 400,
 	},
-	heading: {
-		fontSize: 22,
-		fontWeight: '600',
-		color: colors.text,
-		marginBottom: 20,
+	sectionLabel: {
+		marginBottom: 10,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.8,
+		textTransform: 'uppercase',
+		color: colors.textDim,
 	},
 	error: {
 		color: colors.dangerText,
@@ -196,29 +224,63 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 	},
 	empty: {
-		paddingVertical: 32,
+		marginTop: 24,
+		paddingVertical: 28,
+		paddingHorizontal: 16,
 		alignItems: 'center',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		borderRadius: 10,
+	},
+	emptyIcon: {
+		width: 48,
+		height: 48,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.accentMuted,
+		marginBottom: 14,
 	},
 	emptyTitle: {
-		fontSize: 17,
+		fontSize: 16,
 		fontWeight: '600',
 		color: colors.text,
-		marginBottom: 8,
+		marginBottom: 6,
 		textAlign: 'center',
 	},
 	emptyDescription: {
-		fontSize: 14,
+		fontSize: 13,
+		lineHeight: 19,
 		color: colors.textMuted,
 		textAlign: 'center',
 	},
 	card: {
-		backgroundColor: colors.bgElevated,
-		borderWidth: 1,
-		borderColor: colors.border,
-		borderRadius: 8,
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginBottom: 10,
 		paddingVertical: 14,
-		paddingHorizontal: 16,
-		marginBottom: 12,
+		paddingHorizontal: 14,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		borderRadius: 10,
+		gap: 12,
+	},
+	cardPressed: {
+		backgroundColor: colors.bgElevatedHover,
+	},
+	cardIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 10,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.accentMuted,
+	},
+	cardBody: {
+		flex: 1,
+		minWidth: 0,
 	},
 	cardHeader: {
 		flexDirection: 'row',
@@ -233,7 +295,7 @@ const styles = StyleSheet.create({
 		color: colors.text,
 	},
 	cardSubtitle: {
-		marginTop: 8,
+		marginTop: 3,
 		fontSize: 13,
 		color: colors.textMuted,
 	},
@@ -247,10 +309,10 @@ const styles = StyleSheet.create({
 		fontWeight: '600',
 	},
 	loadMore: {
-		marginTop: 8,
+		marginTop: 2,
 		alignItems: 'center',
-		paddingVertical: 12,
-		borderRadius: 8,
+		paddingVertical: 14,
+		borderRadius: 10,
 		borderWidth: 1.5,
 		borderColor: colors.borderStrong,
 		backgroundColor: colors.bgElevated,

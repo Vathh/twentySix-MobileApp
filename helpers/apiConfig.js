@@ -358,6 +358,14 @@ export const getPlayerProfileUrl = (playerId) =>
 	API_BASE_URL + '/players/' + playerId;
 export const getPlayerGamesUrl = (playerId, page = 1) =>
 	API_BASE_URL + '/players/' + playerId + '/games?page=' + page;
+export const getPlayerCareerUrl = (playerId, windowKey = '90d', source = 'all') =>
+	API_BASE_URL
+	+ '/players/'
+	+ playerId
+	+ '/career?window='
+	+ encodeURIComponent(windowKey)
+	+ '&source='
+	+ encodeURIComponent(source);
 
 const TOURNAMENT_INVITATIONS_PREFIX = '/tournaments/invitations';
 export const TOURNAMENT_INVITATIONS_RECEIVED_URL =

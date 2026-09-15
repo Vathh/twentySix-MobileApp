@@ -36,77 +36,60 @@ const ProfileFriendshipActions = ({
 		}
 	};
 
-	if (friendship.isFriend) {
-		return (
-			<View style={styles.wrap}>
-				<Text style={styles.status}>Znajomy</Text>
-			</View>
-		);
-	}
-
-	if (friendship.pendingSent) {
-		return (
-			<View style={styles.wrap}>
-				<Text style={styles.status}>Zaproszenie wysłane</Text>
-			</View>
-		);
+	if (friendship.isFriend || friendship.pendingSent) {
+		return null;
 	}
 
 	if (friendship.pendingReceived?.id) {
 		return (
-			<View style={styles.wrap}>
-				<Text style={styles.hint}>Zaproszenie od tego gracza</Text>
-				<View style={styles.row}>
-					<Pressable
-						style={[styles.button, busy && styles.disabled]}
-						disabled={busy}
-						onPress={() =>
-							runAction(
-								() => actOnFriendInvitation(friendship.pendingReceived.id, 'accept', accessToken),
-								'Zaproszenie zaakceptowane',
-							)
-						}
-					>
-						{busy ? (
-							<ActivityIndicator color={colors.onAccent} size="small" />
-						) : (
-							<Text style={styles.buttonText}>Akceptuj</Text>
-						)}
-					</Pressable>
-					<Pressable
-						style={[styles.buttonSecondary, busy && styles.disabled]}
-						disabled={busy}
-						onPress={() =>
-							runAction(
-								() => actOnFriendInvitation(friendship.pendingReceived.id, 'reject', accessToken),
-								'Zaproszenie odrzucone',
-							)
-						}
-					>
-						<Text style={styles.buttonSecondaryText}>Odrzuć</Text>
-					</Pressable>
-				</View>
+			<View style={styles.row}>
+				<Pressable
+					style={[styles.accept, busy && styles.disabled]}
+					disabled={busy}
+					onPress={() =>
+						runAction(
+							() => actOnFriendInvitation(friendship.pendingReceived.id, 'accept', accessToken),
+							'Zaproszenie zaakceptowane',
+						)
+					}
+				>
+					{busy ? (
+						<ActivityIndicator color={colors.accent} size="small" />
+					) : (
+						<Text style={styles.acceptText}>Akceptuj</Text>
+					)}
+				</Pressable>
+				<Pressable
+					style={[styles.reject, busy && styles.disabled]}
+					disabled={busy}
+					onPress={() =>
+						runAction(
+							() => actOnFriendInvitation(friendship.pendingReceived.id, 'reject', accessToken),
+							'Zaproszenie odrzucone',
+						)
+					}
+				>
+					<Text style={styles.rejectText}>Odrzuć</Text>
+				</Pressable>
 			</View>
 		);
 	}
 
 	if (friendship.canInvite && userId) {
 		return (
-			<View style={styles.wrap}>
-				<Pressable
-					style={[styles.button, busy && styles.disabled]}
-					disabled={busy}
-					onPress={() =>
-						runAction(() => sendFriendInvite(userId, accessToken), 'Zaproszenie wysłane')
-					}
-				>
-					{busy ? (
-						<ActivityIndicator color={colors.onAccent} size="small" />
-					) : (
-						<Text style={styles.buttonText}>Dodaj do znajomych</Text>
-					)}
-				</Pressable>
-			</View>
+			<Pressable
+				style={[styles.accept, busy && styles.disabled]}
+				disabled={busy}
+				onPress={() =>
+					runAction(() => sendFriendInvite(userId, accessToken), 'Zaproszenie wysłane')
+				}
+			>
+				{busy ? (
+					<ActivityIndicator color={colors.accent} size="small" />
+				) : (
+					<Text style={styles.acceptText}>Dodaj do znajomych</Text>
+				)}
+			</Pressable>
 		);
 	}
 
@@ -114,46 +97,33 @@ const ProfileFriendshipActions = ({
 };
 
 const styles = StyleSheet.create({
-	wrap: {
-		marginBottom: 16,
-	},
-	status: {
-		color: colors.accent,
-		fontWeight: '700',
-		fontSize: 15,
-	},
-	hint: {
-		color: colors.accent,
-		fontSize: 13,
-		marginBottom: 8,
-	},
 	row: {
 		flexDirection: 'row',
 		flexWrap: 'wrap',
 		gap: 8,
 	},
-	button: {
-		backgroundColor: colors.accent,
+	accept: {
+		paddingVertical: 8,
+		paddingHorizontal: 12,
 		borderRadius: 8,
-		paddingVertical: 10,
-		paddingHorizontal: 14,
+		backgroundColor: colors.accentMuted,
 		alignItems: 'center',
-		minWidth: 120,
+		minWidth: 88,
 	},
-	buttonText: {
-		color: colors.onAccent,
-		fontWeight: '600',
-	},
-	buttonSecondary: {
-		borderRadius: 8,
-		paddingVertical: 10,
-		paddingHorizontal: 14,
-		borderWidth: 1,
-		borderColor: colors.accent,
-	},
-	buttonSecondaryText: {
+	acceptText: {
 		color: colors.accent,
 		fontWeight: '600',
+		fontSize: 13,
+	},
+	reject: {
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		alignItems: 'center',
+	},
+	rejectText: {
+		color: colors.textDim,
+		fontWeight: '600',
+		fontSize: 13,
 	},
 	disabled: {
 		opacity: 0.6,
