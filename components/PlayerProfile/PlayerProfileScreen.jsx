@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
 	Pressable,
 	RefreshControl,
@@ -31,6 +31,27 @@ const TABS = [
 	{ key: TAB_BADGES, label: '100+' },
 ];
 
+function ProfileTabBar({ activeTab, onChange }) {
+	return (
+		<View style={styles.segment}>
+			{TABS.map((tab) => {
+				const on = activeTab === tab.key;
+				return (
+					<Pressable
+						key={tab.key}
+						style={[styles.segmentItem, on && styles.segmentItemActive]}
+						onPress={() => onChange(tab.key)}
+					>
+						<Text style={[styles.segmentText, on && styles.segmentTextActive]}>
+							{tab.label}
+						</Text>
+					</Pressable>
+				);
+			})}
+		</View>
+	);
+}
+
 function relationLabel(friendship) {
 	if (!friendship || friendship.isSelf) return null;
 	if (friendship.isFriend) return 'Znajomy';
@@ -47,6 +68,17 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
 	const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
+	const [tabsPinned, setTabsPinned] = useState(false);
+	const tabsOffsetRef = useRef(0);
+	const tabsPinnedRef = useRef(false);
+
+	const onScroll = useCallback((event) => {
+		const next = event.nativeEvent.contentOffset.y >= tabsOffsetRef.current;
+		if (next !== tabsPinnedRef.current) {
+			tabsPinnedRef.current = next;
+			setTabsPinned(next);
+		}
+	}, []);
 
 	const loadProfile = useCallback(async () => {
 		if (!playerId || !auth?.accessToken) {
@@ -104,90 +136,102 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 	const friendship = profile?.friendship;
 
 	return (
-		<ScrollView
-			style={styles.container}
-			contentContainerStyle={styles.content}
-			refreshControl={
-				<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
-			}
-		>
-			<View style={styles.form}>
-				<ProfileHeader
-					name={profile?.player?.name}
-					initials={profile?.player?.initials}
-					registeredAt={profile?.player?.registeredAt}
-					description={profile?.player?.description}
-					isSelf={!!friendship?.isSelf}
-					relationLabel={relationLabel(friendship)}
-					liveGames={profile?.liveGames}
-					onEditPress={() =>
-						navigation.navigate('EditPlayerProfile', {
-							playerId,
-							description: profile?.player?.description ?? '',
-						})
-					}
-				>
-					<ProfileFriendshipActions
-						friendship={friendship}
-						userId={profile?.player?.userId}
-						accessToken={auth?.accessToken}
-						onChanged={loadProfile}
-					/>
-				</ProfileHeader>
-
-				<View style={styles.segment}>
-					{TABS.map((tab) => {
-						const on = activeTab === tab.key;
-						return (
-							<Pressable
-								key={tab.key}
-								style={[styles.segmentItem, on && styles.segmentItemActive]}
-								onPress={() => setActiveTab(tab.key)}
-							>
-								<Text style={[styles.segmentText, on && styles.segmentTextActive]}>
-									{tab.label}
-								</Text>
-							</Pressable>
-						);
-					})}
+		<View style={styles.container}>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={styles.content}
+				scrollEventThrottle={16}
+				onScroll={onScroll}
+				refreshControl={
+					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
+				}
+			>
+				<View style={styles.heroBlock}>
+					<View style={styles.form}>
+						<ProfileHeader
+							name={profile?.player?.name}
+							initials={profile?.player?.initials}
+							registeredAt={profile?.player?.registeredAt}
+							description={profile?.player?.description}
+							isSelf={!!friendship?.isSelf}
+							relationLabel={relationLabel(friendship)}
+							liveGames={profile?.liveGames}
+							onEditPress={() =>
+								navigation.navigate('EditPlayerProfile', {
+									playerId,
+									description: profile?.player?.description ?? '',
+								})
+							}
+						>
+							<ProfileFriendshipActions
+								friendship={friendship}
+								userId={profile?.player?.userId}
+								accessToken={auth?.accessToken}
+								onChanged={loadProfile}
+							/>
+						</ProfileHeader>
+					</View>
 				</View>
 
-				{activeTab === TAB_OVERVIEW ? (
-					<ProfileStatsOverview
-						overview={profile?.overview}
-						overviewSplit={profile?.overviewSplit}
-						onRivalPress={(rival) =>
-							navigation.push('PlayerProfile', {
-								playerId: rival.id,
-								name: rival.name,
-							})
-						}
-					/>
-				) : null}
+				<View
+					style={styles.tabsSlot}
+					onLayout={(event) => {
+						tabsOffsetRef.current = event.nativeEvent.layout.y;
+					}}
+				>
+					<View style={styles.form}>
+						<ProfileTabBar activeTab={activeTab} onChange={setActiveTab} />
+					</View>
+				</View>
 
-				{activeTab === TAB_HISTORY ? (
-					<ProfileGameHistory
-						key={`${playerId}-${profile?.gameHistory?.items?.length ?? 0}`}
-						playerId={playerId}
-						accessToken={auth?.accessToken}
-						initialItems={profile?.gameHistory?.items}
-						initialHasMore={profile?.gameHistory?.hasMore}
-					/>
-				) : null}
+				<View style={styles.bodyBlock}>
+					<View style={styles.form}>
+						{activeTab === TAB_OVERVIEW ? (
+							<ProfileStatsOverview
+								overview={profile?.overview}
+								overviewSplit={profile?.overviewSplit}
+								onRivalPress={(rival) =>
+									navigation.push('PlayerProfile', {
+										playerId: rival.id,
+										name: rival.name,
+									})
+								}
+							/>
+						) : null}
 
-				{activeTab === TAB_CAREER ? (
-					<ProfileCareerDashboard
-						playerId={playerId}
-						accessToken={auth?.accessToken}
-						initialCareer={profile?.career}
-					/>
-				) : null}
+						{activeTab === TAB_HISTORY ? (
+							<ProfileGameHistory
+								key={`${playerId}-${profile?.gameHistory?.items?.length ?? 0}`}
+								playerId={playerId}
+								accessToken={auth?.accessToken}
+								initialItems={profile?.gameHistory?.items}
+								initialHasMore={profile?.gameHistory?.hasMore}
+							/>
+						) : null}
 
-				{activeTab === TAB_BADGES ? (
-					<ProfileBadges checkoutItems={profile?.checkoutItems} />
-				) : null}
-			</View>
-		</ScrollView>
+						{activeTab === TAB_CAREER ? (
+							<ProfileCareerDashboard
+								playerId={playerId}
+								accessToken={auth?.accessToken}
+								initialCareer={profile?.career}
+							/>
+						) : null}
+
+						{activeTab === TAB_BADGES ? (
+							<ProfileBadges checkoutItems={profile?.checkoutItems} />
+						) : null}
+					</View>
+				</View>
+			</ScrollView>
+
+			{tabsPinned ? (
+				<View style={styles.tabsOverlay}>
+					<View style={styles.form}>
+						<ProfileTabBar activeTab={activeTab} onChange={setActiveTab} />
+					</View>
+				</View>
+			) : null}
+		</View>
 	);
 };
 
@@ -196,12 +240,42 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: colors.bg,
 	},
+	scroll: {
+		flex: 1,
+	},
 	content: {
 		flexGrow: 1,
-		alignItems: 'center',
-		paddingHorizontal: 24,
-		paddingVertical: 24,
 		paddingBottom: 40,
+	},
+	heroBlock: {
+		paddingHorizontal: 24,
+		paddingTop: 24,
+		alignItems: 'center',
+	},
+	tabsSlot: {
+		paddingHorizontal: 24,
+		paddingTop: 8,
+		paddingBottom: 12,
+		alignItems: 'center',
+	},
+	tabsOverlay: {
+		position: 'absolute',
+		top: 0,
+		left: 0,
+		right: 0,
+		zIndex: 20,
+		backgroundColor: colors.bg,
+		paddingHorizontal: 24,
+		paddingTop: 8,
+		paddingBottom: 12,
+		alignItems: 'center',
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: colors.border,
+	},
+	bodyBlock: {
+		paddingHorizontal: 24,
+		paddingTop: 4,
+		alignItems: 'center',
 	},
 	form: {
 		alignItems: 'stretch',
@@ -235,7 +309,6 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.bgElevated,
 		borderRadius: 10,
 		padding: 3,
-		marginBottom: 16,
 		borderWidth: 1,
 		borderColor: colors.border,
 		gap: 2,

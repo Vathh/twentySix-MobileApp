@@ -2,6 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
 
 export function TournamentScoringLeaveIcon({ onPress, style }) {
@@ -25,6 +27,28 @@ export default function TournamentScoringLeaveButton({ style }) {
 	const navigation = useNavigation();
 
 	return <TournamentScoringLeaveIcon onPress={() => navigation.goBack()} style={style} />;
+}
+
+/**
+ * Lista meczów tabletu — stack nie ma wstecz, więc strzałka wylogowuje do menu głównego.
+ */
+export function TournamentRefereeExitButton({ style }) {
+	const { logout } = useAuth();
+	const confirm = useConfirm();
+
+	const onPress = async () => {
+		const ok = await confirm({
+			title: 'Wyjdź z sędziowania?',
+			message: 'Wrócisz do menu głównego. Żeby sędziować dalej, użyj ponownie kodu albo QR.',
+			cancelLabel: 'Zostań',
+			confirmLabel: 'Wyjdź',
+		});
+		if (ok) {
+			void logout();
+		}
+	};
+
+	return <TournamentScoringLeaveIcon onPress={onPress} style={style} />;
 }
 
 const styles = StyleSheet.create({

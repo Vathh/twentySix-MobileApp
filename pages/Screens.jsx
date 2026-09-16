@@ -46,6 +46,9 @@ import HeaderTitle from '../components/Common/HeaderTitle';
 import AccountMenuButton from '../components/Common/AccountMenuButton';
 import LogoutButton from '../components/Common/LogoutButton';
 import LoginButton from '../components/Common/LoginButton';
+import TournamentScoringLeaveButton, {
+	TournamentRefereeExitButton,
+} from '../components/Game/TournamentScoringLeaveButton';
 import { colors } from '../theme/colors';
 
 const RootStack = createNativeStackNavigator();
@@ -392,6 +395,7 @@ const Screens = () => {
 				options={{
 					...headerOptions,
 					headerTitle: (props) => <HeaderTitle {...props} />,
+					headerLeft: () => <TournamentRefereeExitButton />,
 					headerRight: () => <LogoutButton />,
 				}}
 			/>
@@ -401,6 +405,7 @@ const Screens = () => {
 				options={{
 					...headerOptions,
 					headerTitle: (props) => <HeaderTitle {...props} />,
+					headerLeft: () => <TournamentScoringLeaveButton />,
 					contentStyle: { backgroundColor: colors.bg },
 				}}
 			/>

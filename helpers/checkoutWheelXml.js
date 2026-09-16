@@ -143,8 +143,8 @@ function stripInkscape(xml) {
 
 function levelFromHits(times) {
 	const n = Number(times) || 0;
-	if (n >= 15) return 'apex';
-	if (n >= 10) return 'bright';
+	if (n >= 10) return 'apex';
+	if (n >= 7) return 'bright';
 	if (n >= 5) return 'gold';
 	if (n >= 3) return 'bronze';
 	if (n >= 1) return 'iron';
@@ -271,6 +271,85 @@ function jaggedLine(x1, y1, x2, y2, steps, amp, seed) {
 	return pts;
 }
 
+/** Pęknięcia w środku klina; na cienkich pierścieniach gęściej i grubiej. */
+function ringGeometry(checkout) {
+	const n = Number(checkout);
+	if (n === 170) return { r0: 0, r1: 60, count: 1 };
+	if (n >= 161) return { r0: 60, r1: 140, count: 3 };
+	if (n >= 151) return { r0: 140, r1: 210, count: 9 };
+	if (n >= 138) return { r0: 210, r1: 275, count: 13 };
+	if (n >= 121) return { r0: 275, r1: 325, count: 17 };
+	return { r0: 325, r1: 372, count: 21 };
+}
+
+function crackField(checkout, bbox) {
+	const n = Number(checkout);
+	const ring = ringGeometry(n);
+	const thick = ring.r1 - ring.r0;
+	const midR = (ring.r0 + ring.r1) / 2;
+	const chord = midR * ((Math.PI * 2) / ring.count);
+	const span = Math.max(thick, chord * 0.72, 32);
+	const extra = ring.count >= 21 ? 6 : ring.count >= 17 ? 4 : ring.count >= 13 ? 2 : 0;
+	const boost = Math.min(2.35, Math.max(1, 90 / thick));
+	if (n === 170) {
+		return {
+			originX: CX, originY: CY, span, radialAng: 0, extra: 0, polar: false,
+			boost, r0: 0, r1: 60, halfA: Math.PI, tiles: 1,
+		};
+	}
+	const cx = bbox.x + bbox.width / 2;
+	const cy = bbox.y + bbox.height / 2;
+	const radialAng = Math.atan2(cy - CY, cx - CX);
+	return {
+		originX: CX + Math.cos(radialAng) * midR,
+		originY: CY + Math.sin(radialAng) * midR,
+		span,
+		radialAng,
+		extra,
+		polar: true,
+		boost,
+		r0: ring.r0,
+		r1: ring.r1,
+		halfA: Math.PI / ring.count,
+		tiles: ring.count,
+	};
+}
+
+function crackBudget(field, isDiamond, checkout) {
+	const tiles = field.tiles || 1;
+	const extra = isDiamond
+		? (tiles >= 21 ? 2 : tiles >= 17 ? 1 : 0)
+		: (tiles >= 21 ? 3 : tiles >= 17 ? 1 : 0);
+	const base = isDiamond ? (Number(checkout) === 170 ? 8 : 7) : 6;
+	return {
+		count: base + extra,
+		boost: isDiamond ? field.boost : Math.min(1.65, field.boost),
+		forkAt: isDiamond ? 0.38 : 0.55,
+		inclusions: isDiamond ? 0 : (tiles >= 17 ? 1 : 2),
+	};
+}
+
+function crackAngle(seed, radialAng, polar) {
+	if (!polar) {
+		return hash01(seed) * Math.PI * 2;
+	}
+	const lane = Math.floor(hash01(seed + 11) * 4);
+	const spread = lane < 2 ? 0.42 : 0.28;
+	const base = radialAng + [0, Math.PI, Math.PI / 2, -Math.PI / 2][lane];
+	return base + (hash01(seed) - 0.5) * spread;
+}
+
+function crackStart(field, seed) {
+	if (!field.polar) {
+		return { x: field.originX, y: field.originY };
+	}
+	const tA = (hash01(seed + 15) - 0.5) * 1.55 * field.halfA;
+	const tR = 0.22 + hash01(seed + 16) * 0.56;
+	const r = field.r0 + tR * (field.r1 - field.r0);
+	const a = field.radialAng + tA;
+	return { x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r };
+}
+
 function wanderPoints(x, y, angle, steps, stepLen, wander, seed) {
 	const pts = [[x, y]];
 	let a = angle;
@@ -312,6 +391,18 @@ function paintFills(inner, brush) {
 		.replace(/fill="#f4f4f5"/gi, `fill="${brush.label}"`);
 }
 
+/** RN SvgXml nie dziedziczy text-anchor / baseline z rodzica — bez tego liczby jadą w prawo i w dół. */
+function centerLabels(inner) {
+	return String(inner).replace(/<text\b([^>]*)>/gi, (_full, attrs) => {
+		const next = String(attrs)
+			.replace(/\s+text-anchor="[^"]*"/gi, '')
+			.replace(/\s+dominant-baseline="[^"]*"/gi, '')
+			.replace(/\s+alignment-baseline="[^"]*"/gi, '')
+			.replace(/\s+font-size="(\d+(?:\.\d+)?)px"/gi, ' font-size="$1"');
+		return `<text${next} text-anchor="middle" dominant-baseline="central" alignment-baseline="middle">`;
+	});
+}
+
 function insertAfterShape(inner, extrasXml) {
 	const match = inner.match(/<(?:circle|path)\b[^>]*\/?>/i);
 	if (!match) return inner + extrasXml;
@@ -319,36 +410,35 @@ function insertAfterShape(inner, extrasXml) {
 	return inner.slice(0, at) + extrasXml + inner.slice(at);
 }
 
-/** Algorytm pęknięć 1:1 z weba (a6f5923). */
+/** Pęknięcia lodu / diamentu — start w klinie, gęstość rośnie na zewnątrz. */
 function buildCracks(checkout, bbox, kind) {
 	const n = Number(checkout);
-	const cx = bbox.x + bbox.width / 2;
-	const cy = bbox.y + bbox.height / 2;
-	const originX = n === 170 ? CX : cx + (CX - cx) * 0.12;
-	const originY = n === 170 ? CY : cy + (CY - cy) * 0.12;
-	const span = Math.min(bbox.width, bbox.height);
+	const field = crackField(n, bbox);
+	const { span, radialAng, polar } = field;
 	const isDiamond = kind === 'diamond';
-	const count = isDiamond ? (n === 170 ? 10 : 9) : 8;
+	const { count, boost, forkAt, inclusions } = crackBudget(field, isDiamond, n);
 	const parts = [];
 	for (let i = 0; i < count; i += 1) {
 		const seed = n * 13 + i * 97;
-		const ang = hash01(seed) * Math.PI * 2;
-		const bend = (hash01(seed + 3) - 0.5) * 0.55;
-		const inner = span * (0.06 + hash01(seed + 1) * 0.1);
-		const outer = span * (0.4 + hash01(seed + 2) * 0.34);
-		const x1 = originX + Math.cos(ang) * inner;
-		const y1 = originY + Math.sin(ang) * inner;
-		const x2 = originX + Math.cos(ang + bend) * outer;
-		const y2 = originY + Math.sin(ang + bend) * outer;
+		const start = crackStart(field, seed);
+		const ang = crackAngle(seed, radialAng, polar);
+		const bend = (hash01(seed + 3) - 0.5) * 0.45;
+		const inner = span * (0.02 + hash01(seed + 1) * 0.05);
+		const outer = span * (0.42 + hash01(seed + 2) * 0.4);
+		const x1 = start.x + Math.cos(ang) * inner;
+		const y1 = start.y + Math.sin(ang) * inner;
+		const x2 = start.x + Math.cos(ang + bend) * outer;
+		const y2 = start.y + Math.sin(ang + bend) * outer;
 		const steps = 4 + Math.floor(hash01(seed + 4) * 3);
-		const amp = span * (isDiamond ? 0.038 : 0.052);
+		const amp = span * (isDiamond ? 0.038 : 0.052) * boost;
+		const wide = (isDiamond ? (i % 3 === 0 ? 0.95 : 0.5) : (i % 2 === 0 ? 1.1 : 0.65)) * boost;
 		parts.push(strokePath(
 			polylineD(jaggedLine(x1, y1, x2, y2, steps, amp, seed)),
-			isDiamond ? '#ecfeff' : '#bae6fd',
-			isDiamond ? (i % 3 === 0 ? 0.95 : 0.5) : (i % 2 === 0 ? 1.1 : 0.65),
-			isDiamond ? 0.78 : 0.64,
+			isDiamond ? (i % 3 === 0 ? '#ffffff' : '#7dd3fc') : '#bae6fd',
+			wide,
+			isDiamond ? 0.86 : 0.72,
 		));
-		if (hash01(seed + 8) > 0.28) {
+		if (hash01(seed + 8) > forkAt) {
 			const mid = 0.42 + hash01(seed + 9) * 0.28;
 			const mx = x1 + (x2 - x1) * mid;
 			const my = y1 + (y2 - y1) * mid;
@@ -357,27 +447,28 @@ function buildCracks(checkout, bbox, kind) {
 			parts.push(strokePath(
 				polylineD(jaggedLine(mx, my, mx + Math.cos(bang) * blen, my + Math.sin(bang) * blen, 3, amp * 0.7, seed + 20)),
 				isDiamond ? '#ffffff' : '#7dd3fc',
-				isDiamond ? 0.45 : 0.55,
-				0.58,
+				(isDiamond ? 0.45 : 0.55) * boost,
+				0.62,
 			));
 		}
 	}
 	if (!isDiamond) {
-		for (let i = 0; i < 2; i += 1) {
+		for (let i = 0; i < inclusions; i += 1) {
 			const seed = n * 19 + i * 41;
-			const ang = hash01(seed) * Math.PI * 2;
+			const start = crackStart(field, seed + 3);
+			const ang = crackAngle(seed, radialAng, polar);
 			parts.push(strokePath(
 				polylineD(jaggedLine(
-					originX,
-					originY,
-					originX + Math.cos(ang) * span * (0.42 + i * 0.1),
-					originY + Math.sin(ang) * span * (0.42 + i * 0.1),
+					start.x,
+					start.y,
+					start.x + Math.cos(ang) * span * (0.42 + i * 0.1),
+					start.y + Math.sin(ang) * span * (0.42 + i * 0.1),
 					5,
 					span * 0.04,
 					seed,
 				)),
 				'#0c4a6e',
-				0.9,
+				0.9 * boost,
 				0.32,
 				' class="is-inclusion" mix-blend-mode="multiply"',
 			));
@@ -699,7 +790,7 @@ export function paintCheckoutWheelXml(xml, checkoutItems) {
 			const nextAttrs = String(attrs)
 				.replace(/data-hits="\d+"/i, `data-hits="${n}"`)
 				.replace(/data-level="[^"]*"/i, `data-level="${level}"`);
-			const colored = paintFills(inner, brush);
+			const colored = centerLabels(paintFills(inner, brush));
 			if (level === 'locked') {
 				return `<g${nextAttrs}>${colored}</g>`;
 			}
