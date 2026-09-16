@@ -422,83 +422,217 @@ function buildMolten(checkout, bbox) {
 	return parts.join('');
 }
 
-/** Iso-kontury jednego pola — jak słoje, nigdy się nie przecinają. */
-function woodRingPoint(knotX, knotY, rot, aspect, r0, theta, warpAmp, warpK, warpPhase) {
-	const r = r0 * (1 + warpAmp * Math.sin(warpK * theta + warpPhase) + warpAmp * 0.35 * Math.sin(warpK * 2 * theta + warpPhase * 1.7));
-	const lx = r * Math.cos(theta);
-	const ly = r * aspect * Math.sin(theta);
-	const c = Math.cos(rot);
-	const s = Math.sin(rot);
-	return [knotX + lx * c - ly * s, knotY + lx * s + ly * c];
+function valueNoise(x, y, seed) {
+	const ix = Math.floor(x);
+	const iy = Math.floor(y);
+	const fx = x - ix;
+	const fy = y - iy;
+	const u = fx * fx * (3 - 2 * fx);
+	const v = fy * fy * (3 - 2 * fy);
+	const a = hash01(ix * 12.9898 + iy * 78.233 + seed * 37.719);
+	const b = hash01((ix + 1) * 12.9898 + iy * 78.233 + seed * 37.719);
+	const c = hash01(ix * 12.9898 + (iy + 1) * 78.233 + seed * 37.719);
+	const d = hash01((ix + 1) * 12.9898 + (iy + 1) * 78.233 + seed * 37.719);
+	return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 
-function woodRingPoints(knotX, knotY, rot, aspect, r0, theta0, span, samples, warpAmp, warpK, warpPhase) {
-	const pts = [];
-	for (let i = 0; i <= samples; i += 1) {
-		const t = i / samples;
-		pts.push(woodRingPoint(knotX, knotY, rot, aspect, r0, theta0 + span * t, warpAmp, warpK, warpPhase));
+function woodFbm(x, y, seed) {
+	return valueNoise(x, y, seed) * 0.62 + valueNoise(x * 2.03, y * 2.03, seed + 11) * 0.38;
+}
+
+/** Dwie rodziny confocalne: min() — mogą się stykać, nie przecinają. */
+function woodField(x, y, knot) {
+	const big = Math.hypot(x - knot.ax, y - knot.ay) + Math.hypot(x - knot.bx, y - knot.by);
+	const small = Math.hypot(x - knot.cx, y - knot.cy) + Math.hypot(x - knot.dx, y - knot.dy);
+	const n = woodFbm(x * 0.028, y * 0.028, 13) - 0.5;
+	return Math.min(big, small) + n * knot.warp;
+}
+
+function lerpPt(x0, y0, v0, x1, y1, v1, level) {
+	const d = v1 - v0;
+	const t = Math.abs(d) < 1e-6 ? 0.5 : (level - v0) / d;
+	return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+}
+
+function keyPt(p) {
+	return `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
+}
+
+function stitchSegments(segs) {
+	const unused = segs.map((s) => ({ a: s[0], b: s[1], used: false }));
+	const byKey = new Map();
+	const add = (key, idx, end) => {
+		const list = byKey.get(key);
+		if (list) list.push({ idx, end });
+		else byKey.set(key, [{ idx, end }]);
+	};
+	unused.forEach((s, idx) => {
+		add(keyPt(s.a), idx, 'a');
+		add(keyPt(s.b), idx, 'b');
+	});
+
+	const polylines = [];
+	const walk = (startIdx, fromEnd) => {
+		const pts = [];
+		let idx = startIdx;
+		let end = fromEnd;
+		while (idx >= 0 && !unused[idx].used) {
+			const seg = unused[idx];
+			seg.used = true;
+			const nextPt = end === 'a' ? seg.b : seg.a;
+			const startPt = end === 'a' ? seg.a : seg.b;
+			if (pts.length === 0) pts.push(startPt);
+			pts.push(nextPt);
+			const hits = (byKey.get(keyPt(nextPt)) || []).filter((h) => !unused[h.idx].used);
+			if (hits.length === 0) break;
+			idx = hits[0].idx;
+			end = hits[0].end;
+		}
+		return pts;
+	};
+
+	unused.forEach((seg, idx) => {
+		if (seg.used) return;
+		const forward = walk(idx, 'a');
+		polylines.push(forward.length >= 2 ? forward : [seg.a, seg.b]);
+	});
+	return polylines;
+}
+
+function contourLevel(bbox, level, knot) {
+	const pad = 6;
+	const x0 = bbox.x - pad;
+	const y0 = bbox.y - pad;
+	const w = bbox.width + pad * 2;
+	const h = bbox.height + pad * 2;
+	const cols = Math.max(10, Math.round(w / 5));
+	const rows = Math.max(10, Math.round(h / 5));
+	const grid = [];
+	for (let j = 0; j <= rows; j += 1) {
+		const row = [];
+		const y = y0 + (j / rows) * h;
+		for (let i = 0; i <= cols; i += 1) {
+			row.push(woodField(x0 + (i / cols) * w, y, knot));
+		}
+		grid.push(row);
 	}
-	return pts;
+
+	const segs = [];
+	for (let j = 0; j < rows; j += 1) {
+		for (let i = 0; i < cols; i += 1) {
+			const xA = x0 + (i / cols) * w;
+			const yA = y0 + (j / rows) * h;
+			const xB = x0 + ((i + 1) / cols) * w;
+			const yB = y0 + ((j + 1) / rows) * h;
+			const v0 = grid[j][i];
+			const v1 = grid[j][i + 1];
+			const v2 = grid[j + 1][i + 1];
+			const v3 = grid[j + 1][i];
+			const code = (v0 >= level ? 1 : 0)
+				| (v1 >= level ? 2 : 0)
+				| (v2 >= level ? 4 : 0)
+				| (v3 >= level ? 8 : 0);
+			if (code === 0 || code === 15) continue;
+			const top = () => lerpPt(xA, yA, v0, xB, yA, v1, level);
+			const right = () => lerpPt(xB, yA, v1, xB, yB, v2, level);
+			const bottom = () => lerpPt(xA, yB, v3, xB, yB, v2, level);
+			const left = () => lerpPt(xA, yA, v0, xA, yB, v3, level);
+			const edges = [];
+			if (code === 1 || code === 14) edges.push([left(), top()]);
+			else if (code === 2 || code === 13) edges.push([top(), right()]);
+			else if (code === 3 || code === 12) edges.push([left(), right()]);
+			else if (code === 4 || code === 11) edges.push([right(), bottom()]);
+			else if (code === 5) edges.push([left(), top()], [right(), bottom()]);
+			else if (code === 6 || code === 9) edges.push([top(), bottom()]);
+			else if (code === 7 || code === 8) edges.push([left(), bottom()]);
+			else if (code === 10) edges.push([top(), right()], [left(), bottom()]);
+			edges.forEach((e) => segs.push(e));
+		}
+	}
+	return stitchSegments(segs);
 }
 
-function fadeRingParts(pts) {
-	if (pts.length < 8) return [{ pts, mul: 1 }];
-	const a = Math.max(2, Math.floor(pts.length * 0.16));
+function fadeStroke(pts, color, width, opacity) {
+	if (pts.length < 5) {
+		return strokePath(smoothPathD(pts), color, width, opacity * 0.5);
+	}
+	const a = Math.max(2, Math.floor(pts.length * 0.2));
 	return [
-		{ pts: pts.slice(0, a + 2), mul: 0.55 },
-		{ pts: pts.slice(a, pts.length - a), mul: 1 },
-		{ pts: pts.slice(pts.length - a - 2), mul: 0.55 },
-	];
+		strokePath(smoothPathD(pts.slice(0, a + 2)), color, width, opacity * 0.28),
+		strokePath(smoothPathD(pts.slice(a, pts.length - a)), color, width, opacity),
+		strokePath(smoothPathD(pts.slice(pts.length - a - 2)), color, width, opacity * 0.28),
+	].join('');
 }
 
-/** Słoje: zagnieżdżone niepełne owale + dłuższe łuki z tej samej rodziny. */
+function breakPolyline(pts, seed) {
+	if (pts.length < 9) return [pts];
+	const gapAt = Math.floor(pts.length * (0.18 + hash01(seed) * 0.46));
+	const gapLen = Math.max(2, Math.floor(pts.length * (0.1 + hash01(seed + 1) * 0.22)));
+	const left = pts.slice(0, gapAt);
+	const right = pts.slice(gapAt + gapLen);
+	const keep = [];
+	if (left.length >= 3) keep.push(left);
+	if (right.length >= 3) keep.push(right);
+	if (keep.length === 2 && hash01(seed + 2) > 0.55) {
+		return [keep[hash01(seed + 3) > 0.5 ? 0 : 1]];
+	}
+	return keep.length ? keep : [pts];
+}
+
+function slicePolyline(pts, seed) {
+	if (pts.length < 6) return pts;
+	const take = Math.max(4, Math.floor(pts.length * (0.16 + hash01(seed) * 0.28)));
+	const start = Math.floor(hash01(seed + 1) * Math.max(1, pts.length - take));
+	return pts.slice(start, start + take);
+}
+
+/** Więcej owalów, w tym małe sęki z boku — stykają się, nie przecinają. */
 function buildWood(checkout, bbox) {
 	const n = Number(checkout);
 	const span = Math.max(bbox.width, bbox.height);
-	const knotX = bbox.x + bbox.width * (hash01(n) * 1.55 - 0.28);
-	const knotY = bbox.y + bbox.height * (hash01(n + 1) * 1.55 - 0.28);
-	const rot = -0.42 + (hash01(n + 2) - 0.5) * 0.28;
-	const aspect = 0.42 + hash01(n + 3) * 0.22;
-	const warpAmp = 0.07 + hash01(n + 4) * 0.08;
-	const warpK = hash01(n + 5) > 0.5 ? 2 : 3;
-	const warpPhase = hash01(n + 6) * Math.PI * 2;
-	const ringCount = 10;
-	const rMin = span * 0.08;
-	const rMax = span * 1.4;
-	const gap = (rMax - rMin) / ringCount;
+	const rot = -0.5 + (hash01(n + 2) - 0.5) * 0.9;
+	const cx = bbox.x + bbox.width * (0.28 + hash01(n) * 0.44);
+	const cy = bbox.y + bbox.height * (0.28 + hash01(n + 1) * 0.44);
+	const half = span * (0.11 + hash01(n + 3) * 0.13);
+	const rot2 = rot + 0.7 + hash01(n + 5) * 0.9;
+	const tiny = span * (0.035 + hash01(n + 6) * 0.04);
+	const sx = bbox.x + bbox.width * (0.08 + hash01(n + 7) * 0.84);
+	const sy = bbox.y + bbox.height * (0.08 + hash01(n + 8) * 0.84);
+	const knot = {
+		ax: cx + Math.cos(rot) * half,
+		ay: cy + Math.sin(rot) * half,
+		bx: cx - Math.cos(rot) * half,
+		by: cy - Math.sin(rot) * half,
+		cx: sx + Math.cos(rot2) * tiny,
+		cy: sy + Math.sin(rot2) * tiny,
+		dx: sx - Math.cos(rot2) * tiny,
+		dy: sy - Math.sin(rot2) * tiny,
+		warp: 3.2,
+	};
+	const lo = tiny * 2 + 1.5;
 	const parts = [];
-
-	for (let i = 0; i < ringCount; i += 1) {
-		const seed = n * 31 + i * 17;
-		const r0 = rMin + (i + 0.5) * gap + (hash01(seed) - 0.5) * gap * 0.22;
-		const longArc = hash01(seed + 1) > 0.38;
-		const theta0 = hash01(seed + 2) * Math.PI * 2;
-		const thetaSpan = longArc
-			? 2.6 + hash01(seed + 3) * 2.4
-			: 0.9 + hash01(seed + 3) * 1.2;
-		const samples = longArc ? 22 : 14;
-		const pts = woodRingPoints(knotX, knotY, rot, aspect, r0, theta0, thetaSpan, samples, warpAmp, warpK, warpPhase);
-		const dark = hash01(seed + 4) > 0.42;
-		const thick = longArc ? 1.15 + hash01(seed + 5) * 0.85 : 1.45 + hash01(seed + 5) * 1.25;
-		const baseOp = dark ? 0.72 : 0.58;
-		const color = dark ? '#1a0804' : '#fdba74';
-		fadeRingParts(pts).forEach((part) => {
-			if (part.pts.length < 2) return;
-			parts.push(strokePath(smoothPathD(part.pts), color, thick, baseOp * part.mul));
+	const paint = (pts, seed, width, opacity) => {
+		breakPolyline(pts, seed).forEach((frag, fi) => {
+			if (frag.length < 3) return;
+			parts.push(fadeStroke(frag, '#050201', width, opacity * (fi === 0 ? 1 : 0.82)));
 		});
-	}
+	};
 
-	if (hash01(n + 9) > 0.35) {
-		const kx = knotX;
-		const ky = knotY;
-		const rx = 2.4 + hash01(n + 10) * 2.6;
-		const ry = rx * (0.45 + hash01(n + 11) * 0.25);
-		const deg = (rot * 180 / Math.PI).toFixed(1);
-		parts.push(
-			`<ellipse cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="#1a0804" opacity="0.4" transform="rotate(${deg} ${kx.toFixed(1)} ${ky.toFixed(1)})" />`,
-		);
-	}
+	[0.04, 0.09, 0.15, 0.22, 0.32, 0.44, 0.58, 0.74, 0.92].forEach((t, i) => {
+		contourLevel(bbox, lo + span * t, knot).forEach((pts, pi) => {
+			if (pts.length < 3) return;
+			paint(pts, n * 17 + i * 31 + pi * 9, i < 3 ? 1.05 : (i % 2 === 0 ? 1.3 : 1.0), i < 3 ? 0.82 : 0.9);
+		});
+	});
 
+	[0.07, 0.12, 0.26, 0.38, 0.51, 0.66].forEach((t, i) => {
+		contourLevel(bbox, lo + span * t, knot).forEach((pts, pi) => {
+			if (pts.length < 6) return;
+			const frag = slicePolyline(pts, n * 23 + i * 41 + pi * 13);
+			if (frag.length < 4) return;
+			parts.push(fadeStroke(frag, '#050201', 0.85, 0.7));
+		});
+	});
 	return parts.join('');
 }
 
