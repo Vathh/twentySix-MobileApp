@@ -12,8 +12,16 @@ import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoa
 import {
 	isRetryableScoringError,
 	ScoringRequestError,
+	throwIfScoringResponseNotOk,
 	userErrorMessage,
 } from '../scoringRequestError.js';
+import {
+	isSessionAuthExemptUrl,
+	notifyIfUnauthorized,
+	SESSION_EXPIRED_MESSAGE,
+	setOnUnauthorized,
+} from '../../sessionExpired.js';
+import { isTabletRefereeSession } from '../../authSessionKind.js';
 import { applyGameScoringState } from '../applyGameScoringState.js';
 import {
 	computeFfaStateRevision,
@@ -638,6 +646,60 @@ function testScoringRequestErrorRetryable() {
 	);
 }
 
+function testSessionExpired401UnifiesLogout() {
+	assert(isSessionAuthExemptUrl('http://localhost/api/account/login'), 'account login exempt');
+	assert(isSessionAuthExemptUrl('http://localhost/api/account/session/refresh'), 'refresh exempt');
+	assert(isSessionAuthExemptUrl('http://localhost/api/account/logout'), 'logout exempt');
+	assert(isSessionAuthExemptUrl('http://localhost/api/login'), 'tablet login exempt');
+	assert(!isSessionAuthExemptUrl('http://localhost/api/game/active'), 'game list not exempt');
+
+	let calls = 0;
+	setOnUnauthorized(() => {
+		calls += 1;
+	});
+
+	notifyIfUnauthorized(403);
+	notifyIfUnauthorized(401, { hasAccessToken: false });
+	notifyIfUnauthorized(401, {
+		url: 'http://localhost/api/account/login',
+		hasAccessToken: true,
+	});
+	assert(calls === 0, '403 / no token / login do not logout');
+
+	try {
+		throwIfScoringResponseNotOk(
+			{ ok: false, status: 401 },
+			{ message: 'Unauthenticated.' },
+			'Unauthenticated.',
+			'Nie udało się zapisać wizyty',
+		);
+		assert(false, '401 scoring should throw');
+	} catch (error) {
+		assert(error instanceof ScoringRequestError, 'ScoringRequestError');
+		assert(error.status === 401, 'status 401');
+		assert(error.retryable === false, '401 not retryable');
+		assert(error.message === SESSION_EXPIRED_MESSAGE, 'session expired copy');
+	}
+	assert(calls === 1, 'scoring 401 logs out');
+
+	notifyIfUnauthorized(401);
+	assert(calls === 1, 'parallel 401 notifies once');
+
+	setOnUnauthorized(null);
+}
+
+function testTabletRefereeSessionKind() {
+	assert(!isTabletRefereeSession({}), 'empty is account/guest');
+	assert(
+		!isTabletRefereeSession({ accessToken: 'acc', tournamentId: null, email: 'a@b.c' }),
+		'account email login is not tablet',
+	);
+	assert(
+		isTabletRefereeSession({ accessToken: 'tab', tournamentId: 12 }),
+		'tournament code login is tablet',
+	);
+}
+
 const tests = [
 	['normalize tournament', testNormalizeTournament],
 	['tournament revision fast visits', testTournamentRevisionMonotonicOnFastVisits],
@@ -658,6 +720,8 @@ const tests = [
 	['infer advances after bust', testInferAdvancesAfterBust],
 	['offline multi-set scoring', testMatchFormatOfflineScoring],
 	['scoring request error retryable', testScoringRequestErrorRetryable],
+	['session expired 401 unifies logout', testSessionExpired401UnifiesLogout],
+	['tablet vs account session kind', testTabletRefereeSessionKind],
 	['user error message', testUserErrorMessage],
 	['cricket rules', runCricketTests],
 	['bob27 rules', runBob27Tests],

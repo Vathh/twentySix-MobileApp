@@ -1,5 +1,6 @@
 import { ME_COMPETITIONS_URL } from './apiConfig';
 import { apiRequest } from './apiClient';
+import { SESSION_EXPIRED_MESSAGE } from './sessionExpired';
 
 /**
  * Hub „Gdzie gram”: sezony turniejowe, ligi i organizacje użytkownika.
@@ -22,7 +23,7 @@ export async function fetchMyCompetitions(accessToken) {
 				status,
 				message:
 					status === 401
-						? 'Sesja wygasła. Zaloguj się ponownie.'
+						? SESSION_EXPIRED_MESSAGE
 						: data.message || 'Nie udało się wczytać rozgrywek.',
 			};
 		}

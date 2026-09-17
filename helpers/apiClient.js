@@ -1,8 +1,9 @@
 /**
  * Wspólne helpery fetch dla helperów *Api.js zwracających `{ ok, status, data }`.
- * Nie dotyczy plików throw-style (quickGameFfaApi, gameScoringApi) — te mają
- * inny kontrakt błędów i nie są migrowane w tym przejściu.
+ * 401 przy tokenie → notifySessionExpired (ten sam handler co scoring).
  */
+
+import { notifyIfUnauthorized } from './sessionExpired';
 
 export function authHeaders(accessToken, { json = false } = {}) {
 	const headers = {
@@ -31,5 +32,9 @@ export async function apiRequest(url, { method = 'GET', accessToken, body, json 
 		...(body !== undefined ? { body: JSON.stringify(body) } : {}),
 	});
 	const data = await parseJsonSafe(res);
+	notifyIfUnauthorized(res.status, {
+		url,
+		hasAccessToken: Boolean(accessToken),
+	});
 	return { ok: res.ok, status: res.status, data };
 }

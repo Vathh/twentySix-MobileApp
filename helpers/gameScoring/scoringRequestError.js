@@ -1,3 +1,5 @@
+import { notifyIfUnauthorized, SESSION_EXPIRED_MESSAGE } from '../sessionExpired.js';
+
 /**
  * Błąd HTTP scoringu z flagą retryable (sieć / 5xx → outbox).
  */
@@ -50,12 +52,15 @@ export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 		return;
 	}
 	const status = res.status;
+	notifyIfUnauthorized(status);
 	const retryable = status >= 500 || status === 0 || status === 408 || status === 429;
 	throw new ScoringRequestError(
-		userErrorMessage(
-			{ message: jsonOrPlainMessage(data, text) },
-			fallbackMessage,
-		),
+		status === 401
+			? SESSION_EXPIRED_MESSAGE
+			: userErrorMessage(
+				{ message: jsonOrPlainMessage(data, text) },
+				fallbackMessage,
+			),
 		{ status, retryable },
 	);
 }

@@ -4,6 +4,7 @@ import {
 	UPDATE_GAME_API_URL,
 } from '../apiConfig';
 import { GAME_MODE } from './resolveGameContext.js';
+import { notifyIfUnauthorized } from '../sessionExpired.js';
 
 import {
 	findWinnerIndex as findWinnerIndexByFormat,
@@ -78,6 +79,7 @@ export async function sendTournamentAchievements({
 			body: JSON.stringify(gameResultDTO),
 		});
 		if (!response.ok) {
+			notifyIfUnauthorized(response.status);
 			const text = await response.text();
 			const err = new Error(text || response.statusText || 'Błąd achievementów');
 			err.status = response.status;
@@ -127,6 +129,7 @@ export async function sendQuickGameAchievements({
 			body: JSON.stringify(body),
 		});
 		if (!response.ok) {
+			notifyIfUnauthorized(response.status);
 			const text = await response.text();
 			const err = new Error(text || 'Błąd achievementów quick');
 			err.status = response.status;

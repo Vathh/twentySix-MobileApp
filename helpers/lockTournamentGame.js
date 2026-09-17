@@ -1,4 +1,5 @@
 import { GAME_IN_PROGRESS_API_URL, GAME_RELEASE_API_URL } from './apiConfig';
+import { notifyIfUnauthorized } from './sessionExpired';
 
 /**
  * Blokuje grę turniejową (status in_progress) przed wejściem w scoring.
@@ -21,6 +22,8 @@ export async function lockTournamentGame({ gameId, type, accessToken }) {
 	if (res.ok) {
 		return { ok: true };
 	}
+
+	notifyIfUnauthorized(res.status);
 
 	let message = 'Nie udało się rozpocząć meczu.';
 	try {
@@ -52,6 +55,8 @@ export async function releaseTournamentGame({ gameId, type, accessToken }) {
 				type,
 			}),
 		});
+
+		notifyIfUnauthorized(res.status);
 
 		if (res.ok) {
 			return { ok: true };

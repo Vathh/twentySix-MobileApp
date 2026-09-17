@@ -2,6 +2,7 @@ import {
 	getTournamentJoinApplyUrl,
 	getTournamentJoinPreviewUrl,
 } from './apiConfig';
+import { notifyIfUnauthorized } from './sessionExpired';
 
 export async function fetchTournamentJoinPreview(code, accessToken) {
 	const res = await fetch(getTournamentJoinPreviewUrl(code), {
@@ -11,6 +12,7 @@ export async function fetchTournamentJoinPreview(code, accessToken) {
 		},
 	});
 	const data = await res.json();
+	notifyIfUnauthorized(res.status);
 	if (!res.ok) {
 		throw new Error(data?.message || 'Nie znaleziono turnieju');
 	}
@@ -26,6 +28,7 @@ export async function applyTournamentJoin(code, accessToken) {
 		},
 	});
 	const data = await res.json();
+	notifyIfUnauthorized(res.status);
 	if (!res.ok) {
 		throw new Error(data?.message || 'Nie udało się wysłać zgłoszenia');
 	}

@@ -2,6 +2,7 @@ import { getReverbConfig } from './apiConfig';
 import { getCurrentAccessToken } from './authTokenHolder';
 import { getPusherConstructor, getPusherSourceLabel } from './getPusherConstructor';
 import { logReverbWs } from './reverbWsLog';
+import { notifyIfUnauthorized } from './sessionExpired';
 
 function resolveAccessToken(fallbackToken) {
 	return getCurrentAccessToken() || fallbackToken || null;
@@ -40,6 +41,9 @@ function authorizePrivateChannel(cfg, fallbackToken, channel, socketId, callback
 					authorizePrivateChannel(cfg, fallbackToken, channel, socketId, callback, true);
 				}, 400);
 				return;
+			}
+			if (res.status === 401) {
+				notifyIfUnauthorized(401, { url: cfg.authEndpoint });
 			}
 			if (!res.ok) {
 				logReverbWs('error', 'auth', `auth HTTP ${res.status}`, data);

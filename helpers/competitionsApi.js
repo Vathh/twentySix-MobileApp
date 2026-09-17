@@ -1,4 +1,5 @@
 import { getSeasonStandingsUrl } from './apiConfig';
+import { notifyIfUnauthorized, SESSION_EXPIRED_MESSAGE } from './sessionExpired';
 
 /**
  * Fetch one page of organizations / seasons / tournaments catalog.
@@ -21,10 +22,11 @@ export async function fetchCompetitionPage(buildUrl, accessToken, page = 1) {
 		});
 
 		if (!res.ok) {
+			notifyIfUnauthorized(res.status);
 			return {
 				items: [],
 				hasMore: false,
-				error: res.status === 401 ? 'Sesja wygasła. Zaloguj się ponownie.' : 'Nie udało się pobrać listy.',
+				error: res.status === 401 ? SESSION_EXPIRED_MESSAGE : 'Nie udało się pobrać listy.',
 			};
 		}
 
@@ -62,9 +64,10 @@ export async function fetchCompetitionDetail(url, accessToken) {
 			return { data: null, error: 'Nie znaleziono.' };
 		}
 		if (!res.ok) {
+			notifyIfUnauthorized(res.status);
 			return {
 				data: null,
-				error: res.status === 401 ? 'Sesja wygasła. Zaloguj się ponownie.' : 'Nie udało się pobrać szczegółów.',
+				error: res.status === 401 ? SESSION_EXPIRED_MESSAGE : 'Nie udało się pobrać szczegółów.',
 			};
 		}
 
@@ -92,10 +95,11 @@ export async function fetchSeasonStandingsPage(seasonId, accessToken, page = 1) 
 		});
 
 		if (!res.ok) {
+			notifyIfUnauthorized(res.status);
 			return {
 				items: [],
 				hasMore: false,
-				error: res.status === 401 ? 'Sesja wygasła. Zaloguj się ponownie.' : 'Nie udało się pobrać tabeli.',
+				error: res.status === 401 ? SESSION_EXPIRED_MESSAGE : 'Nie udało się pobrać tabeli.',
 			};
 		}
 

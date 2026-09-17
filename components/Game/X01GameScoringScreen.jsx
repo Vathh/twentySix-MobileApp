@@ -167,6 +167,9 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		tournamentId: tournamentIdForSession,
 		enabled: isTournamentOnline && !!auth?.accessToken && tournamentIdForSession != null,
 		onFinished: () => {
+			if (auth?.tournamentId == null) {
+				return;
+			}
 			pendingTournamentLogoutRef.current = true;
 			markTournamentFinishedPrompted(tournamentIdForSession);
 			applyTournamentEndedRef.current();

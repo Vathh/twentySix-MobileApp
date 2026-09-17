@@ -65,11 +65,6 @@ const GameList = ({ navigation }) => {
     try {
       const result = await fetchActiveGames(auth.tournamentId, auth.accessToken);
       if (result.status === 401) {
-        promptTournamentFinishedLogout(
-          () => void logout(),
-          auth.tournamentId,
-          'Sesja sędziowania wygasła lub turniej został zakończony.',
-        );
         return;
       }
       if (result.ok) {
@@ -80,7 +75,7 @@ const GameList = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [auth?.accessToken, auth?.tournamentId, logout]);
+  }, [auth?.accessToken, auth?.tournamentId]);
 
   useFocusEffect(
     useCallback(() => {

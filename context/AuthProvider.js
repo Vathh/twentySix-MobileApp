@@ -12,8 +12,10 @@ import {
 	saveStoredSession,
 	storedSessionToAuth,
 } from '../helpers/authSessionStorage';
+import { isTabletRefereeSession } from '../helpers/authSessionKind';
 import { unregisterCurrentDevicePushToken } from '../helpers/pushNotifications/unregisterPushToken';
 import { setCurrentAccessToken } from '../helpers/authTokenHolder';
+import { setOnUnauthorized } from '../helpers/sessionExpired';
 
 const AuthContext = createContext({
 	auth: {},
@@ -41,6 +43,9 @@ export const AuthProvider = ({ children }) => {
 	}, []);
 
 	const persistSession = useCallback(async (nextAuth, rememberMe) => {
+		if (isTabletRefereeSession(nextAuth)) {
+			return;
+		}
 		if (rememberMe && nextAuth?.accessToken) {
 			await saveStoredSession(buildStoredSession(nextAuth, true));
 		} else {
@@ -49,7 +54,21 @@ export const AuthProvider = ({ children }) => {
 	}, []);
 
 	const logout = useCallback(async () => {
-		const token = authRef.current?.accessToken;
+		const current = authRef.current;
+		const token = current?.accessToken;
+
+		if (isTabletRefereeSession(current)) {
+			setCurrentAccessToken(null);
+			setAuth({});
+			const stored = await loadStoredSession();
+			if (stored?.accessToken) {
+				const restored = storedSessionToAuth(stored);
+				setCurrentAccessToken(restored.accessToken);
+				setAuth(restored);
+			}
+			return;
+		}
+
 		if (token) {
 			try {
 				await unregisterCurrentDevicePushToken(token);
@@ -66,6 +85,15 @@ export const AuthProvider = ({ children }) => {
 		setCurrentAccessToken(null);
 		setAuth({});
 	}, []);
+
+	useEffect(() => {
+		setCurrentAccessToken(auth?.accessToken ?? null);
+	}, [auth?.accessToken]);
+
+	useEffect(() => {
+		setOnUnauthorized(() => logout());
+		return () => setOnUnauthorized(null);
+	}, [logout]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -117,7 +145,11 @@ export const AuthProvider = ({ children }) => {
 			}
 
 			void (async () => {
-				const token = authRef.current?.accessToken;
+				const current = authRef.current;
+				if (isTabletRefereeSession(current)) {
+					return;
+				}
+				const token = current?.accessToken;
 				if (!token) {
 					return;
 				}
