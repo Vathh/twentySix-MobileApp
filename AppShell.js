@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthProvider';
 import { ConfirmProvider } from './context/ConfirmProvider';
 import PushNotificationsBootstrap from './components/Common/PushNotificationsBootstrap';
 import Screens from './pages/Screens';
+import useAuth from './hooks/useAuth';
 import { navigate, navigationRef } from './helpers/navigationRef';
 import { colors } from './theme/colors';
 
@@ -91,6 +92,28 @@ function useTabletLoginDeepLink() {
 	}, []);
 }
 
+function navigationSessionKey(auth) {
+	if (!auth?.accessToken) {
+		return 'guest';
+	}
+	if (auth?.tournamentId) {
+		return `tournament-${auth.tournamentId}`;
+	}
+	return 'user';
+}
+
+function KeyedNavigationContainer() {
+	const { auth } = useAuth();
+	const navKey = navigationSessionKey(auth);
+
+	return (
+		<NavigationContainer key={navKey} ref={navigationRef} linking={linking}>
+			<PushNotificationsBootstrap />
+			<Screens />
+		</NavigationContainer>
+	);
+}
+
 export default function AppShell() {
 	useAllowScreenSleepOutsideScoring();
 	useJoinTournamentDeepLink();
@@ -103,14 +126,11 @@ export default function AppShell() {
 		<View style={styles.container}>
 			<GestureHandlerRootView style={styles.gesture}>
 				<StatusBar style="light" />
-				<ConfirmProvider>
-					<NavigationContainer ref={navigationRef} linking={linking}>
-						<AuthProvider>
-							<PushNotificationsBootstrap />
-							<Screens />
-						</AuthProvider>
-					</NavigationContainer>
-				</ConfirmProvider>
+				<AuthProvider>
+					<ConfirmProvider>
+						<KeyedNavigationContainer />
+					</ConfirmProvider>
+				</AuthProvider>
 			</GestureHandlerRootView>
 		</View>
 	);

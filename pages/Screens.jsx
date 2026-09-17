@@ -394,6 +394,7 @@ const Screens = () => {
 				component={GameList}
 				options={{
 					...headerOptions,
+					headerBackVisible: false,
 					headerTitle: (props) => <HeaderTitle {...props} />,
 					headerLeft: () => <TournamentRefereeExitButton />,
 					headerRight: () => <LogoutButton />,
@@ -404,6 +405,7 @@ const Screens = () => {
 				component={GameScoringScreen}
 				options={{
 					...headerOptions,
+					headerBackVisible: false,
 					headerTitle: (props) => <HeaderTitle {...props} />,
 					headerLeft: () => <TournamentScoringLeaveButton />,
 					contentStyle: { backgroundColor: colors.bg },

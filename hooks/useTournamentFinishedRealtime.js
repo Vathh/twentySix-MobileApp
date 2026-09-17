@@ -87,10 +87,11 @@ export function markTournamentFinishedPrompted(tournamentId) {
 	}
 }
 
-export function promptTournamentFinishedLogout(setAuth, tournamentId, message) {
+export function promptTournamentFinishedLogout(leaveSession, tournamentId, message) {
 	const id = Number(tournamentId);
+	const leave = typeof leaveSession === 'function' ? leaveSession : () => {};
 	if (Number.isFinite(id) && promptedTournamentIds.has(id)) {
-		setAuth({});
+		leave();
 		return;
 	}
 	if (Number.isFinite(id)) {
@@ -103,7 +104,7 @@ export function promptTournamentFinishedLogout(setAuth, tournamentId, message) {
 		[
 			{
 				text: 'OK',
-				onPress: () => setAuth({}),
+				onPress: () => leave(),
 			},
 		],
 		{ cancelable: false },

@@ -93,7 +93,7 @@ function scoringStateHasProgress(state) {
 }
 
 const X01GameScoringScreen = ({ route, navigation }) => {
-	const { auth, setAuth } = useAuth();
+	const { auth, logout } = useAuth();
 	const isFocused = useIsFocused();
 	const insets = useSafeAreaInsets();
 	const {
@@ -152,8 +152,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 
 	const endTournamentTabletSession = useCallback(() => {
 		pendingTournamentLogoutRef.current = false;
-		setAuth({});
-	}, [setAuth]);
+		void logout();
+	}, [logout]);
 
 	const logoutAfterTournamentIfNeeded = useCallback(() => {
 		if (!pendingTournamentLogoutRef.current) {

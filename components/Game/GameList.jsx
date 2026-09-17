@@ -36,7 +36,7 @@ const playoffRoundSortKey = (round) => {
 };
 
 const GameList = ({ navigation }) => {
-  const { auth, setAuth } = useAuth();
+  const { auth, logout } = useAuth();
   const [games, setGames] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -52,7 +52,7 @@ const GameList = ({ navigation }) => {
         return;
       }
       promptTournamentFinishedLogout(
-        setAuth,
+        () => void logout(),
         auth?.tournamentId,
         payload?.message,
       );
@@ -66,7 +66,7 @@ const GameList = ({ navigation }) => {
       const result = await fetchActiveGames(auth.tournamentId, auth.accessToken);
       if (result.status === 401) {
         promptTournamentFinishedLogout(
-          setAuth,
+          () => void logout(),
           auth.tournamentId,
           'Sesja sędziowania wygasła lub turniej został zakończony.',
         );
@@ -80,7 +80,7 @@ const GameList = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [auth?.accessToken, auth?.tournamentId, setAuth]);
+  }, [auth?.accessToken, auth?.tournamentId, logout]);
 
   useFocusEffect(
     useCallback(() => {
