@@ -7,11 +7,14 @@ const defaultResolveRequest =
   ((context, moduleName, platform) =>
     context.resolveRequest(context, moduleName, platform));
 
-// SVG intro ładujemy jako asset (raw), nie jako komponent RN.
-if (!config.resolver.assetExts.includes('svg')) {
-  config.resolver.assetExts.push('svg');
+// SVG → string w bundlu JS (metro.svg-transformer). Nie wolno trzymać ich
+// jako assetów: w APK Android pakuje je do android_res, którego File/fetch
+// nie odczyta — intro i logo znikają tylko w buildzie, nie w Expo Go.
+config.transformer.babelTransformerPath = require.resolve('./metro.svg-transformer.js');
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+if (!config.resolver.sourceExts.includes('svg')) {
+  config.resolver.sourceExts.push('svg');
 }
-config.resolver.sourceExts = config.resolver.sourceExts.filter((ext) => ext !== 'svg');
 
 // Wymusza użycie skompilowanej wersji (lib) zamiast src dla react-native-gesture-handler,
 // co rozwiązuje błąd "Unable to resolve ./components/gestureHandlerRootHOC"

@@ -226,6 +226,11 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 					<SvgXml xml={flyXml} width={introBox.width} height={introBox.height} />
 				</View>
 			) : null}
+			{phase !== 'flying' && !html && flyXml ? (
+				<View style={styles.centerLogo} pointerEvents="none">
+					<SvgXml xml={flyXml} width={introBox.width} height={introBox.height} />
+				</View>
+			) : null}
 			{phase !== 'flying' && html ? (
 				<WebView
 					originWhitelist={['*']}
@@ -239,7 +244,7 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 					bounces={false}
 					showsVerticalScrollIndicator={false}
 					showsHorizontalScrollIndicator={false}
-					androidLayerType="hardware"
+					androidLayerType="none"
 					setSupportMultipleWindows={false}
 					javaScriptEnabled={false}
 					domStorageEnabled={false}
@@ -298,6 +303,11 @@ const styles = StyleSheet.create({
 		opacity: 0,
 		left: 0,
 		top: 0,
+	},
+	centerLogo: {
+		...StyleSheet.absoluteFillObject,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 });
 

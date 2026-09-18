@@ -1,7 +1,4 @@
-import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
-
-const WHEEL_MODULE = require('../assets/checkout_wheel.svg');
+const WHEEL_XML = require('../assets/checkout_wheel.svg');
 const CX = 450;
 const CY = 450;
 
@@ -97,31 +94,15 @@ const SHARED_DEFS = `
 let baseXml = null;
 let loadPromise = null;
 
-async function readAssetText(moduleId) {
-	const [asset] = await Asset.loadAsync(moduleId);
-	const uri = asset.localUri || asset.uri;
-	if (!uri) {
-		throw new Error('checkout wheel has no uri');
-	}
-	if (uri.startsWith('file:') || uri.startsWith('/')) {
-		try {
-			return await new File(uri).text();
-		} catch (error) {
-			console.warn('checkout wheel file read', error);
-		}
-	}
-	const response = await fetch(uri);
-	if (!response.ok) {
-		throw new Error(`checkout wheel fetch ${response.status}`);
-	}
-	return response.text();
-}
-
 export async function loadCheckoutWheelXml() {
 	if (baseXml) return baseXml;
 	if (!loadPromise) {
-		loadPromise = readAssetText(WHEEL_MODULE)
-			.then((xml) => {
+		loadPromise = Promise.resolve()
+			.then(() => {
+				const xml = typeof WHEEL_XML === 'string' ? WHEEL_XML : WHEEL_XML?.default;
+				if (typeof xml !== 'string' || !xml.includes('<svg')) {
+					throw new Error('checkout wheel missing from js bundle');
+				}
 				baseXml = stripInkscape(xml);
 				return baseXml;
 			})
