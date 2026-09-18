@@ -39,6 +39,7 @@ const GameList = ({ navigation }) => {
   const { auth, logout } = useAuth();
   const [games, setGames] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedPlayoffSide, setSelectedPlayoffSide] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [lockingGameId, setLockingGameId] = useState(null);
   const [loading, setLoading] = useState(() => auth?.tournamentId != null);
@@ -81,10 +82,10 @@ const GameList = ({ navigation }) => {
     useCallback(() => {
       fetchGames();
       // Po powrocie z meczu otwórz z powrotem listę wybranej grupy.
-      if (selectedGroup != null) {
+      if (selectedGroup != null || selectedPlayoffSide != null) {
         setIsModalVisible(true);
       }
-    }, [fetchGames, selectedGroup]),
+    }, [fetchGames, selectedGroup, selectedPlayoffSide]),
   );
 
   const groupGames = useMemo(
@@ -113,6 +114,18 @@ const GameList = ({ navigation }) => {
     [groupGames],
   );
 
+  const mainPlayoffGames = useMemo(
+    () => playoffGames.filter((g) => g.bracketSide !== 'consolation'),
+    [playoffGames],
+  );
+
+  const consolationPlayoffGames = useMemo(
+    () => playoffGames.filter((g) => g.bracketSide === 'consolation'),
+    [playoffGames],
+  );
+
+  const hasSplitPlayoff = mainPlayoffGames.length > 0 && consolationPlayoffGames.length > 0;
+
   const gamesInGroup = useMemo(
     () =>
       selectedGroup != null
@@ -121,14 +134,42 @@ const GameList = ({ navigation }) => {
     [groupGames, selectedGroup],
   );
 
+  const gamesInPlayoffSide = useMemo(() => {
+    if (selectedPlayoffSide === 'consolation') {
+      return consolationPlayoffGames;
+    }
+    if (selectedPlayoffSide === 'main') {
+      return mainPlayoffGames;
+    }
+    return [];
+  }, [selectedPlayoffSide, consolationPlayoffGames, mainPlayoffGames]);
+
+  const modalGames = selectedPlayoffSide != null ? gamesInPlayoffSide : gamesInGroup;
+  const modalTitle =
+    selectedPlayoffSide === 'consolation'
+      ? 'Drabinka pocieszenia'
+      : selectedPlayoffSide === 'main'
+        ? 'Drabinka główna'
+        : selectedGroup != null
+          ? `Grupa ${selectedGroup}`
+          : 'Wybierz mecz';
+
   const openGroupModal = (group) => {
+    setSelectedPlayoffSide(null);
     setSelectedGroup(group);
+    setIsModalVisible(true);
+  };
+
+  const openPlayoffModal = (side) => {
+    setSelectedGroup(null);
+    setSelectedPlayoffSide(side);
     setIsModalVisible(true);
   };
 
   const closeGroupModal = () => {
     setIsModalVisible(false);
     setSelectedGroup(null);
+    setSelectedPlayoffSide(null);
   };
 
   const handleGamePress = async (game) => {
@@ -184,13 +225,29 @@ const GameList = ({ navigation }) => {
       });
     }
     if (hasPlayoffGames) {
-      rows.push({ type: 'section', id: 'section-playoff', title: 'Playoff' });
-      playoffGames.forEach((game) => {
-        rows.push({ type: 'game', id: `playoff-${game.id}`, game });
-      });
+      if (hasSplitPlayoff) {
+        rows.push({ type: 'section', id: 'section-playoff', title: 'Playoff' });
+        rows.push({
+          type: 'playoffSide',
+          id: 'playoff-main',
+          side: 'main',
+          title: 'Drabinka główna',
+        });
+        rows.push({
+          type: 'playoffSide',
+          id: 'playoff-consolation',
+          side: 'consolation',
+          title: 'Drabinka pocieszenia',
+        });
+      } else {
+        rows.push({ type: 'section', id: 'section-playoff', title: 'Playoff' });
+        playoffGames.forEach((game) => {
+          rows.push({ type: 'game', id: `playoff-${game.id}`, game });
+        });
+      }
     }
     return rows;
-  }, [groups, hasGroupGames, hasPlayoffGames, playoffGames]);
+  }, [groups, hasGroupGames, hasPlayoffGames, hasSplitPlayoff, playoffGames]);
 
   const renderGameRow = (game, showRound = false) => (
     <Pressable
@@ -239,6 +296,16 @@ const GameList = ({ navigation }) => {
         </Pressable>
       );
     }
+    if (item.type === 'playoffSide') {
+      return (
+        <Pressable
+          style={styles.groupButton}
+          onPress={() => openPlayoffModal(item.side)}
+        >
+          <Text style={styles.groupButtonText}>{item.title}</Text>
+        </Pressable>
+      );
+    }
     return renderGameRow(item.game, true);
   };
 
@@ -282,20 +349,20 @@ const GameList = ({ navigation }) => {
       >
         <Pressable style={styles.modalOverlay} onPress={closeGroupModal}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>
-              {selectedGroup != null ? `Grupa ${selectedGroup}` : 'Wybierz mecz'}
-            </Text>
+            <Text style={styles.modalTitle}>{modalTitle}</Text>
             <FlatList
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
               nestedScrollEnabled
               keyboardShouldPersistTaps="handled"
-              data={gamesInGroup}
+              data={modalGames}
               keyExtractor={(game) => `${game.type}-${game.id}`}
-              renderItem={({ item: game }) => renderGameRow(game, false)}
+              renderItem={({ item: game }) => renderGameRow(game, selectedPlayoffSide != null)}
               ListEmptyComponent={
                 <Text style={styles.modalEmpty}>
-                  Wszystkie mecze w tej grupie zostały już rozegrane.
+                  {selectedPlayoffSide != null
+                    ? 'Wszystkie mecze w tej drabince zostały już rozegrane.'
+                    : 'Wszystkie mecze w tej grupie zostały już rozegrane.'}
                 </Text>
               }
             />

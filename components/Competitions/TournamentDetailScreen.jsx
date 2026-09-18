@@ -211,10 +211,27 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 							) : null}
 
 							{activeTab === 'playoff' ? (
-								<PlayoffBracket
-									rounds={data?.playoff ?? []}
-									onPlayerPress={openPlayer}
-								/>
+								(data?.consolationPlayoff ?? []).length > 0 ? (
+									<>
+										<Text style={styles.sectionTitle}>Drabinka główna</Text>
+										<PlayoffBracket
+											rounds={data?.playoff ?? []}
+											onPlayerPress={openPlayer}
+										/>
+										<Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
+											Drabinka pocieszenia
+										</Text>
+										<PlayoffBracket
+											rounds={data.consolationPlayoff}
+											onPlayerPress={openPlayer}
+										/>
+									</>
+								) : (
+									<PlayoffBracket
+										rounds={data?.playoff ?? []}
+										onPlayerPress={openPlayer}
+									/>
+								)
 							) : null}
 
 							{activeTab === 'achievements' ? (
@@ -337,6 +354,9 @@ const styles = StyleSheet.create({
 		fontSize: 15,
 		fontWeight: '700',
 		color: colors.text,
+	},
+	sectionTitleSpaced: {
+		marginTop: 24,
 	},
 	achCard: {
 		padding: 14,
