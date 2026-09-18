@@ -325,6 +325,100 @@ function testApplyH2h() {
 	assert(!closed, 'game not closed');
 }
 
+function emptyH2hStartState() {
+	return {
+		game: {
+			...tournamentMidLeg.game,
+		},
+		players: [
+			{
+				playerId: 1,
+				name: 'Gracz A',
+				remaining: 101,
+				legsWon: 0,
+			},
+			{
+				playerId: 2,
+				name: 'Gracz B',
+				remaining: 101,
+				legsWon: 0,
+			},
+		],
+		currentLeg: { id: 5, legNumber: 1, open: true },
+		visits: [],
+		legs: [],
+	};
+}
+
+function applyEmptyH2hTurn(overrides = {}) {
+	let currentIdx = overrides.currentIdx ?? 1;
+	const currentPlayerIndexRef = { current: currentIdx };
+	const result = applyGameScoringState(emptyH2hStartState(), {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: [() => {}, () => {}],
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex: (i) => {
+			currentIdx = i;
+		},
+		setGameClosed: () => {},
+		lastStateKeyRef: { current: '' },
+		lastPlayerSnapRef: { current: {} },
+		lastLegNumberRef: { current: 1 },
+		legOpenerIndexRef: { current: 0 },
+		useLegOpenerRotation: true,
+		openerChosenRef: { current: true },
+		...overrides,
+	});
+	return {
+		result,
+		get currentIdx() {
+			return currentIdx;
+		},
+		currentPlayerIndexRef,
+	};
+}
+
+function testUndoAllVisitsRestoresMatchOpener() {
+	const applied = applyEmptyH2hTurn({
+		hasSeenScoringProgressRef: { current: true },
+	});
+	assert(applied.currentIdx === 0, 'undo to start returns thrower to opener');
+	assert(applied.currentPlayerIndexRef.current === 0, 'ref follows opener');
+}
+
+function testEmptyStartLockUsesOpenerNotCurrentThrower() {
+	const applied = applyEmptyH2hTurn({
+		hasSeenScoringProgressRef: { current: false },
+		legOpenerIndexRef: { current: 0 },
+	});
+	assert(applied.currentIdx === 0, 'lock before first visit still uses opener');
+}
+
+function testEmptyStartLockKeepsChosenRightOpener() {
+	let currentIdx = 1;
+	const currentPlayerIndexRef = { current: 1 };
+	applyGameScoringState(emptyH2hStartState(), {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: [() => {}, () => {}],
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex: (i) => {
+			currentIdx = i;
+		},
+		setGameClosed: () => {},
+		lastStateKeyRef: { current: '' },
+		lastPlayerSnapRef: { current: {} },
+		lastLegNumberRef: { current: null },
+		legOpenerIndexRef: { current: 1 },
+		useLegOpenerRotation: true,
+		openerChosenRef: { current: true },
+		hasSeenScoringProgressRef: { current: false },
+	});
+	assert(currentIdx === 1, 'chosen right opener kept on empty GET');
+	assert(currentPlayerIndexRef.current === 1, 'ref stays on right opener');
+}
+
 function testApplyFfa() {
 	const dispatches = [[], []];
 	const dispatchFns = [
@@ -709,6 +803,9 @@ const tests = [
 	['apply h2h loser leg archive', testApplyH2hArchivesLoserLegScoresOnNewLeg],
 	['checkout leg average archive', testCheckoutLegAverageIncludesClosingVisit],
 	['apply h2h', testApplyH2h],
+	['undo all visits restores opener', testUndoAllVisitsRestoresMatchOpener],
+	['empty start lock uses opener', testEmptyStartLockUsesOpenerNotCurrentThrower],
+	['empty start keeps right opener', testEmptyStartLockKeepsChosenRightOpener],
 	['apply ffa', testApplyFfa],
 	['ffa partial visit sync', testApplyFfaPartialVisitPreservesLocalLegScores],
 	['unified API payload', testUnifiedApiPayload],

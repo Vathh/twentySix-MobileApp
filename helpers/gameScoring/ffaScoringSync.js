@@ -47,6 +47,7 @@ export function applyFfaSyncState(state, ctx) {
 		openerChosenRef = null,
 		applyPlayers,
 		afterApply = null,
+		hasSeenScoringProgressRef = null,
 	} = ctx;
 
 	if (
@@ -81,8 +82,20 @@ export function applyFfaSyncState(state, ctx) {
 
 	applyPlayers?.(state);
 
-	const lockLocalTurn = Boolean(openerChosenRef?.current) && !ffaStateHasTurnProgress(state);
-	if (!lockLocalTurn) {
+	const hadProgress = ffaStateHasTurnProgress(state);
+	if (hadProgress && hasSeenScoringProgressRef) {
+		hasSeenScoringProgressRef.current = true;
+	}
+
+	const lockLocalTurn = Boolean(openerChosenRef?.current)
+		&& !hadProgress
+		&& !hasSeenScoringProgressRef?.current;
+	if (lockLocalTurn) {
+		const opener = legOpenerIndexRef?.current;
+		if (Number.isInteger(opener)) {
+			setCurrentPlayerIndex(opener);
+		}
+	} else {
 		setCurrentPlayerIndex(Number(
 			state.turn?.currentPlayerIndex
 			?? state.session.currentPlayerIndex

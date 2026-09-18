@@ -66,6 +66,7 @@ export function useGameScoring({
 	const lastLegNumberRef = useRef(null);
 	const ensureLegPromiseRef = useRef(null);
 	const lastPlayerSnapRef = useRef({});
+	const hasSeenScoringProgressRef = useRef(false);
 	const lastRevisionRef = useRef(-1);
 	const pendingWritesRef = useRef(0);
 	const visitChainRef = useRef(Promise.resolve());
@@ -149,6 +150,7 @@ export function useGameScoring({
 				useLegOpenerRotation: h2h && useLegOpenerRotation,
 				lastPlayerSnapRef: h2h ? lastPlayerSnapRef : undefined,
 				openerChosenRef,
+				hasSeenScoringProgressRef,
 				onFinishedQuickGameId: (id) => {
 					if (id) {
 						finishedQuickGameIdRef.current = id;

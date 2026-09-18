@@ -223,6 +223,29 @@ function testProgressUnlocksTurnAfterOpener() {
 	assert(env.currentIdx === 0, 'server turn after progress');
 }
 
+function testUndoToStartRestoresFfaOpener() {
+	const env = makeCtx({
+		openerChosenRef: { current: true },
+		hasSeenScoringProgressRef: { current: true },
+		legOpenerIndexRef: { current: 0 },
+	});
+	env.ctx.setCurrentPlayerIndex(1);
+	applyFfaSyncState(
+		baseState({
+			session: {
+				stateVersion: 5,
+				currentPlayerIndex: 0,
+				legOpenerIndex: 0,
+				currentLegNumber: 1,
+			},
+			turn: { currentPlayerIndex: 0, legOpenerIndex: 0, dartsInVisit: 0 },
+			rest: { visits: [] },
+		}),
+		env.ctx,
+	);
+	assert(env.currentIdx === 0, 'ffa undo to start returns to opener');
+}
+
 function testApplyWithoutYouKeepsPreviousCanInput() {
 	const env = makeCtx();
 	applyFfaSyncState(baseState({ you: { canInput: false } }), env.ctx);
@@ -239,6 +262,7 @@ export function runFfaScoringSyncTests() {
 	testApplyPlayersAndTurn();
 	testLockLocalTurnAfterOpenerUntilProgress();
 	testProgressUnlocksTurnAfterOpener();
+	testUndoToStartRestoresFfaOpener();
 	testApplyWithoutYouKeepsPreviousCanInput();
 	testStaleVersionDuringWrite();
 	testFinishedOnce();

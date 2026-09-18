@@ -28,6 +28,7 @@ export function useFfaScoringSync({
 	logLabel = 'useFfaScoringSync',
 }) {
 	const lastVersionRef = useRef(-1);
+	const hasSeenScoringProgressRef = useRef(false);
 	const pendingWritesRef = useRef(0);
 	const writeChainRef = useRef(Promise.resolve());
 	const finishedRef = useRef(false);
@@ -71,6 +72,7 @@ export function useFfaScoringSync({
 			setCanInputFromServer,
 			legOpenerIndexRef: ctx.legOpenerIndexRef,
 			openerChosenRef: ctx.openerChosenRef,
+			hasSeenScoringProgressRef,
 			applyPlayers: ctx.applyPlayers,
 			afterApply: ctx.afterApply,
 		});

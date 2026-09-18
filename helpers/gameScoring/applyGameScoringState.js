@@ -344,15 +344,27 @@ export function applyGameScoringState(inputState, ctx) {
 		syncPlayersH2h(state, ctx);
 	}
 
+	const hadProgress = scoringStateHasProgress(state);
+	if (hadProgress && ctx.hasSeenScoringProgressRef) {
+		ctx.hasSeenScoringProgressRef.current = true;
+	}
+
+	// Blokada tylko do pierwszej wizyty (lokalny wybór openera vs puste GET/WS).
+	// Po cofnięciu wszystkich wizyt znów nie ma postępu — wtedy trzeba wrócić
+	// do openera, a nie zostawić licznika na przeciwniku.
 	const lockLocalTurn = Boolean(ctx.openerChosenRef?.current)
-		&& !scoringStateHasProgress(state);
+		&& !hadProgress
+		&& !ctx.hasSeenScoringProgressRef?.current;
 	if (!lockLocalTurn) {
 		updateLegOpenerRefs(state, ctx);
 	}
 
 	const nextPlayerIndex = resolveNextPlayerIndex(state, ctx);
+	const lockedOpener = ctx.legOpenerIndexRef?.current;
 	const appliedIndex = lockLocalTurn
-		? (currentPlayerIndexRef?.current ?? nextPlayerIndex)
+		? (Number.isInteger(lockedOpener)
+			? lockedOpener
+			: (currentPlayerIndexRef?.current ?? nextPlayerIndex))
 		: nextPlayerIndex;
 	if (currentPlayerIndexRef) {
 		currentPlayerIndexRef.current = appliedIndex;
