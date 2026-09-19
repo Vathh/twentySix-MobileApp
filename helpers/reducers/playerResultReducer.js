@@ -255,16 +255,10 @@ export const playerResultReducer = (state, action) => {
     case UNDO_LAST_VISIT: {
       const startingScore = state.startingScore ?? 501;
       const scores = [...state.currentLegScores];
-      const lastScore =
-        action.type === UNDO_LAST_VISIT
-          ? action.visitScore
-          : scores.pop();
-      if (action.type === UNDO && lastScore == null) {
+      if (scores.length === 0) {
         return state;
       }
-      if (action.type === UNDO_LAST_VISIT && scores.length > 0) {
-        scores.pop();
-      }
+      const lastScore = scores.pop();
       const score = state.score + lastScore;
       const totalPointsEarned = state.totalPointsEarned - lastScore;
       const dartsThrown = Math.max(0, state.dartsThrown - 3);

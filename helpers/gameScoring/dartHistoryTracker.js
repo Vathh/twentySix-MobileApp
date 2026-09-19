@@ -1,5 +1,59 @@
 import { resetVisitDartLabels } from '../reducers/playerResultActions.js';
 
+export function getRecentVisitDartPointsFromHistory(hist, playerIndex) {
+	const points = [];
+	for (let i = hist.length - 1; i >= 0 && points.length < 3; i -= 1) {
+		const entry = hist[i];
+		if (entry.playerIndex !== playerIndex || entry.completedVisit) {
+			continue;
+		}
+		points.unshift(entry.points);
+	}
+	return points;
+}
+
+export function playerHasInProgressPerDartVisit(hist, playerIndex) {
+	return (hist ?? []).some(
+		(entry) => entry.playerIndex === playerIndex && !entry.completedVisit,
+	);
+}
+
+/**
+ * Cofnięcie ostatniej lotki już zapisanej wizyty: zdejmuje ją z historii
+ * i odznacza pozostałe lotki tej wizyty jako w toku.
+ * @returns {{ undonePoints: number, remainingPoints: number, remainingCount: number } | null}
+ */
+export function reopenLastCompletedVisitDartInHistory(hist, playerIndex) {
+	let lastIdx = -1;
+	for (let i = hist.length - 1; i >= 0; i -= 1) {
+		if (hist[i].playerIndex === playerIndex && hist[i].completedVisit) {
+			lastIdx = i;
+			break;
+		}
+	}
+	if (lastIdx < 0) {
+		return null;
+	}
+	const [undone] = hist.splice(lastIdx, 1);
+	let unmarked = 0;
+	for (let i = hist.length - 1; i >= 0 && unmarked < 2; i -= 1) {
+		if (hist[i].playerIndex !== playerIndex) {
+			continue;
+		}
+		if (!hist[i].completedVisit) {
+			break;
+		}
+		hist[i].completedVisit = false;
+		unmarked += 1;
+	}
+	const remaining = getRecentVisitDartPointsFromHistory(hist, playerIndex);
+	return {
+		undonePoints: undone.points,
+		remainingPoints: remaining.reduce((sum, p) => sum + p, 0),
+		remainingCount: remaining.length,
+	};
+}
+
 /**
  * Bookkeeping dla trybu rzut-po-rzucie (per-dart): historia rzutów bieżącej wizyty,
  * chronologiczny log zatwierdzonych wizyt oraz detekcja aktywnej wizyty w toku.
@@ -28,18 +82,8 @@ export function createDartHistoryTracker({
 		});
 	};
 
-	const getRecentVisitDartPoints = (playerIndex) => {
-		const hist = dartHistoryRef.current;
-		const points = [];
-		for (let i = hist.length - 1; i >= 0 && points.length < 3; i -= 1) {
-			const entry = hist[i];
-			if (entry.playerIndex !== playerIndex || entry.completedVisit) {
-				continue;
-			}
-			points.unshift(entry.points);
-		}
-		return points;
-	};
+	const getRecentVisitDartPoints = (playerIndex) =>
+		getRecentVisitDartPointsFromHistory(dartHistoryRef.current, playerIndex);
 
 	const discardInProgressPerDartVisit = () => {
 		dartHistoryRef.current = dartHistoryRef.current.filter(
@@ -94,42 +138,8 @@ export function createDartHistoryTracker({
 		}
 	};
 
-	/**
-	 * Cofnięcie ostatniej lotki już zapisanej wizyty: zdejmuje ją z historii
-	 * i odznacza pozostałe lotki tej wizyty jako w toku.
-	 * @returns {{ undonePoints: number, remainingPoints: number, remainingCount: number } | null}
-	 */
-	const reopenLastCompletedVisitDart = (playerIndex) => {
-		const hist = dartHistoryRef.current;
-		let lastIdx = -1;
-		for (let i = hist.length - 1; i >= 0; i -= 1) {
-			if (hist[i].playerIndex === playerIndex && hist[i].completedVisit) {
-				lastIdx = i;
-				break;
-			}
-		}
-		if (lastIdx < 0) {
-			return null;
-		}
-		const [undone] = hist.splice(lastIdx, 1);
-		let unmarked = 0;
-		for (let i = hist.length - 1; i >= 0 && unmarked < 2; i -= 1) {
-			if (hist[i].playerIndex !== playerIndex) {
-				continue;
-			}
-			if (!hist[i].completedVisit) {
-				break;
-			}
-			hist[i].completedVisit = false;
-			unmarked += 1;
-		}
-		const remaining = getRecentVisitDartPoints(playerIndex);
-		return {
-			undonePoints: undone.points,
-			remainingPoints: remaining.reduce((sum, p) => sum + p, 0),
-			remainingCount: remaining.length,
-		};
-	};
+	const reopenLastCompletedVisitDart = (playerIndex) =>
+		reopenLastCompletedVisitDartInHistory(dartHistoryRef.current, playerIndex);
 
 	const hasActivePerDartVisit = () =>
 		isPerDartMode() &&

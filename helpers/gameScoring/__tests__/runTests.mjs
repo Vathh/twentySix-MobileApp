@@ -5,6 +5,7 @@ import { runCatch40Tests } from '../../catch40/__tests__/catch40Rules.test.js';
 import { runCricket56Tests } from '../../cricket56/__tests__/cricket56Rules.test.js';
 import { runAchievementHandlersTests } from './achievementHandlers.test.js';
 import { runDartHistoryTrackerTests } from './dartHistoryTracker.test.js';
+import { runPerDartUndoTests } from './perDartUndo.test.js';
 import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
@@ -827,6 +828,7 @@ const tests = [
 	['cricket56 rules', runCricket56Tests],
 	['achievement handlers', runAchievementHandlersTests],
 	['dart history tracker', runDartHistoryTrackerTests],
+	['per-dart undo scoring', runPerDartUndoTests],
 	['ffa scoring sync', runFfaScoringSyncTests],
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
