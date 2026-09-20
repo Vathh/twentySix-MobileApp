@@ -10,7 +10,10 @@ import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
 import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
+import { runPlayerResultReducerTests } from '../../reducers/__tests__/playerResultReducer.test.js';
+import { runUserFacingErrorTests } from '../../__tests__/userFacingError.test.js';
 import {
+	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
 	ScoringRequestError,
 	throwIfScoringResponseNotOk,
@@ -47,6 +50,7 @@ import {
 } from '../../reducers/playerResultActions.js';
 import { playerResultReducer } from '../../reducers/playerResultReducer.js';
 import { inferCurrentPlayerIndex } from '../inferCurrentPlayerIndex.js';
+import { remainingFromPlayerVisits } from '../visitUtils.js';
 import {
 	applyLegWinScores,
 	matchScoreForDisplay,
@@ -136,6 +140,33 @@ function testTournamentRevisionMonotonicOnFastVisits() {
 	assert(
 		afterLowVisit > afterHighVisit,
 		`revision must grow when second visit scores less (${afterLowVisit} vs ${afterHighVisit})`,
+	);
+}
+
+function testTournamentRevisionGrowsAfterUndo() {
+	const afterVisit = computeTournamentStateRevision({
+		...tournamentMidLeg,
+		stateVersion: 12_000,
+		visits: [
+			{
+				id: 12,
+				playerId: 1,
+				score: 60,
+				dartsInVisit: 3,
+				bust: false,
+				closedLeg: false,
+			},
+		],
+	});
+	const afterUndo = computeTournamentStateRevision({
+		...tournamentMidLeg,
+		stateVersion: 12_001,
+		visits: [],
+		players: tournamentMidLeg.players.map((p) => ({ ...p, remaining: 501 })),
+	});
+	assert(
+		afterUndo > afterVisit,
+		`revision after undo (${afterUndo}) must exceed after visit (${afterVisit})`,
 	);
 }
 
@@ -720,6 +751,40 @@ function testUserErrorMessage() {
 	assert(userErrorMessage(null, 'fallback') === 'fallback', 'null uses fallback');
 	assert(userErrorMessage({ message: '  Teraz rzuca inny gracz.  ' }) === 'Teraz rzuca inny gracz.', 'trims message');
 	assert(userErrorMessage(new Error(''), 'Nie udało się') === 'Nie udało się', 'empty message uses fallback');
+	assert(
+		userErrorMessage(new TypeError('Network request failed'), 'Nieprawidłowy kod turnieju')
+			=== 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+		'network error is not a domain fallback',
+	);
+	assert(
+		isRemainingBeforeMismatchError({ message: 'Nieprawidłowy wynik przed wizytą.' }),
+		'detects remainingBefore mismatch',
+	);
+	assert(
+		!isRemainingBeforeMismatchError({ message: 'Nieprawidłowy kod logowania' }),
+		'does not treat auth error as remaining mismatch',
+	);
+}
+
+function testRemainingFromPlayerVisitsAfterUndo() {
+	const afterVisit = [
+		{
+			playerId: 1,
+			score: 60,
+			dartsInVisit: 3,
+			bust: false,
+			closedLeg: false,
+			remainingAfter: 441,
+		},
+	];
+	assert(
+		remainingFromPlayerVisits(afterVisit, 1, 501) === 441,
+		'uses remainingAfter of last visit',
+	);
+	assert(
+		remainingFromPlayerVisits([], 1, 501) === 501,
+		'empty visits after undo start at 501',
+	);
 }
 
 function testScoringRequestErrorRetryable() {
@@ -798,6 +863,7 @@ function testTabletRefereeSessionKind() {
 const tests = [
 	['normalize tournament', testNormalizeTournament],
 	['tournament revision fast visits', testTournamentRevisionMonotonicOnFastVisits],
+	['tournament revision after undo', testTournamentRevisionGrowsAfterUndo],
 	['tournament revision after leg close', testTournamentRevisionMonotonicAfterLegClose],
 	['normalize ffa', testNormalizeFfa],
 	['auto detect format', testAutoDetect],
@@ -821,6 +887,7 @@ const tests = [
 	['session expired 401 unifies logout', testSessionExpired401UnifiesLogout],
 	['tablet vs account session kind', testTabletRefereeSessionKind],
 	['user error message', testUserErrorMessage],
+	['remaining from visits after undo', testRemainingFromPlayerVisitsAfterUndo],
 	['cricket rules', runCricketTests],
 	['bob27 rules', runBob27Tests],
 	['atc rules', runAtcTests],
@@ -833,6 +900,8 @@ const tests = [
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
 	['players board reducer', runPlayersBoardReducerTests],
+	['player result reducer', runPlayerResultReducerTests],
+	['user facing error', runUserFacingErrorTests],
 ];
 
 let passed = 0;

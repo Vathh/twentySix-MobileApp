@@ -15,6 +15,7 @@ import {
 	fetchTournamentJoinPreview,
 } from '../../helpers/tournamentJoinApi';
 import { parseTournamentJoinCode } from '../../helpers/parseTournamentJoinCode';
+import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
 
 /**
@@ -50,7 +51,10 @@ export default function JoinTournamentScreen({ route, navigation }) {
 				setPreview(data);
 			} catch (e) {
 				setPreview(null);
-				Alert.alert('Błąd', e?.message ?? 'Nie udało się pobrać turnieju');
+				Alert.alert(
+					'Błąd',
+					userFacingErrorMessage({ error: e, fallback: 'Nie udało się pobrać turnieju' }),
+				);
 			} finally {
 				setLoading(false);
 			}
@@ -126,7 +130,10 @@ export default function JoinTournamentScreen({ route, navigation }) {
 			);
 			await loadPreview(normalized);
 		} catch (e) {
-			Alert.alert('Błąd', e?.message ?? 'Nie udało się zgłosić');
+			Alert.alert(
+				'Błąd',
+				userFacingErrorMessage({ error: e, fallback: 'Nie udało się zgłosić' }),
+			);
 		} finally {
 			setSubmitting(false);
 		}

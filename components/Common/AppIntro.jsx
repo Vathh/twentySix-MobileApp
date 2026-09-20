@@ -21,6 +21,7 @@ import {
 	settledIntroLogotypXml,
 } from '../../helpers/headerLogo';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 /** Czas animacji SVG (~2.5s) + krótki zapas przed wlotem do headera. */
 const INTRO_DURATION_MS = 2900;
@@ -66,11 +67,12 @@ function buildIntroHtml(svgXml, introWidthPx) {
 
 function fallbackLogotypRect(insets) {
 	const headerContent = Platform.OS === 'ios' ? 44 : 56;
+	const logoHeight = scaleSize(HEADER_LOGO_HEIGHT);
 	return {
-		x: 16,
-		y: insets.top + Math.max(0, (headerContent - HEADER_LOGO_HEIGHT) / 2),
-		width: HEADER_LOGOTYP_WIDTH,
-		height: HEADER_LOGO_HEIGHT,
+		x: scaleSize(16),
+		y: insets.top + Math.max(0, (headerContent - logoHeight) / 2),
+		width: scaleSize(HEADER_LOGOTYP_WIDTH),
+		height: logoHeight,
 	};
 }
 
@@ -85,12 +87,12 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
 	const introBox = useMemo(() => {
-		const width = introLogotypMaxWidth(windowWidth);
+		const width = introLogotypMaxWidth(windowWidth, scaleSize(300));
 		return introLogotypSizeForWidth(width);
 	}, [windowWidth]);
 
 	const headerSlotLayout = useMemo(
-		() => introLogotypSlotLayout(windowWidth, HEADER_LOGOTYP_WIDTH, HEADER_LOGO_HEIGHT),
+		() => introLogotypSlotLayout(windowWidth, scaleSize(HEADER_LOGOTYP_WIDTH), scaleSize(HEADER_LOGO_HEIGHT)),
 		[windowWidth],
 	);
 

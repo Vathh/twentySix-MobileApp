@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 /**
  * Flashscore-lite table with horizontal scroll.
@@ -33,7 +34,7 @@ const CompetitionTable = ({
 							key={col.key}
 							style={[
 								styles.headerCell,
-								{ width: col.width ?? 72 },
+								{ width: scaleSize(col.width ?? 72) },
 								alignStyle(col.align),
 							]}
 							numberOfLines={1}
@@ -62,7 +63,7 @@ const CompetitionTable = ({
 								return (
 									<Pressable
 										key={col.key}
-										style={{ width: col.width ?? 72 }}
+										style={{ width: scaleSize(col.width ?? 72) }}
 										onPress={() => onPlayerPress(playerId, playerName)}
 									>
 										<Text
@@ -80,7 +81,7 @@ const CompetitionTable = ({
 									key={col.key}
 									style={[
 										styles.cell,
-										{ width: col.width ?? 72 },
+										{ width: scaleSize(col.width ?? 72) },
 										alignStyle(col.align),
 										isPlayer && styles.playerCellMuted,
 									]}

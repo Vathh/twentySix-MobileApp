@@ -1,5 +1,10 @@
 import { getPlayerCareerUrl, getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
 import { apiRequest } from './apiClient';
+import { CONNECTION_ERROR_MESSAGE, userFacingErrorMessage } from './userFacingError';
+
+function failMessage(status, data, fallback, error) {
+	return userFacingErrorMessage({ error, status, data, fallback });
+}
 
 /**
  * @returns {Promise<{ ok: true, data: object } | { ok: false, status: number, message: string }>}
@@ -10,17 +15,21 @@ export async function fetchPlayerProfile(playerId, accessToken) {
 	}
 
 	try {
-		const { ok, status, data } = await apiRequest(getPlayerProfileUrl(playerId), { accessToken });
+		const { ok, status, data, error } = await apiRequest(getPlayerProfileUrl(playerId), { accessToken });
 		if (!ok) {
 			return {
 				ok: false,
 				status,
-				message: data.message || 'Nie udało się wczytać profilu.',
+				message: failMessage(status, data, 'Nie udało się wczytać profilu.', error),
 			};
 		}
 		return { ok: true, data };
-	} catch {
-		return { ok: false, status: 0, message: 'Błąd połączenia.' };
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error),
+		};
 	}
 }
 
@@ -33,16 +42,16 @@ export async function fetchPlayerGames(playerId, accessToken, page = 1) {
 	}
 
 	try {
-		const { ok, data } = await apiRequest(getPlayerGamesUrl(playerId, page), { accessToken });
+		const { ok, status, data, error } = await apiRequest(getPlayerGamesUrl(playerId, page), { accessToken });
 		if (!ok) {
 			return {
 				ok: false,
-				message: data.message || 'Nie udało się wczytać historii.',
+				message: failMessage(status, data, 'Nie udało się wczytać historii.', error),
 			};
 		}
 		return { ok: true, data };
-	} catch {
-		return { ok: false, message: 'Błąd połączenia.' };
+	} catch (error) {
+		return { ok: false, message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error) };
 	}
 }
 
@@ -55,19 +64,19 @@ export async function fetchPlayerCareer(playerId, accessToken, windowKey = '90d'
 	}
 
 	try {
-		const { ok, data } = await apiRequest(
+		const { ok, status, data, error } = await apiRequest(
 			getPlayerCareerUrl(playerId, windowKey, source),
 			{ accessToken },
 		);
 		if (!ok) {
 			return {
 				ok: false,
-				message: data.message || 'Nie udało się wczytać kariery.',
+				message: failMessage(status, data, 'Nie udało się wczytać kariery.', error),
 			};
 		}
 		return { ok: true, data };
-	} catch {
-		return { ok: false, message: 'Błąd połączenia.' };
+	} catch (error) {
+		return { ok: false, message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error) };
 	}
 }
 
@@ -86,7 +95,11 @@ export async function updatePlayerProfile(playerId, accessToken, { description }
 			json: true,
 			body: { description },
 		});
-	} catch {
-		return { ok: false, status: 0, data: { message: 'Błąd połączenia.' } };
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			data: { message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error) },
+		};
 	}
 }

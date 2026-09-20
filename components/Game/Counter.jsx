@@ -185,10 +185,44 @@ const Counter = ({
     );
   };
 
+  const lastCompletedVisitScore = (playerIndex) => {
+    const scores = playerStates[playerIndex]?.currentLegScores;
+    if (!Array.isArray(scores) || scores.length === 0) {
+      return null;
+    }
+    return scores[scores.length - 1];
+  };
+
   const renderVisitDartsUnderScore = (playerIndex, { alignRight = false, overlay = false } = {}) => {
-    if (!isPerDart) return null;
-    const labels = getVisitDartLabels(playerIndex);
-    if (!labels.length) {
+    if (isPerDart) {
+      const labels = getVisitDartLabels(playerIndex);
+      if (!labels.length) {
+        return overlay ? null : <View style={styles.visitDartsUnderScoreSpacer} />;
+      }
+      return (
+        <View
+          style={[
+            overlay ? styles.visitDartsUnderScoreOverlay : styles.visitDartsUnderScore,
+            !overlay && alignRight && styles.visitDartsUnderScoreRight,
+          ]}
+        >
+          <Text
+            style={[
+              styles.visitDartsAccentText,
+              alignRight && styles.visitDartsAccentTextRight,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
+            {labels.join(' · ')}
+          </Text>
+        </View>
+      );
+    }
+
+    const lastScore = lastCompletedVisitScore(playerIndex);
+    if (lastScore == null) {
       return overlay ? null : <View style={styles.visitDartsUnderScoreSpacer} />;
     }
     return (
@@ -204,28 +238,38 @@ const Counter = ({
             alignRight && styles.visitDartsAccentTextRight,
           ]}
           numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
         >
-          {labels.join(' · ')}
+          {String(lastScore)}
         </Text>
       </View>
     );
   };
 
   const renderVisitDartsColumn = (playerIndex) => {
-    if (!isPerDart) return null;
-    const labels = getVisitDartLabels(playerIndex);
+    if (isPerDart) {
+      const labels = getVisitDartLabels(playerIndex);
+      return (
+        <View style={styles.visitDartsColumn}>
+          {labels.length === 0 ? (
+            <View style={styles.visitDartsColumnSpacer} />
+          ) : (
+            labels.map((label, idx) => (
+              <Text key={`${playerIndex}-${idx}-${label}`} style={styles.visitDartsColumnText}>
+                {label}
+              </Text>
+            ))
+          )}
+        </View>
+      );
+    }
+
+    const lastScore = lastCompletedVisitScore(playerIndex);
     return (
       <View style={styles.visitDartsColumn}>
-        {labels.length === 0 ? (
+        {lastScore == null ? (
           <View style={styles.visitDartsColumnSpacer} />
         ) : (
-          labels.map((label, idx) => (
-            <Text key={`${playerIndex}-${idx}-${label}`} style={styles.visitDartsColumnText}>
-              {label}
-            </Text>
-          ))
+          <Text style={styles.visitDartsColumnText}>{String(lastScore)}</Text>
         )}
       </View>
     );

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { initialsFromName } from '../../helpers/initialsFromName';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 const ProfileHeader = ({
 	name,
@@ -84,7 +85,7 @@ const ProfileHeader = ({
 							{game.tournamentName ? ` · ${game.tournamentName}` : ''}
 						</Text>
 					</View>
-					<Ionicons name="open-outline" size={16} color={colors.accent} />
+					<Ionicons name="open-outline" size={scaleSize(16)} color={colors.accent} />
 				</Pressable>
 			))}
 		</View>

@@ -1,4 +1,9 @@
 import { notifyIfUnauthorized, SESSION_EXPIRED_MESSAGE } from '../sessionExpired.js';
+import {
+	extractApiMessage,
+	isNetworkError,
+	userFacingErrorMessage,
+} from '../userFacingError.js';
 
 /**
  * Błąd HTTP scoringu z flagą retryable (sieć / 5xx → outbox).
@@ -22,29 +27,24 @@ export function isRetryableScoringError(error) {
 	if (error.name === 'AbortError') {
 		return true;
 	}
+	if (isNetworkError(error)) {
+		return true;
+	}
 	// Fetch network failure (RN / browsers)
 	if (error instanceof TypeError) {
 		return true;
 	}
-	const msg = String(error.message || '').toLowerCase();
-	return (
-		msg.includes('network') ||
-		msg.includes('failed to fetch') ||
-		msg.includes('network request failed') ||
-		msg.includes('timeout')
-	);
+	return false;
+}
+
+export function isRemainingBeforeMismatchError(error) {
+	const msg = String(error?.message || error || '').toLowerCase();
+	return msg.includes('nieprawidłowy wynik przed')
+		|| msg.includes('nieprawidlowy wynik przed');
 }
 
 export function userErrorMessage(error, fallback = 'Coś poszło nie tak') {
-	if (error == null) {
-		return fallback;
-	}
-	if (typeof error === 'string') {
-		const trimmed = error.trim();
-		return trimmed || fallback;
-	}
-	const msg = String(error.message || '').trim();
-	return msg || fallback;
+	return userFacingErrorMessage({ error, fallback });
 }
 
 export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
@@ -54,13 +54,21 @@ export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 	const status = res.status;
 	notifyIfUnauthorized(status);
 	const retryable = status >= 500 || status === 0 || status === 408 || status === 429;
+	const payload = data && typeof data === 'object' ? { ...data } : {};
+	if (!extractApiMessage(payload)) {
+		const fromText = jsonOrPlainMessage(data, text);
+		if (fromText) {
+			payload.message = fromText;
+		}
+	}
 	throw new ScoringRequestError(
 		status === 401
 			? SESSION_EXPIRED_MESSAGE
-			: userErrorMessage(
-				{ message: jsonOrPlainMessage(data, text) },
-				fallbackMessage,
-			),
+			: userFacingErrorMessage({
+				status,
+				data: payload,
+				fallback: fallbackMessage,
+			}),
 		{ status, retryable },
 	);
 }

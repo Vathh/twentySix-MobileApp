@@ -105,6 +105,7 @@ export function fromTournamentState(raw, uiPlayers = []) {
 
 	return {
 		format: 'h2h',
+		stateVersion: raw.stateVersion ?? 0,
 		revision: computeTournamentStateRevision(raw),
 		meta: {
 			kind: tournamentMetaKind(raw),

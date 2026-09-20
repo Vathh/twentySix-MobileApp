@@ -15,8 +15,8 @@ export const HEADER_LOGO_REST_WIDTH = HEADER_LOGO_WIDTH - HEADER_LOGOTYP_WIDTH;
 export const INTRO_LOGOTYP_SRC_WIDTH = 1267;
 export const INTRO_LOGOTYP_SRC_HEIGHT = 1253;
 
-export function introLogotypMaxWidth(windowWidth) {
-	return Math.min(windowWidth * 0.72, 300);
+export function introLogotypMaxWidth(windowWidth, maxPx = 300) {
+	return Math.min(windowWidth * 0.72, maxPx);
 }
 
 export function introLogotypSizeForWidth(width) {

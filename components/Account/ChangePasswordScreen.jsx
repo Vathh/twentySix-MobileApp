@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import useAuth from '../../hooks/useAuth';
 import { changePassword } from '../../helpers/authApi';
+import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
 
 const ChangePasswordScreen = () => {
@@ -23,19 +24,11 @@ const ChangePasswordScreen = () => {
 	const [successMsg, setSuccessMsg] = useState('');
 	const [loading, setLoading] = useState(false);
 
-	const parseErrorMessage = (data) => {
-		if (typeof data?.message === 'string' && !data?.errors) {
-			return data.message;
-		}
-		const firstField = data?.errors ? Object.values(data.errors)?.[0] : null;
-		if (Array.isArray(firstField) && firstField[0]) {
-			return firstField[0];
-		}
-		if (typeof data?.message === 'string') {
-			return data.message;
-		}
-		return 'Nie udało się zmienić hasła';
-	};
+	const parseErrorMessage = (data, extras = {}) => userFacingErrorMessage({
+		data,
+		...extras,
+		fallback: extras.fallback || 'Nie udało się zmienić hasła',
+	});
 
 	const handleSubmit = async () => {
 		if (loading) return;
@@ -65,14 +58,14 @@ const ChangePasswordScreen = () => {
 		setLoading(true);
 
 		try {
-			const { ok, data } = await changePassword(auth.accessToken, {
+			const { ok, data, status, error } = await changePassword(auth.accessToken, {
 				currentPassword,
 				password,
 				passwordConfirmation,
 			});
 
 			if (!ok) {
-				setErrorMsg(parseErrorMessage(data));
+				setErrorMsg(parseErrorMessage(data, { error, status }));
 				return;
 			}
 
@@ -80,8 +73,11 @@ const ChangePasswordScreen = () => {
 			setPassword('');
 			setPasswordConfirmation('');
 			setSuccessMsg(data?.message || 'Hasło zostało zmienione.');
-		} catch {
-			setErrorMsg('Nie udało się połączyć z serwerem');
+		} catch (error) {
+			setErrorMsg(userFacingErrorMessage({
+				error,
+				fallback: 'Nie udało się zmienić hasła',
+			}));
 		} finally {
 			setLoading(false);
 		}

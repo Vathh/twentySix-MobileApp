@@ -40,4 +40,4 @@ export {
 	createFfaTransport,
 	createTournamentTransport,
 } from './transports/index.js';
-export { isVisitComplete } from './visitUtils.js';
+export { isVisitComplete, remainingFromPlayerVisits } from './visitUtils.js';

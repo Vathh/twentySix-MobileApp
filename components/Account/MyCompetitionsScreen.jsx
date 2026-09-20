@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { fetchMyCompetitions } from '../../helpers/myCompetitionsApi';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 import ScreenLoading from '../Common/ScreenLoading';
 
 function formatSeasonMeta(item) {
@@ -53,7 +54,7 @@ const Section = ({ title, emptyText, items, onPress, subtitle, icon }) => (
 							style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
 						>
 							<View style={styles.rowIcon}>
-								<Ionicons name={icon} size={18} color={colors.accent} />
+								<Ionicons name={icon} size={scaleSize(18)} color={colors.accent} />
 							</View>
 							<View style={[styles.rowBody, !last && styles.rowBodyDivider]}>
 								<View style={styles.cardHeader}>
@@ -75,7 +76,7 @@ const Section = ({ title, emptyText, items, onPress, subtitle, icon }) => (
 									</Text>
 								) : null}
 							</View>
-							<Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+							<Ionicons name="chevron-forward" size={scaleSize(16)} color={colors.textDim} />
 						</Pressable>
 					);
 				})}

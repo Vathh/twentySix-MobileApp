@@ -11,6 +11,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { loginWithTournamentCode } from '../../helpers/authApi'
 import { parseTabletLoginCode } from '../../helpers/parseTabletLoginCode'
+import { userFacingErrorMessage } from '../../helpers/userFacingError'
 import useAuth from '../../hooks/useAuth'
 import { colors } from '../../theme/colors'
 
@@ -41,10 +42,15 @@ const TournamentCode = ({ route, navigation }) => {
       setErrorMsg('')
 
       try {
-        const { ok, data } = await loginWithTournamentCode(normalized)
+        const { ok, data, status, error } = await loginWithTournamentCode(normalized)
 
         if (!ok) {
-          setErrorMsg(data?.message || 'Nieprawidłowy kod turnieju')
+          setErrorMsg(userFacingErrorMessage({
+            error,
+            status,
+            data,
+            fallback: 'Nieprawidłowy kod turnieju',
+          }))
           return
         }
 
@@ -52,8 +58,11 @@ const TournamentCode = ({ route, navigation }) => {
           accessToken: data?.token,
           tournamentId: data?.tournamentId,
         })
-      } catch {
-        setErrorMsg('Nieprawidłowy kod turnieju')
+      } catch (error) {
+        setErrorMsg(userFacingErrorMessage({
+          error,
+          fallback: 'Nie udało się zalogować do sędziowania',
+        }))
       } finally {
         submittingRef.current = false
         setSubmitting(false)

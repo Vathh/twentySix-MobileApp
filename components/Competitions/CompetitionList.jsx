@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { fetchCompetitionPage } from '../../helpers/competitionsApi';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 import ScreenLoading from '../Common/ScreenLoading';
 import { STATUS_STYLES } from './DetailHeader';
 
@@ -122,7 +123,7 @@ const CompetitionList = ({
 					<View style={styles.empty}>
 						{icon ? (
 							<View style={styles.emptyIcon}>
-								<Ionicons name={icon} size={26} color={colors.accent} />
+								<Ionicons name={icon} size={scaleSize(26)} color={colors.accent} />
 							</View>
 						) : null}
 						<Text style={styles.emptyTitle}>{emptyTitle}</Text>
@@ -152,7 +153,7 @@ const CompetitionList = ({
 						>
 							{icon ? (
 								<View style={styles.cardIcon}>
-									<Ionicons name={icon} size={20} color={colors.accent} />
+									<Ionicons name={icon} size={scaleSize(20)} color={colors.accent} />
 								</View>
 							) : null}
 							<View style={styles.cardBody}>
@@ -168,7 +169,7 @@ const CompetitionList = ({
 								</View>
 								{subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
 							</View>
-							<Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+							<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.textDim} />
 						</Pressable>
 					);
 				})}

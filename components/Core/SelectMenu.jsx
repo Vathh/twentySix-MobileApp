@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 /**
  * Customowy select (nie systemowy Picker) — trigger + modal z listą.
@@ -39,7 +40,7 @@ export default function SelectMenu({
 				</Text>
 				<Ionicons
 					name={open ? 'chevron-up' : 'chevron-down'}
-					size={20}
+					size={scaleSize(20)}
 					color={disabled ? colors.textDisabled : colors.accent}
 				/>
 			</Pressable>
@@ -79,7 +80,7 @@ export default function SelectMenu({
 										) : null}
 									</View>
 									{active ? (
-										<Ionicons name="checkmark" size={22} color={colors.accent} />
+										<Ionicons name="checkmark" size={scaleSize(22)} color={colors.accent} />
 									) : null}
 								</Pressable>
 							);

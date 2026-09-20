@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 /**
  * Kafelek hubu (Graj / Rozgrywki): ikona + tytuł + hint.
@@ -39,7 +40,7 @@ export default function ModeTile({
 			<View style={[styles.tileIcon, isPrimary && styles.tileIconPrimary]}>
 				<Ionicons
 					name={icon}
-					size={22}
+					size={scaleSize(22)}
 					color={isPrimary ? colors.onAccent : colors.accent}
 				/>
 			</View>

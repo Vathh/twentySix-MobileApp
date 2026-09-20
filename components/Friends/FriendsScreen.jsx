@@ -22,6 +22,7 @@ import {
 	sendFriendInvite,
 } from '../../helpers/friendsApi';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 const TAB_LIST = 'list';
 const TAB_ADD = 'add';
@@ -279,7 +280,7 @@ const FriendsScreen = ({ navigation }) => {
 						{friends.length === 0 ? (
 							<View style={styles.empty}>
 								<View style={styles.emptyIcon}>
-									<Ionicons name="people-outline" size={26} color={colors.accent} />
+									<Ionicons name="people-outline" size={scaleSize(26)} color={colors.accent} />
 								</View>
 								<Text style={styles.emptyTitle}>Brak znajomych</Text>
 								<Text style={styles.emptyDescription}>
@@ -316,7 +317,7 @@ const FriendsScreen = ({ navigation }) => {
 													) : (
 														<Ionicons
 															name="trash-outline"
-															size={18}
+															size={scaleSize(18)}
 															color={colors.textDim}
 														/>
 													)}
@@ -364,16 +365,16 @@ const FriendsScreen = ({ navigation }) => {
 							onPress={() => navigation.navigate('Zaproszenia')}
 						>
 							<View style={styles.navIcon}>
-								<Ionicons name="mail-outline" size={18} color={colors.accent} />
+								<Ionicons name="mail-outline" size={scaleSize(18)} color={colors.accent} />
 							</View>
 							<Text style={styles.navRowText}>Przychodzące zaproszenia</Text>
-							<Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+							<Ionicons name="chevron-forward" size={scaleSize(16)} color={colors.textDim} />
 						</Pressable>
 					</>
 				) : (
 					<>
 						<View style={styles.searchWrap}>
-							<Ionicons name="search-outline" size={18} color={colors.textDim} />
+							<Ionicons name="search-outline" size={scaleSize(18)} color={colors.textDim} />
 							<TextInput
 								style={styles.searchInput}
 								placeholder="Szukaj gracza…"
@@ -390,7 +391,7 @@ const FriendsScreen = ({ navigation }) => {
 									hitSlop={8}
 									onPress={() => setSearchQuery('')}
 								>
-									<Ionicons name="close-circle" size={18} color={colors.textDim} />
+									<Ionicons name="close-circle" size={scaleSize(18)} color={colors.textDim} />
 								</Pressable>
 							) : null}
 						</View>
@@ -406,7 +407,7 @@ const FriendsScreen = ({ navigation }) => {
 						{!searchLoading && queryReady && searchResults.length === 0 ? (
 							<View style={styles.empty}>
 								<View style={styles.emptyIcon}>
-									<Ionicons name="search-outline" size={26} color={colors.accent} />
+									<Ionicons name="search-outline" size={scaleSize(26)} color={colors.accent} />
 								</View>
 								<Text style={styles.emptyTitle}>Brak wyników</Text>
 								<Text style={styles.emptyDescription}>

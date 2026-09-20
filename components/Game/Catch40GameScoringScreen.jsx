@@ -28,6 +28,7 @@ import GameFinishedModal from './GameFinishedModal';
 import GameScoringModals from './GameScoringModals';
 import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 export default function Catch40GameScoringScreen({ route, navigation }) {
 	const session = useFfaScoringScreenSession({
@@ -424,8 +425,8 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 					legsToWin={legsToWin}
 				/>
 				{isSpectator && (
-					<View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-						<Text style={{ color: colors.textMuted, textAlign: 'center' }}>
+					<View style={{ paddingHorizontal: scaleSize(16), paddingBottom: scaleSize(8) }}>
+						<Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: scaleSize(15) }}>
 							Tryb jednego urządzenia — wynik wpisuje host. Widzisz stan na żywo.
 						</Text>
 					</View>
@@ -456,7 +457,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 	};
 
 	return (
-		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, scaleSize(8)) }]}>
 			<GameScoringModals
 				isOpenerModalVisible={isModalVisible}
 				players={players}
@@ -501,7 +502,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 			</View>
 
 			{syncEnabled ? (
-				<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: 12, paddingBottom: 4 }}>
+				<Text style={{ color: colors.textDim, textAlign: 'center', fontSize: scaleSize(12), paddingBottom: scaleSize(4) }}>
 					{lobbyScoringMode === 'each_own' ? 'online' : '1 urządzenie'}
 					{gameClosed ? ' · koniec' : ''}
 				</Text>

@@ -8,6 +8,7 @@ import {
 } from '../../helpers/profileMetrics';
 import { GAME_TONES, cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 function Scope({ label }) {
 	return (
@@ -36,7 +37,7 @@ function SourceCard({ icon, title, played, wins, extra, toneKey }) {
 		<View style={[styles.sourceCard, cardToneStyle(tone.color)]}>
 			<View style={styles.sourceHead}>
 				<View style={[styles.sourceIcon, { backgroundColor: tone.muted }]}>
-					<Ionicons name={icon} size={16} color={tone.color} />
+					<Ionicons name={icon} size={scaleSize(16)} color={tone.color} />
 				</View>
 				<Text style={styles.sourceTitle}>{title}</Text>
 			</View>
@@ -59,7 +60,7 @@ function FormCard({ title, icon, stats, toneKey }) {
 		<View style={[styles.formCard, cardToneStyle(tone.color)]}>
 			<View style={styles.formHead}>
 				<View style={[styles.sourceIcon, { backgroundColor: tone.muted }]}>
-					<Ionicons name={icon} size={16} color={tone.color} />
+					<Ionicons name={icon} size={scaleSize(16)} color={tone.color} />
 				</View>
 				<Text style={styles.sourceTitle}>{title}</Text>
 				<Scope label="3 mies." />

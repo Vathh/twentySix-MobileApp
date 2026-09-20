@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { loginWithPassword } from '../../helpers/authApi';
+import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
 
 const TournamentLogin = () => {
@@ -32,17 +33,25 @@ const TournamentLogin = () => {
 		setLoading(true);
 
 		try {
-			const { ok, data } = await loginWithPassword(email, password);
+			const { ok, data, status, error } = await loginWithPassword(email, password);
 
 			if (!ok) {
-				setErrorMsg(data?.message || 'Nieprawidłowy email lub hasło');
+				setErrorMsg(userFacingErrorMessage({
+					error,
+					status,
+					data,
+					fallback: 'Nieprawidłowy email lub hasło',
+				}));
 				return;
 			}
 
 			const nextAuth = applyAuthFromApi(data);
 			await persistSession(nextAuth, rememberMePreferred);
-		} catch {
-			setErrorMsg('Nie udało się połączyć z serwerem');
+		} catch (error) {
+			setErrorMsg(userFacingErrorMessage({
+				error,
+				fallback: 'Nie udało się zalogować',
+			}));
 		} finally {
 			setLoading(false);
 		}

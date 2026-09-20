@@ -16,6 +16,7 @@ import {
 	rejectLeagueGameLobby,
 	startLeagueGameScoring,
 } from '../../helpers/leagueGamesApi';
+import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
 
 function navigateToLeagueScoring(navigation, data, { askOpener = false } = {}) {
@@ -76,7 +77,7 @@ export default function LeagueGameLobby({ navigation, route }) {
 		}
 		setBusy(true);
 		try {
-			const { ok, data } = await action(gameId, auth.accessToken);
+			const { ok, data, status, error } = await action(gameId, auth.accessToken);
 			if (ok) {
 				setGame(data);
 				if (data.status === 'in_progress' && data.canResumeScoring) {
@@ -88,10 +89,18 @@ export default function LeagueGameLobby({ navigation, route }) {
 					navigation.goBack();
 				}
 			} else {
-				Alert.alert(failTitle, data?.message || 'Operacja nie powiodła się.');
+				Alert.alert(failTitle, userFacingErrorMessage({
+					error,
+					status,
+					data,
+					fallback: 'Operacja nie powiodła się.',
+				}));
 			}
-		} catch {
-			Alert.alert('Błąd', 'Błąd połączenia.');
+		} catch (error) {
+			Alert.alert('Błąd', userFacingErrorMessage({
+				error,
+				fallback: 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+			}));
 		} finally {
 			setBusy(false);
 		}

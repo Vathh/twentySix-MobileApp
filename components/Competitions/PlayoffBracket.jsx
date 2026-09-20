@@ -16,6 +16,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import CompetitionTabs from './CompetitionTabs';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 const SNAP_MS = 220;
 const RUBBER = 0.28;
@@ -508,7 +509,7 @@ function PairConnector({ onPress }) {
 		<Pressable style={styles.connector} onPress={onPress} hitSlop={8}>
 			<View style={styles.brace} pointerEvents="none" />
 			<View style={styles.arrowHit}>
-				<Ionicons name="chevron-forward" size={18} color={colors.accent} />
+				<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.accent} />
 			</View>
 		</Pressable>
 	);

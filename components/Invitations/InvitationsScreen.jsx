@@ -34,6 +34,7 @@ import {
 	rejectLeagueGameLobby,
 } from '../../helpers/leagueGamesApi';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 const TAB_GRA = 'gra';
 const TAB_FRIENDS = 'friends';
@@ -117,7 +118,7 @@ function InviteRow({
 		</View>
 	) : (
 		<View style={styles.typeIcon}>
-			<Ionicons name={icon} size={18} color={colors.accent} />
+			<Ionicons name={icon} size={scaleSize(18)} color={colors.accent} />
 		</View>
 	);
 
@@ -171,7 +172,7 @@ function EmptyState({ icon, title, description }) {
 	return (
 		<View style={styles.empty}>
 			<View style={styles.emptyIcon}>
-				<Ionicons name={icon} size={26} color={colors.accent} />
+				<Ionicons name={icon} size={scaleSize(26)} color={colors.accent} />
 			</View>
 			<Text style={styles.emptyTitle}>{title}</Text>
 			<Text style={styles.emptyDescription}>{description}</Text>

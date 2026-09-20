@@ -18,6 +18,7 @@ import {
   useTournamentFinishedRealtime,
 } from '../../hooks/useTournamentFinishedRealtime';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
 import { fetchActiveGames } from '../../helpers/gameListApi';
 
@@ -319,7 +320,7 @@ const GameList = ({ navigation }) => {
           disabled={loading}
           accessibilityLabel="Odśwież listę meczów"
         >
-          <FontAwesome5 name="sync" size={22} color={colors.accent} />
+          <FontAwesome5 name="sync" size={scaleSize(22)} color={colors.accent} />
         </Pressable>
       </View>
 

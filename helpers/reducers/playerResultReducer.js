@@ -64,6 +64,7 @@ export const playerResultReducer = (state, action) => {
         legsAverages,
         dartsPerLeg,
         currentVisitDartLabels: legClosed ? [] : (state.currentVisitDartLabels ?? []),
+        lastVisitDartLabels: legClosed ? [] : (state.lastVisitDartLabels ?? []),
       };
     }
     case RESET_VISIT_DART_LABELS: {
@@ -192,9 +193,7 @@ export const playerResultReducer = (state, action) => {
         legsAverages: [...state.legsAverages, currentLegAverage],
         legByLegScores: [...state.legByLegScores,currentLegScores],
         currentVisitDartLabels: [],
-        lastVisitDartLabels: state.currentVisitDartLabels?.length
-          ? [...state.currentVisitDartLabels]
-          : state.lastVisitDartLabels,
+        lastVisitDartLabels: [],
       };
     };
     case RESET_LEGS_IN_SET: {
@@ -217,6 +216,7 @@ export const playerResultReducer = (state, action) => {
         legsAverages: [...state.legsAverages, currentLegAverage],
         legByLegScores: [...state.legByLegScores, currentLegScores],
         currentVisitDartLabels: [],
+        lastVisitDartLabels: [],
       };
     };
     case UNDO_COMMITTED_VISIT_DART: {

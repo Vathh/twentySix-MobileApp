@@ -29,6 +29,11 @@ export function computeTournamentStateRevision(state) {
 			Math.min(v.score ?? 0, 180);
 	}
 
+	const stateVersion = Number(state.stateVersion ?? 0);
+	if (stateVersion > 0) {
+		rev += stateVersion * 1_000_000_000;
+	}
+
 	if (state.game?.status === 'finished') {
 		rev += 999_999_999;
 	}
@@ -101,6 +106,7 @@ export function computeStateRevision(state) {
 	}
 
 	let rev = (state.currentLeg?.id ?? 0) * 1_000_000;
+	rev += Number(state.stateVersion ?? 0) * 1_000_000_000;
 	rev += (state.meta?.matchFormat?.legsToWinSet ?? 0) * 100;
 	rev += (state.meta?.matchFormat?.setsToWinMatch ?? 0) * 50;
 	rev += (state.turn?.legNumber ?? 0) * 10;

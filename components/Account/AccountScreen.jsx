@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 function initialsFromName(name) {
 	const trimmed = String(name || '').trim();
@@ -26,7 +27,7 @@ function MenuRow({ icon, title, hint, onPress, last = false, danger = false }) {
 			<View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
 				<Ionicons
 					name={icon}
-					size={18}
+					size={scaleSize(18)}
 					color={danger ? colors.danger : colors.accent}
 				/>
 			</View>
@@ -35,7 +36,7 @@ function MenuRow({ icon, title, hint, onPress, last = false, danger = false }) {
 				{hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
 			</View>
 			{danger ? null : (
-				<Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+				<Ionicons name="chevron-forward" size={scaleSize(16)} color={colors.textDim} />
 			)}
 		</Pressable>
 	);
@@ -99,7 +100,7 @@ const AccountScreen = ({ navigation }) => {
 							<Text style={styles.identityEmail}>Twój profil</Text>
 						)}
 					</View>
-					<Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+					<Ionicons name="chevron-forward" size={scaleSize(16)} color={colors.textDim} />
 				</Pressable>
 
 				<Text style={styles.sectionLabel}>Konto</Text>

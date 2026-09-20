@@ -26,6 +26,7 @@ import Settings from '../Core/Settings';
 import GameScoringModals from './GameScoringModals';
 import GameFinishedModal from './GameFinishedModal';
 import { gameScoringScreenStyles as styles } from './GameScoringScreen.styles';
+import { scaleSize } from '../../theme/uiScale';
 import { useGameSettings } from '../../hooks/useGameSettings';
 import useAuth from '../../hooks/useAuth';
 import { useGameScoring } from '../../hooks/useGameScoring';
@@ -822,8 +823,23 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		return 'ended';
 	};
 
+	const applyPerDartUndoResult = (result) => {
+		dartHistoryRef.current = result.dartHistory;
+		visitLogRef.current = result.visitLog;
+		visitPointsTotalRef.current = result.visitPointsTotal;
+		visitStartScoreRef.current = result.visitStartScore;
+		setLocalRemaining(result.localRemaining);
+		for (const { playerIndex, action } of result.dispatches) {
+			playerDispatches[playerIndex](action);
+		}
+		if (result.currentPlayerIndex !== currentPlayerIndexRef.current) {
+			currentPlayerIndexRef.current = result.currentPlayerIndex;
+			setCurrentPlayerIndex(result.currentPlayerIndex);
+		}
+	};
+
 	const handleUndoSingleDart = () => {
-		if (gameClosed) return;
+		if (gameClosed || scoringBusy) return;
 
 		if (isPerDartMode) {
 			const result = applyOfflinePerDartUndo(
@@ -841,25 +857,25 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			);
 
 			if (result.kind !== 'noop') {
-				dartHistoryRef.current = result.dartHistory;
-				visitLogRef.current = result.visitLog;
-				visitPointsTotalRef.current = result.visitPointsTotal;
-				visitStartScoreRef.current = result.visitStartScore;
-				setLocalRemaining(result.localRemaining);
-				for (const { playerIndex, action } of result.dispatches) {
-					playerDispatches[playerIndex](action);
+				if (syncEnabled && result.needsServerUndo) {
+					visitClientIdRef.current = newClientVisitId();
+					beginScoringBusy('Cofanie…');
+					void (async () => {
+						try {
+							const state = await gameScoring.undoVisit();
+							if (!state) {
+								return;
+							}
+							applyPerDartUndoResult(result);
+						} finally {
+							endScoringBusy();
+						}
+					})();
+					return;
 				}
-				if (result.currentPlayerIndex !== currentPlayerIndexRef.current) {
-					currentPlayerIndexRef.current = result.currentPlayerIndex;
-					setCurrentPlayerIndex(result.currentPlayerIndex);
-				}
-				if (syncEnabled) {
-					if (result.needsServerUndo) {
-						visitClientIdRef.current = newClientVisitId();
-						void gameScoring.undoVisit();
-					} else if (result.visitStartScore == null) {
-						visitClientIdRef.current = null;
-					}
+				applyPerDartUndoResult(result);
+				if (syncEnabled && result.visitStartScore == null) {
+					visitClientIdRef.current = null;
 				}
 				return;
 			}
@@ -867,7 +883,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			if (syncEnabled) {
 				visitClientIdRef.current = null;
 				setLocalRemaining(null);
-				void gameScoring.undoVisit();
+				beginScoringBusy('Cofanie…');
+				void gameScoring.undoVisit().finally(endScoringBusy);
 			}
 			return;
 		}
@@ -875,7 +892,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		if (syncEnabled) {
 			visitClientIdRef.current = null;
 			setLocalRemaining(null);
-			void gameScoring.undoVisit();
+			beginScoringBusy('Cofanie…');
+			void gameScoring.undoVisit().finally(endScoringBusy);
 			return;
 		}
 
@@ -995,9 +1013,10 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	};
 
 	const handleUndoBtn = () => {
-		if (gameClosed) return;
+		if (gameClosed || scoringBusy) return;
 		if (syncEnabled) {
-			void gameScoring.undoVisit();
+			beginScoringBusy('Cofanie…');
+			void gameScoring.undoVisit().finally(endScoringBusy);
 			return;
 		}
 
@@ -1098,7 +1117,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	}
 
 	return (
-		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+		<View style={[styles.container, { paddingBottom: Math.max(insets.bottom, scaleSize(8)) }]}>
 			<GameScoringModals
 				isOpenerModalVisible={isModalVisible}
 				players={players}

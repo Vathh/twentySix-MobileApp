@@ -50,6 +50,7 @@ import TournamentScoringLeaveButton, {
 	TournamentRefereeExitButton,
 } from '../components/Game/TournamentScoringLeaveButton';
 import { colors } from '../theme/colors';
+import { scaleSize } from '../theme/uiScale';
 
 const RootStack = createNativeStackNavigator();
 const Stack = createNativeStackNavigator();
@@ -203,12 +204,13 @@ function UserMainTabsNavigator() {
 					backgroundColor: colors.bg,
 					borderTopColor: colors.border,
 					borderTopWidth: 1,
+					paddingTop: scaleSize(4),
 				},
-				tabBarSafeAreaInsets: { bottom: insets.bottom + 6 },
+				tabBarSafeAreaInsets: { bottom: insets.bottom + scaleSize(6) },
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
 				tabBarLabelStyle: {
-					fontSize: 12,
+					fontSize: scaleSize(12),
 					fontWeight: '600',
 				},
 			}}
@@ -271,7 +273,7 @@ function UserMainTabsNavigator() {
 const Screens = () => {
 	const { auth, authLoading } = useAuth();
 	const insets = useSafeAreaInsets();
-	const bottomPad = Math.max(insets.bottom, 10);
+	const bottomPad = Math.max(insets.bottom, scaleSize(10));
 	const paddedContent = { backgroundColor: colors.bg, paddingBottom: bottomPad };
 
 	if (authLoading) {

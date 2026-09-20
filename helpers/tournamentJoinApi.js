@@ -3,34 +3,54 @@ import {
 	getTournamentJoinPreviewUrl,
 } from './apiConfig';
 import { notifyIfUnauthorized } from './sessionExpired';
+import { userFacingErrorMessage } from './userFacingError';
 
-export async function fetchTournamentJoinPreview(code, accessToken) {
-	const res = await fetch(getTournamentJoinPreviewUrl(code), {
-		headers: {
-			Accept: 'application/json',
-			Authorization: `Bearer ${accessToken}`,
-		},
-	});
-	const data = await res.json();
+async function readJson(res) {
+	try {
+		return await res.json();
+	} catch {
+		return {};
+	}
+}
+
+async function tournamentJoinRequest(url, { method, accessToken, fallback }) {
+	let res;
+	try {
+		res = await fetch(url, {
+			method,
+			headers: {
+				Accept: 'application/json',
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+	} catch (error) {
+		throw new Error(userFacingErrorMessage({ error, fallback }));
+	}
+
+	const data = await readJson(res);
 	notifyIfUnauthorized(res.status);
 	if (!res.ok) {
-		throw new Error(data?.message || 'Nie znaleziono turnieju');
+		throw new Error(userFacingErrorMessage({
+			status: res.status,
+			data,
+			fallback,
+		}));
 	}
 	return data;
 }
 
-export async function applyTournamentJoin(code, accessToken) {
-	const res = await fetch(getTournamentJoinApplyUrl(code), {
-		method: 'POST',
-		headers: {
-			Accept: 'application/json',
-			Authorization: `Bearer ${accessToken}`,
-		},
+export async function fetchTournamentJoinPreview(code, accessToken) {
+	return tournamentJoinRequest(getTournamentJoinPreviewUrl(code), {
+		method: 'GET',
+		accessToken,
+		fallback: 'Nie znaleziono turnieju',
 	});
-	const data = await res.json();
-	notifyIfUnauthorized(res.status);
-	if (!res.ok) {
-		throw new Error(data?.message || 'Nie udało się wysłać zgłoszenia');
-	}
-	return data;
+}
+
+export async function applyTournamentJoin(code, accessToken) {
+	return tournamentJoinRequest(getTournamentJoinApplyUrl(code), {
+		method: 'POST',
+		accessToken,
+		fallback: 'Nie udało się wysłać zgłoszenia',
+	});
 }

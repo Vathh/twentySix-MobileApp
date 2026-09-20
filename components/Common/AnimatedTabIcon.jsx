@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { scaleSize } from '../../theme/uiScale';
 import Animated, {
 	Easing,
 	useAnimatedStyle,
@@ -31,7 +32,7 @@ const AnimatedTabIcon = ({ name, color, size, focused }) => {
 
 	return (
 		<Animated.View style={style}>
-			<Ionicons name={name} size={size} color={color} />
+			<Ionicons name={name} size={scaleSize(size)} color={color} />
 		</Animated.View>
 	);
 };

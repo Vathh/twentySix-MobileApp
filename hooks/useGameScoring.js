@@ -7,6 +7,7 @@ import {
 	computeStateRevision,
 	isNormalizedScoringState,
 	normalizeScoringState,
+	remainingFromPlayerVisits,
 } from '../helpers/gameScoring/index.js';
 import { consumeFfaAbortPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
 import { announceRemoteVisit } from '../helpers/gameScoring/announceRemoteVisit.js';
@@ -16,7 +17,10 @@ import {
 	enqueueOutbox,
 	loadOutbox,
 } from '../helpers/gameScoring/scoringOutbox.js';
-import { isRetryableScoringError } from '../helpers/gameScoring/scoringRequestError.js';
+import {
+	isRemainingBeforeMismatchError,
+	isRetryableScoringError,
+} from '../helpers/gameScoring/scoringRequestError.js';
 import {
 	CLOSED_LEG_UNDO_MESSAGE,
 	CLOSED_LEG_UNDO_TITLE,
@@ -221,6 +225,22 @@ export function useGameScoring({
 	const applyStateSafeRef = useRef(applyStateSafe);
 	applyStateSafeRef.current = applyStateSafe;
 
+	const resyncFromServer = useCallback(async () => {
+		const syncTransport = scoringSyncRef.current.transport;
+		if (!syncTransport?.fetchState) {
+			return null;
+		}
+		try {
+			const snapshot = await syncTransport.fetchState();
+			if (snapshot) {
+				applyStateSafeRef.current(snapshot, 'submit');
+			}
+			return snapshot;
+		} catch {
+			return null;
+		}
+	}, []);
+
 	const onStateLoadedRef = useRef(onStateLoaded);
 	onStateLoadedRef.current = onStateLoaded;
 	const onAbortedRef = useRef(onAborted);
@@ -327,6 +347,19 @@ export function useGameScoring({
 		} catch (e) {
 			if (isRetryableScoringError(e)) {
 				setSyncPending(true);
+				return null;
+			}
+			if (e?.status === 422) {
+				await dequeueOutbox(key);
+				try {
+					const snapshot = await syncTransport.fetchState?.();
+					if (snapshot) {
+						applyStateSafeRef.current(snapshot, 'submit');
+					}
+				} catch {
+					// ignore — stan i tak dojedzie z WS / poll
+				}
+				await refreshSyncPending();
 				return null;
 			}
 			console.warn('flushOutbox', e);
@@ -539,6 +572,16 @@ export function useGameScoring({
 		[transport],
 	);
 
+	const remainingBeforeForPlayer = useCallback((playerIndex, playerId, override) => {
+		const liveStates = scoringSyncRef.current.playerStates;
+		const startingScore = liveStates[playerIndex]?.startingScore ?? 501;
+		const visits = lastSyncStateRef.current?.visits;
+		if (Array.isArray(visits)) {
+			return remainingFromPlayerVisits(visits, playerId, startingScore);
+		}
+		return override ?? liveStates[playerIndex]?.score ?? startingScore;
+	}, []);
+
 	const submitVisit = useCallback(
 		(params) =>
 			runSerialized(async () => {
@@ -570,11 +613,11 @@ export function useGameScoring({
 				let legId = null;
 				let payload = null;
 				try {
-					const liveStates = scoringSyncRef.current.playerStates;
-					const remainingBefore =
-						remainingBeforeOverride ??
-						liveStates[playerIndex]?.score ??
-						501;
+					const remainingBefore = remainingBeforeForPlayer(
+						playerIndex,
+						player.playerId,
+						remainingBeforeOverride,
+					);
 					const remainingAfter = bust
 						? remainingBefore
 						: Math.max(0, remainingBefore - visitScore);
@@ -600,13 +643,38 @@ export function useGameScoring({
 						}
 					}
 
-					const state = await transport.recordVisit(legId, payload);
+					const record = async (visitPayload) => {
+						const state = await transport.recordVisit(legId, visitPayload);
+						applyStateSafe(state, 'submit');
+						if (isMatchFinishedState(state)) {
+							markMatchFinishedFromState(state);
+						}
+						return state;
+					};
 
-					applyStateSafe(state, 'submit');
-					if (isMatchFinishedState(state)) {
-						markMatchFinishedFromState(state);
+					try {
+						return await record(payload);
+					} catch (firstError) {
+						if (!isRemainingBeforeMismatchError(firstError)) {
+							throw firstError;
+						}
+						await resyncFromServer();
+						const retryBefore = remainingBeforeForPlayer(
+							playerIndex,
+							player.playerId,
+							remainingBeforeOverride,
+						);
+						payload = {
+							...payload,
+							remainingBefore: retryBefore,
+							remainingAfter: bust
+								? retryBefore
+								: closedLeg
+									? 0
+									: Math.max(0, retryBefore - visitScore),
+						};
+						return await record(payload);
 					}
-					return state;
 				} catch (e) {
 					if (isRetryableScoringError(e) && payload) {
 						await enqueueRetryable(
@@ -635,6 +703,8 @@ export function useGameScoring({
 			applyStateSafe,
 			enqueueRetryable,
 			markMatchFinishedFromState,
+			remainingBeforeForPlayer,
+			resyncFromServer,
 		],
 	);
 
@@ -733,6 +803,58 @@ export function useGameScoring({
 						}
 						return state;
 					} catch (e) {
+						if (transport.fetchState) {
+							try {
+								const snapshot = await transport.fetchState();
+								applyStateSafe(snapshot, 'submit');
+								if (isMatchFinishedState(snapshot)) {
+									markMatchFinishedFromState(snapshot);
+									return snapshot;
+								}
+								const recoveredLegClosed =
+									snapshot?.currentLeg == null ||
+									snapshot?.currentLeg?.open === false;
+								if (recoveredLegClosed) {
+									currentLegIdRef.current = null;
+									return snapshot;
+								}
+								const alreadyCheckout = (
+									snapshot?.visits ?? []
+								).some(
+									(v) =>
+										v?.closedLeg &&
+										!v?.bust &&
+										Number(v?.remainingAfter) === 0,
+								);
+								if (
+									isRetryableScoringError(e) &&
+									closePayload &&
+									alreadyCheckout
+								) {
+									const key = transport.getOutboxKey?.() ?? null;
+									if (key) {
+										await enqueueOutbox(key, {
+											op: 'closeLeg',
+											legId,
+											payload: closePayload,
+										});
+										setSyncPending(true);
+										Alert.alert(
+											'Brak połączenia',
+											'Zapiszę na serwerze, gdy wróci internet.',
+										);
+									} else {
+										Alert.alert(
+											'Błąd',
+											e.message || 'Nie udało się zamknąć lega',
+										);
+									}
+									return snapshot;
+								}
+							} catch {
+								// stan z API niedostępny — idź w standardowy retry
+							}
+						}
 						if (isRetryableScoringError(e) && visitPayload && closePayload) {
 							const key = transport.getOutboxKey?.() ?? null;
 							if (key) {
@@ -821,13 +943,19 @@ export function useGameScoring({
 					}
 
 					pendingWritesRef.current += 1;
+					const visitsBefore = lastSyncStateRef.current?.visits?.length ?? 0;
 					try {
 						const state = await transport.undoVisit(legId);
 						applyStateSafe(state, 'submit');
 						return state;
 					} catch (e) {
+						const recovered = await resyncFromServer();
+						const visitsAfter = lastSyncStateRef.current?.visits?.length ?? 0;
+						if (recovered && visitsAfter < visitsBefore) {
+							return recovered;
+						}
 						Alert.alert('Błąd', e.message || 'Nie udało się cofnąć wizyty');
-						return null;
+						return recovered;
 					} finally {
 						pendingWritesRef.current -= 1;
 					}
@@ -847,7 +975,7 @@ export function useGameScoring({
 				}
 				return performUndo();
 			}),
-		[runSerialized, enabled, transport, applyStateSafe, confirm],
+		[runSerialized, enabled, transport, applyStateSafe, confirm, resyncFromServer],
 	);
 
 	return {

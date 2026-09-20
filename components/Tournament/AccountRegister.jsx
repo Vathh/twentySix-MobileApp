@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { registerAccount, resendVerificationEmail } from '../../helpers/authApi'
+import { userFacingErrorMessage } from '../../helpers/userFacingError'
 import { colors } from '../../theme/colors'
 
 const AccountRegister = () => {
@@ -15,16 +16,9 @@ const AccountRegister = () => {
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const parseErrorMessage = (data) => {
-    if (typeof data?.message === 'string') {
-      return data.message
-    }
-    const firstField = data?.errors ? Object.values(data.errors)?.[0] : null
-    if (Array.isArray(firstField) && firstField[0]) {
-      return firstField[0]
-    }
-    return 'Nie udało się utworzyć konta'
-  }
+  const parseErrorMessage = (data, { error, status, fallback }) => (
+    userFacingErrorMessage({ error, status, data, fallback })
+  )
 
   const handleSubmit = async () => {
     if (loading) return
@@ -39,10 +33,14 @@ const AccountRegister = () => {
     setLoading(true)
 
     try {
-      const { ok, data } = await registerAccount({ name, email, password })
+      const { ok, data, status, error } = await registerAccount({ name, email, password })
 
       if (!ok) {
-        setErrorMsg(parseErrorMessage(data))
+        setErrorMsg(parseErrorMessage(data, {
+          error,
+          status,
+          fallback: 'Nie udało się utworzyć konta',
+        }))
         return
       }
 
@@ -50,8 +48,11 @@ const AccountRegister = () => {
         data?.message
           || 'Konto utworzone. Sprawdź email i kliknij link potwierdzający, aby się zalogować.',
       )
-    } catch {
-      setErrorMsg('Nie udało się utworzyć konta')
+    } catch (error) {
+      setErrorMsg(userFacingErrorMessage({
+        error,
+        fallback: 'Nie udało się utworzyć konta',
+      }))
     } finally {
       setLoading(false)
     }
@@ -63,16 +64,23 @@ const AccountRegister = () => {
     setLoading(true)
 
     try {
-      const { ok, data } = await resendVerificationEmail(email)
+      const { ok, data, status, error } = await resendVerificationEmail(email)
 
       if (!ok) {
-        setErrorMsg(parseErrorMessage(data))
+        setErrorMsg(parseErrorMessage(data, {
+          error,
+          status,
+          fallback: 'Nie udało się wysłać linku',
+        }))
         return
       }
 
       setSuccessMsg(data?.message || 'Wysłaliśmy link ponownie.')
-    } catch {
-      setErrorMsg('Nie udało się wysłać linku')
+    } catch (error) {
+      setErrorMsg(userFacingErrorMessage({
+        error,
+        fallback: 'Nie udało się wysłać linku',
+      }))
     } finally {
       setLoading(false)
     }

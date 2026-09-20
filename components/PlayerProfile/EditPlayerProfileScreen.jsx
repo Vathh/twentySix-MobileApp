@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import useAuth from '../../hooks/useAuth';
 import { updatePlayerProfile } from '../../helpers/playerProfileApi';
+import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
 
 const MAX_DESCRIPTION = 1000;
@@ -25,16 +26,11 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 	const [errorMsg, setErrorMsg] = useState('');
 	const [loading, setLoading] = useState(false);
 
-	const parseErrorMessage = (data) => {
-		const firstField = data?.errors ? Object.values(data.errors)?.[0] : null;
-		if (Array.isArray(firstField) && firstField[0]) {
-			return firstField[0];
-		}
-		if (typeof data?.message === 'string') {
-			return data.message;
-		}
-		return 'Nie udało się zapisać profilu';
-	};
+	const parseErrorMessage = (data, extras = {}) => userFacingErrorMessage({
+		data,
+		...extras,
+		fallback: extras.fallback || 'Nie udało się zapisać profilu',
+	});
 
 	const handleSubmit = async () => {
 		if (loading) return;
@@ -53,20 +49,23 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 		setLoading(true);
 
 		try {
-			const { ok, data } = await updatePlayerProfile(
+			const { ok, data, status, error } = await updatePlayerProfile(
 				playerId,
 				auth.accessToken,
 				{ description },
 			);
 
 			if (!ok) {
-				setErrorMsg(parseErrorMessage(data));
+				setErrorMsg(parseErrorMessage(data, { error, status }));
 				return;
 			}
 
 			navigation.goBack();
-		} catch {
-			setErrorMsg('Nie udało się połączyć z serwerem');
+		} catch (error) {
+			setErrorMsg(userFacingErrorMessage({
+				error,
+				fallback: 'Nie udało się zapisać profilu',
+			}));
 		} finally {
 			setLoading(false);
 		}

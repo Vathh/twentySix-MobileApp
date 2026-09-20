@@ -19,6 +19,7 @@ import {
 	sanitizeSvgXml,
 } from '../../helpers/headerLogo';
 import { navigate, navigationRef } from '../../helpers/navigationRef';
+import { scaleSize } from '../../theme/uiScale';
 
 const REVEAL_MS = 560;
 const REVEAL_EASING = Easing.out(Easing.cubic);
@@ -117,14 +118,19 @@ const HeaderTitle = () => {
 		}
 	}, [introActive, reveal]);
 
+	const restWidth = scaleSize(HEADER_LOGO_REST_WIDTH);
+	const logoWidth = scaleSize(HEADER_LOGO_WIDTH);
+	const logoHeight = scaleSize(HEADER_LOGO_HEIGHT);
+	const logotypWidth = scaleSize(HEADER_LOGOTYP_WIDTH);
+
 	const restClipStyle = useAnimatedStyle(() => ({
-		width: HEADER_LOGO_REST_WIDTH * reveal.value,
+		width: restWidth * reveal.value,
 	}));
 
 	return (
 		<Pressable
 			onPress={goToHome}
-			hitSlop={8}
+			hitSlop={scaleSize(8)}
 			accessibilityRole="button"
 			accessibilityLabel="twentysix — strona główna"
 			style={styles.wrap}
@@ -137,12 +143,12 @@ const HeaderTitle = () => {
 					pointerEvents="none"
 					style={[styles.logotypSlot, introActive ? styles.hidden : null]}
 				>
-					<IntroLogotypMark width={HEADER_LOGOTYP_WIDTH} height={HEADER_LOGO_HEIGHT} />
+					<IntroLogotypMark width={logotypWidth} height={logoHeight} />
 				</View>
 				<Animated.View style={[styles.restClip, restClipStyle]}>
 					<View style={styles.restInner}>
 						{safeLogoXml ? (
-							<SvgXml xml={safeLogoXml} width={HEADER_LOGO_WIDTH} height={HEADER_LOGO_HEIGHT} />
+							<SvgXml xml={safeLogoXml} width={logoWidth} height={logoHeight} />
 						) : null}
 					</View>
 				</Animated.View>
@@ -155,7 +161,7 @@ const styles = StyleSheet.create({
 	wrap: {
 		justifyContent: 'center',
 		alignItems: 'flex-start',
-		paddingVertical: 2,
+		paddingVertical: 0,
 		width: HEADER_LOGO_WIDTH,
 	},
 	stage: {

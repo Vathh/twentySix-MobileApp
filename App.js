@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import './theme/installUiScale';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

@@ -21,6 +21,7 @@ const styles = StyleSheet.create({
   text: {
     color: colors.textMuted,
     fontWeight: 'bold',
+    fontSize: 15,
   },
 });
 

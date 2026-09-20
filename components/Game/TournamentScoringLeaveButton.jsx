@@ -5,17 +5,18 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 export function TournamentScoringLeaveIcon({ onPress, style }) {
 	return (
 		<Pressable
 			onPress={onPress}
-			hitSlop={12}
+			hitSlop={scaleSize(12)}
 			style={[styles.button, style]}
 			accessibilityRole="button"
 			accessibilityLabel="Wyjdź z sędziowania"
 		>
-			<Ionicons name="arrow-back" size={24} color={colors.accent} />
+			<Ionicons name="arrow-back" size={scaleSize(24)} color={colors.accent} />
 		</Pressable>
 	);
 }
