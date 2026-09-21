@@ -69,7 +69,37 @@ const CompetitionTable = ({
 								onGameCellPress
 									? raw.game
 									: null;
+							const sequence =
+								!isPlayer && raw && typeof raw === 'object' && raw.sequence != null
+									? raw.sequence
+									: null;
 							const cellWidth = { width: scaleSize(col.width ?? 72) };
+
+							if (sequence != null) {
+								const badge = <SequenceBadge value={sequence} />;
+								if (playableGame) {
+									const isLocking = lockingGameId === playableGame.id;
+									return (
+										<Pressable
+											key={col.key}
+											style={[cellWidth, styles.playableCell, styles.sequenceCell]}
+											onPress={() => onGameCellPress(playableGame)}
+											disabled={lockingGameId != null}
+										>
+											{isLocking ? (
+												<ActivityIndicator size="small" color={colors.accent} />
+											) : (
+												badge
+											)}
+										</Pressable>
+									);
+								}
+								return (
+									<View key={col.key} style={[cellWidth, styles.sequenceCell]}>
+										{badge}
+									</View>
+								);
+							}
 
 							if (canPressPlayer) {
 								return (
@@ -133,6 +163,14 @@ const CompetitionTable = ({
 	);
 };
 
+function SequenceBadge({ value }) {
+	return (
+		<View style={styles.sequenceBadge}>
+			<Text style={styles.sequenceBadgeText}>{value}</Text>
+		</View>
+	);
+}
+
 function formatCell(value) {
 	if (value === null || value === undefined || value === '') return '—';
 	if (typeof value === 'object' && value.text != null) return String(value.text);
@@ -189,6 +227,26 @@ const styles = StyleSheet.create({
 	playableCell: {
 		justifyContent: 'center',
 		minHeight: 36,
+	},
+	sequenceCell: {
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	sequenceBadge: {
+		minWidth: 22,
+		paddingHorizontal: 6,
+		paddingVertical: 2,
+		borderRadius: 6,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+		alignItems: 'center',
+	},
+	sequenceBadgeText: {
+		color: colors.textSecondary,
+		fontSize: 12,
+		fontWeight: '700',
+		fontVariant: ['tabular-nums'],
 	},
 	playableCellText: {
 		color: colors.accent,

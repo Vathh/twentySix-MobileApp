@@ -41,8 +41,18 @@ assert(finishedCell.playable === false, 'finished not playable');
 
 const openCell = matrixCellForPair(open, 1, { playableUnfinished: true });
 assert(openCell.text === '—', 'open is dash');
+assert(openCell.sequence == null, 'open without sequence has no badge');
 assert(openCell.playable === true, 'open is playable');
 assert(openCell.game.id === 11, 'open keeps game');
+
+const numbered = matrixCellForPair(
+	{ ...open, sequence: 2 },
+	1,
+	{ playableUnfinished: true },
+);
+assert(numbered.sequence === 2, 'scheduled cell keeps sequence');
+assert(numbered.text === '2', 'sequence is the cell text');
+assert(numbered.playable === true, 'numbered cell stays playable');
 
 const matrix = buildGroupMatrix(group, { playableUnfinished: true });
 assert(matrix.rows[0][`vs_1`].text === 'X', 'diagonal X');

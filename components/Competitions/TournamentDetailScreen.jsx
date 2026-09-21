@@ -14,6 +14,7 @@ import DetailHeader from './DetailHeader';
 import ScreenLoading from '../Common/ScreenLoading';
 import CompetitionTabs from './CompetitionTabs';
 import CompetitionTable from './CompetitionTable';
+import GroupRefereeLine from './GroupRefereeLine';
 import PlayoffBracket from './PlayoffBracket';
 import { colors } from '../../theme/colors';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
@@ -205,6 +206,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 													onPlayerPress={openPlayer}
 													showHorizontalScroll
 												/>
+												<GroupRefereeLine games={group.games} />
 											</View>
 										);
 									})

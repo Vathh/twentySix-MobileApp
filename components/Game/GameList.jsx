@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -23,6 +24,7 @@ import { lockTournamentGame } from '../../helpers/lockTournamentGame';
 import { fetchActiveGames, fetchRemainingGroups } from '../../helpers/gameListApi';
 import { buildGroupMatrix, playerNamesFromStandings } from '../../helpers/groupMatrix';
 import CompetitionTable from '../Competitions/CompetitionTable';
+import GroupRefereeLine from '../Competitions/GroupRefereeLine';
 
 const PLAYOFF_ROUND_ORDER = [
   'SIXTEEN',
@@ -375,14 +377,17 @@ const GameList = ({ navigation }) => {
             <Text style={styles.modalTitle}>{modalTitle}</Text>
             {isGroupModal ? (
               selectedGroupData ? (
-                <CompetitionTable
-                  columns={selectedGroupMatrix.columns}
-                  rows={selectedGroupMatrix.rows}
-                  emptyText="Brak tabeli."
-                  showHorizontalScroll
-                  onGameCellPress={handleGamePress}
-                  lockingGameId={lockingGameId}
-                />
+                <ScrollView style={styles.modalScroll} nestedScrollEnabled>
+                  <CompetitionTable
+                    columns={selectedGroupMatrix.columns}
+                    rows={selectedGroupMatrix.rows}
+                    emptyText="Brak tabeli."
+                    showHorizontalScroll
+                    onGameCellPress={handleGamePress}
+                    lockingGameId={lockingGameId}
+                  />
+                  <GroupRefereeLine games={selectedGroupData.games} />
+                </ScrollView>
               ) : (
                 <Text style={styles.modalEmpty}>
                   Wszystkie mecze w tej grupie zostały już rozegrane.
