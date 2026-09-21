@@ -5,9 +5,12 @@ import { getIntroLogotypXml } from '../../helpers/svgAssets';
 import {
 	HEADER_LOGO_HEIGHT,
 	HEADER_LOGOTYP_WIDTH,
+	introLogotypMaxWidth,
+	introLogotypSizeForWidth,
 	introLogotypSlotLayout,
 	settledIntroLogotypXml,
 } from '../../helpers/headerLogo';
+import { scaleSize } from '../../theme/uiScale';
 
 /**
  * Przekreślone 26 z intro-logotyp.svg, wcięte w slot headera tak samo jak wlot.
@@ -21,9 +24,13 @@ const IntroLogotypMark = ({
 		const raw = getIntroLogotypXml();
 		return raw ? settledIntroLogotypXml(raw) : '';
 	}, []);
+	const introBox = useMemo(
+		() => introLogotypSizeForWidth(introLogotypMaxWidth(windowWidth, scaleSize(300))),
+		[windowWidth],
+	);
 	const layout = useMemo(
-		() => introLogotypSlotLayout(windowWidth, width, height),
-		[height, width, windowWidth],
+		() => introLogotypSlotLayout(windowWidth, width, height, introBox),
+		[height, introBox, width, windowWidth],
 	);
 
 	return (
@@ -37,6 +44,7 @@ const IntroLogotypMark = ({
 						left: layout.left,
 						top: layout.top,
 						transform: [{ scale: layout.scale }],
+						transformOrigin: '50% 50%',
 					},
 				]}
 			>
@@ -51,6 +59,7 @@ const IntroLogotypMark = ({
 const styles = StyleSheet.create({
 	clip: {
 		overflow: 'hidden',
+		borderRadius: 0.1,
 	},
 	inner: {
 		position: 'absolute',

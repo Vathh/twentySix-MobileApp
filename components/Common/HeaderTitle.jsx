@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
 	Easing,
 	runOnJS,
@@ -8,6 +8,7 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IntroLogotypMark from './IntroLogotypMark';
 import { getLogoXml } from '../../helpers/svgAssets';
 import { useIntroOverlay } from '../../context/IntroOverlayContext';
@@ -63,6 +64,7 @@ const HeaderTitle = () => {
 		reportHeaderLogoLayout,
 		reportRevealComplete,
 	} = useIntroOverlay();
+	const insets = useSafeAreaInsets();
 	const logotypRef = useRef(null);
 	const reveal = useSharedValue(introActive ? 0 : 1);
 	const finishedRef = useRef(false);
@@ -70,19 +72,31 @@ const HeaderTitle = () => {
 
 	const measureLogotyp = useCallback(() => {
 		logotypRef.current?.measureInWindow((x, y, width, height) => {
-			reportHeaderLogoLayout({ x, y, width, height });
+			if (!(width > 0) || !(height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) {
+				return;
+			}
+			const headerContent = Platform.OS === 'ios' ? 44 : 56;
+			const windowY = y < insets.top - 1
+				? insets.top + Math.max(0, (headerContent - height) / 2)
+				: y;
+			reportHeaderLogoLayout({
+				x: Math.max(0, x),
+				y: windowY,
+				width,
+				height,
+			});
 		});
-	}, [reportHeaderLogoLayout]);
+	}, [insets.top, reportHeaderLogoLayout]);
 
 	useEffect(() => {
 		if (!introActive) {
 			return undefined;
 		}
 		const frame = requestAnimationFrame(measureLogotyp);
-		const timer = setTimeout(measureLogotyp, 80);
+		const timers = [80, 200, 400].map((ms) => setTimeout(measureLogotyp, ms));
 		return () => {
 			cancelAnimationFrame(frame);
-			clearTimeout(timer);
+			timers.forEach(clearTimeout);
 		};
 	}, [introActive, measureLogotyp]);
 

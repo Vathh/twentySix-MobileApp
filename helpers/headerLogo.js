@@ -32,17 +32,23 @@ export function settledIntroLogotypXml(svgXml) {
 	);
 }
 
+export const INTRO_CONTENT_WIDTH_RATIO = LOGOTYP_SRC_WIDTH / INTRO_LOGOTYP_SRC_WIDTH;
+export const INTRO_CONTENT_HEIGHT_RATIO = LOGOTYP_SRC_HEIGHT / INTRO_LOGOTYP_SRC_HEIGHT;
+
+export function introLogotypFitScale(introBox, slotWidth, slotHeight) {
+	const contentW = introBox.width * INTRO_CONTENT_WIDTH_RATIO;
+	const contentH = introBox.height * INTRO_CONTENT_HEIGHT_RATIO;
+	return Math.max(slotWidth / contentW, slotHeight / contentH);
+}
+
 /** Kadrowanie intro-26 do slotu logotypu w headerze — ten sam math co wlot. */
-export function introLogotypSlotLayout(windowWidth, slotWidth, slotHeight) {
-	const introBox = introLogotypSizeForWidth(introLogotypMaxWidth(windowWidth));
-	const contentW = introBox.width * (LOGOTYP_SRC_WIDTH / INTRO_LOGOTYP_SRC_WIDTH);
-	const contentH = introBox.height * (LOGOTYP_SRC_HEIGHT / INTRO_LOGOTYP_SRC_HEIGHT);
-	const scale = Math.max(slotWidth / contentW, slotHeight / contentH);
+export function introLogotypSlotLayout(windowWidth, slotWidth, slotHeight, introBox) {
+	const box = introBox ?? introLogotypSizeForWidth(introLogotypMaxWidth(windowWidth));
 	return {
-		introBox,
-		scale,
-		left: (slotWidth - introBox.width) / 2,
-		top: (slotHeight - introBox.height) / 2,
+		introBox: box,
+		scale: introLogotypFitScale(box, slotWidth, slotHeight),
+		left: (slotWidth - box.width) / 2,
+		top: (slotHeight - box.height) / 2,
 	};
 }
 

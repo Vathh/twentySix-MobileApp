@@ -15,9 +15,10 @@ import { getIntroLogotypXml } from '../../helpers/svgAssets';
 import {
 	HEADER_LOGO_HEIGHT,
 	HEADER_LOGOTYP_WIDTH,
+	INTRO_CONTENT_HEIGHT_RATIO,
+	INTRO_CONTENT_WIDTH_RATIO,
 	introLogotypMaxWidth,
 	introLogotypSizeForWidth,
-	introLogotypSlotLayout,
 	settledIntroLogotypXml,
 } from '../../helpers/headerLogo';
 import { colors } from '../../theme/colors';
@@ -86,15 +87,11 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	const insets = useSafeAreaInsets();
 	const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
+	const overlayRef = useRef(null);
 	const introBox = useMemo(() => {
 		const width = introLogotypMaxWidth(windowWidth, scaleSize(300));
 		return introLogotypSizeForWidth(width);
 	}, [windowWidth]);
-
-	const headerSlotLayout = useMemo(
-		() => introLogotypSlotLayout(windowWidth, scaleSize(HEADER_LOGOTYP_WIDTH), scaleSize(HEADER_LOGO_HEIGHT)),
-		[windowWidth],
-	);
 
 	const startX = (windowWidth - introBox.width) / 2;
 	const startY = (windowHeight - introBox.height) / 2;
@@ -129,20 +126,45 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 		onFlyComplete?.();
 	}, [onFlyComplete]);
 
+	const applyTargetRect = useCallback(
+		(logotypRect) => {
+			const write = (originX = 0, originY = 0) => {
+				slotX.value = logotypRect.x - originX;
+				slotY.value = logotypRect.y - originY;
+				slotW.value = logotypRect.width;
+				slotH.value = logotypRect.height;
+			};
+			if (overlayRef.current?.measureInWindow) {
+				overlayRef.current.measureInWindow((originX, originY) => {
+					write(
+						Number.isFinite(originX) ? originX : 0,
+						Number.isFinite(originY) ? originY : 0,
+					);
+				});
+				return;
+			}
+			write();
+		},
+		[slotH, slotW, slotX, slotY],
+	);
+
+	useEffect(() => {
+		if (headerTarget) {
+			applyTargetRect(headerTarget);
+		}
+	}, [applyTargetRect, headerTarget]);
+
 	const startFly = useCallback(
 		(logotypRect) => {
 			if (flyStartedRef.current) {
 				return;
 			}
 			flyStartedRef.current = true;
-			slotX.value = logotypRect.x;
-			slotY.value = logotypRect.y;
-			slotW.value = logotypRect.width;
-			slotH.value = logotypRect.height;
+			applyTargetRect(logotypRect);
 			progress.value = 0;
 			setPhase('flying');
 		},
-		[progress, slotH, slotW, slotX, slotY],
+		[applyTargetRect, progress],
 	);
 
 	useEffect(() => {
@@ -162,8 +184,8 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 			return undefined;
 		}
 		if (headerTarget) {
-			startFly(headerTarget);
-			return undefined;
+			const timer = setTimeout(() => startFly(headerTarget), 120);
+			return () => clearTimeout(timer);
 		}
 		const timer = setTimeout(() => {
 			startFly(fallbackLogotypRect({ top: insets.top }));
@@ -206,13 +228,15 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 		};
 	});
 
-	const flyEndScale = headerSlotLayout.scale;
-
 	const innerStyle = useAnimatedStyle(() => {
 		const p = progress.value;
 		const wrapW = introBox.width + (slotW.value - introBox.width) * p;
 		const wrapH = introBox.height + (slotH.value - introBox.height) * p;
-		const scale = 1 + (flyEndScale - 1) * p;
+		const endScale = Math.max(
+			slotW.value / (introBox.width * INTRO_CONTENT_WIDTH_RATIO),
+			slotH.value / (introBox.height * INTRO_CONTENT_HEIGHT_RATIO),
+		);
+		const scale = 1 + (endScale - 1) * p;
 		return {
 			left: (wrapW - introBox.width) / 2,
 			top: (wrapH - introBox.height) / 2,
@@ -221,7 +245,7 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	});
 
 	return (
-		<View style={styles.root} pointerEvents="auto">
+		<View ref={overlayRef} collapsable={false} style={styles.root} pointerEvents="auto">
 			<Animated.View style={[styles.bg, bgStyle]} pointerEvents="none" />
 			{phase !== 'flying' && flyXml ? (
 				<View style={styles.hiddenParse} pointerEvents="none">
@@ -255,6 +279,8 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 			{phase === 'flying' && flyXml ? (
 				<Animated.View
 					pointerEvents="none"
+					collapsable={false}
+					needsOffscreenAlphaCompositing={true}
 					style={[
 						styles.flyLogo,
 						{
@@ -267,7 +293,11 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 					<Animated.View
 						style={[
 							styles.flyInner,
-							{ width: introBox.width, height: introBox.height },
+							{
+								width: introBox.width,
+								height: introBox.height,
+								transformOrigin: '50% 50%',
+							},
 							innerStyle,
 						]}
 					>
@@ -295,6 +325,7 @@ const styles = StyleSheet.create({
 	flyLogo: {
 		position: 'absolute',
 		overflow: 'hidden',
+		borderRadius: 0.1,
 		zIndex: 2,
 	},
 	flyInner: {
