@@ -44,14 +44,17 @@ import {
 } from '../../hooks/useTournamentFinishedRealtime';
 import {
 	canCounterInput,
+	canSwitchH2hMatchOpener,
 	checkoutLegPrompt,
 	isOneDeviceSpectator,
 	GAME_MODE,
 	newClientVisitId,
 	resolveGameContext,
+	scoringStateHasProgress,
 	createOfflineVisitFlow,
 	createOnlineVisitFlow,
 } from '../../helpers/gameScoring';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { createAchievementHandlers } from '../../helpers/gameScoring/achievementHandlers';
 import { createDartHistoryTracker } from '../../helpers/gameScoring/dartHistoryTracker';
 import {
@@ -73,35 +76,9 @@ import {
 	isDartLimitReached,
 } from '../../helpers/matchFormat/dartLimitRules';
 
-function scoringStateHasProgress(state) {
-	if (!state) {
-		return false;
-	}
-	if ((state.visits?.length ?? 0) > 0) {
-		return true;
-	}
-	if ((state.legs?.length ?? 0) > 0) {
-		return true;
-	}
-	if (
-		(state.game?.player1LegsWon ?? 0) + (state.game?.player2LegsWon ?? 0) >
-		0
-	) {
-		return true;
-	}
-	if ((state.players ?? []).some((p) => (p.legsWon ?? 0) > 0)) {
-		return true;
-	}
-	const legNumber =
-		state.currentLeg?.legNumber
-		?? state.turn?.legNumber
-		?? state.session?.currentLegNumber
-		?? 0;
-	return Number(legNumber) > 1;
-}
-
 const X01GameScoringScreen = ({ route, navigation }) => {
 	const { auth, logout } = useAuth();
+	const confirm = useConfirm();
 	const isFocused = useIsFocused();
 	const insets = useSafeAreaInsets();
 	const {
@@ -393,6 +370,57 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	const bullOffRequired = syncEnabled
 		? !!syncedBullOffRequired
 		: localBullOffRequired;
+
+	const h2hHasProgress = useMemo(() => {
+		if ((legVisits?.length ?? 0) > 0) {
+			return true;
+		}
+		return playerStates.some((s) =>
+			(s?.legsWon ?? 0) > 0
+			|| (s?.setsWon ?? 0) > 0
+			|| (s?.legsWonInSet ?? 0) > 0
+			|| (s?.dartsThrown ?? 0) > 0
+			|| Number(s?.score ?? startingScore) !== Number(startingScore),
+		);
+	}, [legVisits, playerStates, startingScore]);
+
+	const canSwitchMatchOpener = isH2hOnline
+		&& N === 2
+		&& canSwitchH2hMatchOpener({
+			openerChosen: !isModalVisible && !openerCheckPending,
+			gameClosed,
+			bullOffRequired,
+			hasProgress: h2hHasProgress,
+			localVisitInProgress: localVisitRemaining != null,
+		});
+	const canSwitchMatchOpenerRef = useRef(false);
+	canSwitchMatchOpenerRef.current = canSwitchMatchOpener;
+
+	const switchMatchOpener = useCallback(async (index) => {
+		if (!canSwitchMatchOpenerRef.current) {
+			return;
+		}
+		const idx = Number(index);
+		if (!Number.isInteger(idx) || idx < 0 || idx === currentPlayerIndexRef.current) {
+			return;
+		}
+		const name = players[idx]?.name ?? 'Gracz';
+		const ok = await confirm({
+			title: 'Zmiana rozpoczynającego',
+			message: `Czy przełączyć zawodnika rozpoczynającego mecz na ${name}?`,
+			cancelLabel: 'Nie',
+			confirmLabel: 'Tak',
+			destructive: false,
+		});
+		if (!ok || !canSwitchMatchOpenerRef.current || idx === currentPlayerIndexRef.current) {
+			return;
+		}
+		legOpenerIndexRef.current = idx;
+		currentPlayerIndexRef.current = idx;
+		setCurrentPlayerIndex(idx);
+		setCurrentResult(0);
+		setResultEdited(false);
+	}, [confirm, players, setCurrentPlayerIndex]);
 
 	const canResolveBullOff =
 		mode !== GAME_MODE.QUICK_FFA || isHost;
@@ -1216,6 +1244,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 						handleDartSubmit={onDartSubmit}
 						handleUndoSingleDart={onUndoSingleDart}
 						localVisitRemaining={localVisitRemaining}
+						onPressOpponentName={canSwitchMatchOpener ? switchMatchOpener : null}
 						matchFormat={matchFormat}
 						legVisits={isH2hOnline && N === 2 ? legVisits : null}
 					/>

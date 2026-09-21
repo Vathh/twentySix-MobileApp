@@ -291,6 +291,24 @@ export function scoringStateHasProgress(state) {
 }
 
 /**
+ * Zamiana openera H2H tylko w stanie startowym, po wyborze rozpoczynającego.
+ * `hasProgress` pochodzi z scoringStateHasProgress (wizyty, legi, sety).
+ */
+export function canSwitchH2hMatchOpener({
+	openerChosen = false,
+	gameClosed = false,
+	bullOffRequired = false,
+	hasProgress = false,
+	localVisitInProgress = false,
+} = {}) {
+	return Boolean(openerChosen)
+		&& !gameClosed
+		&& !bullOffRequired
+		&& !hasProgress
+		&& !localVisitInProgress;
+}
+
+/**
  * Mapuje znormalizowany stan meczu na reducery graczy.
  * Akceptuje też surową odpowiedź API — zostanie znormalizowana w locie.
  *

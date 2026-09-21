@@ -1,4 +1,8 @@
-export { applyGameScoringState, scoringStateHasProgress } from './applyGameScoringState.js';
+export {
+	applyGameScoringState,
+	canSwitchH2hMatchOpener,
+	scoringStateHasProgress,
+} from './applyGameScoringState.js';
 export {
 	consumeFfaAbortPayload,
 	consumeH2hCancelledPayload,

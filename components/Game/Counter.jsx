@@ -43,6 +43,8 @@ const Counter = ({
   showPlayerScores = true,
   /** Wizyty bieżącego lega H2H 2P — tablica (także pusta) pokazuje tabelę rund. */
   legVisits = null,
+  /** Stan startowy H2H: klik nazwy zawodnika, który teraz nie zaczyna. */
+  onPressOpponentName = null,
 }) => {
   const format = normalizeMatchFormat(matchFormat);
   const unitLabel = scoreUnitLabel(format);
@@ -53,6 +55,31 @@ const Counter = ({
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
   const showLegVisitTable = isTwoPlayer && Array.isArray(legVisits);
   const inputDisabled = !canInput || submitting;
+  const canPressOpponentName = typeof onPressOpponentName === 'function';
+
+  const renderH2hPlayerName = (index, label) => {
+    const canPress = canPressOpponentName && index !== currentPlayerIndex;
+    const text = (
+      <Text
+        style={[styles.playerText, canPress && styles.playerTextSwitchable]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    );
+    if (!canPress) {
+      return text;
+    }
+    return (
+      <Pressable
+        onPress={() => onPressOpponentName(index)}
+        accessibilityRole="button"
+        accessibilityLabel={`Zmień rozpoczynającego na ${label}`}
+      >
+        {text}
+      </Pressable>
+    );
+  };
   const multiScrollRef = useRef(null);
   const rowOffsetsRef = useRef({});
 
@@ -534,7 +561,7 @@ const Counter = ({
       <View style={styles.container}>
         <View style={styles.resultContainer}>
           <View style={styles.player1Container}>
-            <Text style={styles.playerText}>{p0?.name ?? 'Gracz'} ({s0?.dartsThrown ?? 0})</Text>
+            {renderH2hPlayerName(0, `${p0?.name ?? 'Gracz'} (${s0?.dartsThrown ?? 0})`)}
           </View>
           <View style={styles.legsContainer}>
             <Text style={styles.legsResultText}>{setScore0}</Text>
@@ -553,9 +580,14 @@ const Counter = ({
             <Text style={styles.legsResultText}>{setScore1}</Text>
           </View>
           <View style={styles.player2Container}>
-            <Text style={styles.playerText}>({s1?.dartsThrown ?? 0}) {p1?.name ?? 'Gracz'}</Text>
+            {renderH2hPlayerName(1, `(${s1?.dartsThrown ?? 0}) ${p1?.name ?? 'Gracz'}`)}
           </View>
         </View>
+        {canPressOpponentName ? (
+          <Text style={styles.switchOpenerHint}>
+            Kliknij nazwę drugiego zawodnika, aby zmienić rozpoczynającego.
+          </Text>
+        ) : null}
 
         <View style={styles.countersContainer}>
           <View style={[styles.countersScoresRow, showLegVisitTable && styles.countersScoresRowCompact]}>
@@ -716,6 +748,17 @@ const styles = StyleSheet.create({
   playerText: {
     fontSize: 18,
     color: colors.textMuted
+  },
+  playerTextSwitchable: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
+  },
+  switchOpenerHint: {
+    textAlign: 'center',
+    color: colors.textFaint,
+    fontSize: 12,
+    paddingBottom: 6,
+    paddingHorizontal: 12,
   },
   visitDartsUnderScore: {
     width: '100%',

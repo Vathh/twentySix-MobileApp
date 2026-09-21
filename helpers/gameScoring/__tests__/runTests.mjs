@@ -9,6 +9,7 @@ import { runBuildH2hLegVisitRowsTests } from './buildH2hLegVisitRows.test.js';
 import { runPerDartUndoTests } from './perDartUndo.test.js';
 import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
 import { runH2hCancelledPayloadTests } from './h2hCancelledPayload.test.js';
+import { runCanSwitchH2hMatchOpenerTests } from './canSwitchH2hMatchOpener.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
 import { runDartLimitRulesTests } from '../../matchFormat/__tests__/dartLimitRules.test.js';
@@ -902,6 +903,7 @@ const tests = [
 	['per-dart undo scoring', runPerDartUndoTests],
 	['ffa scoring sync', runFfaScoringSyncTests],
 	['h2h cancelled payload', runH2hCancelledPayloadTests],
+	['h2h switch opener', runCanSwitchH2hMatchOpenerTests],
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
 	['dart limit rules', runDartLimitRulesTests],
