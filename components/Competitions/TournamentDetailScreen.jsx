@@ -16,6 +16,7 @@ import CompetitionTabs from './CompetitionTabs';
 import CompetitionTable from './CompetitionTable';
 import PlayoffBracket from './PlayoffBracket';
 import { colors } from '../../theme/colors';
+import { buildGroupMatrix } from '../../helpers/groupMatrix';
 
 const TAB_LABELS = {
 	results: 'Wyniki',
@@ -263,79 +264,6 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 		</ScrollView>
 	);
 };
-
-function shortPlayerLabel(name) {
-	const text = String(name ?? '').trim();
-	if (text.length <= 10) return text || '—';
-	return `${text.slice(0, 9)}…`;
-}
-
-function matrixScoreForRow(game, rowPlayerId) {
-	if (!game) return '—';
-	if (game.status === 'scheduled') return '—';
-	const s1 = game.score1 ?? 0;
-	const s2 = game.score2 ?? 0;
-	if (Number(game.player1?.id) === Number(rowPlayerId)) {
-		return `${s1} - ${s2}`;
-	}
-	return `${s2} - ${s1}`;
-}
-
-function buildGroupMatrix(group) {
-	const standings = group.standings ?? [];
-	const games = group.games ?? [];
-	const byPair = new Map();
-	games.forEach((game) => {
-		const a = game.player1?.id;
-		const b = game.player2?.id;
-		if (a == null || b == null) return;
-		byPair.set(`${a}-${b}`, game);
-		byPair.set(`${b}-${a}`, game);
-	});
-
-	const columns = [
-		{ key: 'player', label: 'Zawodnik', width: 120, align: 'left', player: true },
-		...standings.map((row) => ({
-			key: `vs_${row.playerId}`,
-			label: shortPlayerLabel(row.playerName),
-			width: 64,
-		})),
-		{ key: 'gamesWon', label: 'W', width: 36 },
-		{ key: 'gamesLost', label: 'L', width: 36 },
-		{ key: 'matchUnitsDifference', label: 'Wynik', width: 52 },
-		{ key: 'points', label: 'Pkt', width: 40 },
-		{ key: 'place', label: 'Pozycja', width: 58 },
-	];
-
-	const rows = standings.map((row) => {
-		const next = {
-			key: `p-${row.playerId}`,
-			player: {
-				text: row.playerName,
-				playerId: row.userId ? row.playerId : null,
-				name: row.playerName,
-			},
-			gamesWon: row.gamesWon,
-			gamesLost: row.gamesLost,
-			matchUnitsDifference: row.matchUnitsDifference,
-			points: row.points,
-			place: row.place,
-		};
-		standings.forEach((col) => {
-			if (row.playerId === col.playerId) {
-				next[`vs_${col.playerId}`] = 'X';
-				return;
-			}
-			next[`vs_${col.playerId}`] = matrixScoreForRow(
-				byPair.get(`${row.playerId}-${col.playerId}`),
-				row.playerId,
-			);
-		});
-		return next;
-	});
-
-	return { columns, rows };
-}
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: colors.bg },

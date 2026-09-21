@@ -159,6 +159,7 @@ export const getReverbConfig = () => ({
 
 const GAME_ENDPOINT = '/game';
 const ACTIVE_ENDPOINT = '/active';
+const REMAINING_GROUPS_ENDPOINT = '/remaining-groups';
 const UPDATE_ENDPOINT = '/update';
 const GAME_IN_PROGRESS_ENDPOINT = '/inProgress';
 const GAME_RELEASE_ENDPOINT = '/release';
@@ -198,6 +199,9 @@ export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-n
 
 export const ACTIVE_GAMES_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;
+
+export const REMAINING_GROUPS_API_URL =
+	API_BASE_URL + GAME_ENDPOINT + REMAINING_GROUPS_ENDPOINT;
 
 export const UPDATE_GAME_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + UPDATE_ENDPOINT;

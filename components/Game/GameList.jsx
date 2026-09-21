@@ -20,7 +20,9 @@ import {
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
-import { fetchActiveGames } from '../../helpers/gameListApi';
+import { fetchActiveGames, fetchRemainingGroups } from '../../helpers/gameListApi';
+import { buildGroupMatrix, playerNamesFromStandings } from '../../helpers/groupMatrix';
+import CompetitionTable from '../Competitions/CompetitionTable';
 
 const PLAYOFF_ROUND_ORDER = [
   'SIXTEEN',
@@ -39,6 +41,7 @@ const playoffRoundSortKey = (round) => {
 const GameList = ({ navigation }) => {
   const { auth, logout } = useAuth();
   const [games, setGames] = useState([]);
+  const [remainingGroups, setRemainingGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedPlayoffSide, setSelectedPlayoffSide] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -65,12 +68,18 @@ const GameList = ({ navigation }) => {
     if (!auth?.accessToken || auth?.tournamentId == null) return;
     setLoading(true);
     try {
-      const result = await fetchActiveGames(auth.tournamentId, auth.accessToken);
-      if (result.status === 401) {
+      const [activeResult, groupsResult] = await Promise.all([
+        fetchActiveGames(auth.tournamentId, auth.accessToken),
+        fetchRemainingGroups(auth.tournamentId, auth.accessToken),
+      ]);
+      if (activeResult.status === 401 || groupsResult.status === 401) {
         return;
       }
-      if (result.ok) {
-        setGames(result.data);
+      if (activeResult.ok) {
+        setGames(activeResult.data.filter((g) => g.type === 'playoff'));
+      }
+      if (groupsResult.ok) {
+        setRemainingGroups(groupsResult.data);
       }
     } catch (e) {
       console.warn('fetchGames', e);
@@ -82,22 +91,15 @@ const GameList = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchGames();
-      // Po powrocie z meczu otwórz z powrotem listę wybranej grupy.
       if (selectedGroup != null || selectedPlayoffSide != null) {
         setIsModalVisible(true);
       }
     }, [fetchGames, selectedGroup, selectedPlayoffSide]),
   );
 
-  const groupGames = useMemo(
-    () => games.filter((g) => g.type === 'group' || (g.groupNumber != null && g.groupNumber > 0)),
-    [games],
-  );
-
   const playoffGames = useMemo(
     () =>
       games
-        .filter((g) => g.type === 'playoff')
         .slice()
         .sort(
           (a, b) =>
@@ -109,10 +111,24 @@ const GameList = ({ navigation }) => {
 
   const groups = useMemo(
     () =>
-      [...new Set(groupGames.map((g) => g.groupNumber).filter((n) => n != null))].sort(
-        (a, b) => a - b,
-      ),
-    [groupGames],
+      remainingGroups
+        .map((g) => g.groupNumber)
+        .filter((n) => n != null)
+        .sort((a, b) => a - b),
+    [remainingGroups],
+  );
+
+  const selectedGroupData = useMemo(
+    () => remainingGroups.find((g) => g.groupNumber === selectedGroup) ?? null,
+    [remainingGroups, selectedGroup],
+  );
+
+  const selectedGroupMatrix = useMemo(
+    () =>
+      selectedGroupData
+        ? buildGroupMatrix(selectedGroupData, { playableUnfinished: true })
+        : { columns: [], rows: [] },
+    [selectedGroupData],
   );
 
   const mainPlayoffGames = useMemo(
@@ -127,14 +143,6 @@ const GameList = ({ navigation }) => {
 
   const hasSplitPlayoff = mainPlayoffGames.length > 0 && consolationPlayoffGames.length > 0;
 
-  const gamesInGroup = useMemo(
-    () =>
-      selectedGroup != null
-        ? groupGames.filter((g) => g.groupNumber === selectedGroup)
-        : [],
-    [groupGames, selectedGroup],
-  );
-
   const gamesInPlayoffSide = useMemo(() => {
     if (selectedPlayoffSide === 'consolation') {
       return consolationPlayoffGames;
@@ -145,7 +153,6 @@ const GameList = ({ navigation }) => {
     return [];
   }, [selectedPlayoffSide, consolationPlayoffGames, mainPlayoffGames]);
 
-  const modalGames = selectedPlayoffSide != null ? gamesInPlayoffSide : gamesInGroup;
   const modalTitle =
     selectedPlayoffSide === 'consolation'
       ? 'Drabinka pocieszenia'
@@ -197,14 +204,13 @@ const GameList = ({ navigation }) => {
       return;
     }
 
-    // Zostaw selectedGroup — po powrocie z meczu modal grupy otworzy się ponownie.
     setIsModalVisible(false);
 
     navigation.navigate('GameScoring', {
       game: {
         id: game.id,
         type: game.type || 'group',
-        tournamentId: game.tournamentId,
+        tournamentId: game.tournamentId ?? auth.tournamentId,
         groupNumber: game.groupNumber,
         round: game.round,
         roundLabel: game.roundLabel,
@@ -221,8 +227,13 @@ const GameList = ({ navigation }) => {
     const rows = [];
     if (hasGroupGames) {
       rows.push({ type: 'section', id: 'section-groups', title: 'Faza grupowa' });
-      groups.forEach((group) => {
-        rows.push({ type: 'group', id: `group-${group}`, group });
+      remainingGroups.forEach((group) => {
+        rows.push({
+          type: 'group',
+          id: `group-${group.groupNumber}`,
+          group: group.groupNumber,
+          playerNames: playerNamesFromStandings(group.standings),
+        });
       });
     }
     if (hasPlayoffGames) {
@@ -248,7 +259,7 @@ const GameList = ({ navigation }) => {
       }
     }
     return rows;
-  }, [groups, hasGroupGames, hasPlayoffGames, hasSplitPlayoff, playoffGames]);
+  }, [remainingGroups, hasGroupGames, hasPlayoffGames, hasSplitPlayoff, playoffGames]);
 
   const renderGameRow = (game, showRound = false) => (
     <Pressable
@@ -288,12 +299,18 @@ const GameList = ({ navigation }) => {
       );
     }
     if (item.type === 'group') {
+      const playerNames = item.playerNames?.length
+        ? item.playerNames.join(', ')
+        : null;
       return (
         <Pressable
           style={styles.groupButton}
           onPress={() => openGroupModal(item.group)}
         >
           <Text style={styles.groupButtonText}>Grupa {item.group}</Text>
+          {playerNames ? (
+            <Text style={styles.groupPlayersText}>{playerNames}</Text>
+          ) : null}
         </Pressable>
       );
     }
@@ -309,6 +326,8 @@ const GameList = ({ navigation }) => {
     }
     return renderGameRow(item.game, true);
   };
+
+  const isGroupModal = selectedGroup != null && selectedPlayoffSide == null;
 
   return (
     <View style={styles.container}>
@@ -349,24 +368,42 @@ const GameList = ({ navigation }) => {
         onRequestClose={closeGroupModal}
       >
         <Pressable style={styles.modalOverlay} onPress={closeGroupModal}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.modalContent, isGroupModal && styles.modalContentWide]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={styles.modalTitle}>{modalTitle}</Text>
-            <FlatList
-              style={styles.modalScroll}
-              contentContainerStyle={styles.modalScrollContent}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-              data={modalGames}
-              keyExtractor={(game) => `${game.type}-${game.id}`}
-              renderItem={({ item: game }) => renderGameRow(game, selectedPlayoffSide != null)}
-              ListEmptyComponent={
+            {isGroupModal ? (
+              selectedGroupData ? (
+                <CompetitionTable
+                  columns={selectedGroupMatrix.columns}
+                  rows={selectedGroupMatrix.rows}
+                  emptyText="Brak tabeli."
+                  showHorizontalScroll
+                  onGameCellPress={handleGamePress}
+                  lockingGameId={lockingGameId}
+                />
+              ) : (
                 <Text style={styles.modalEmpty}>
-                  {selectedPlayoffSide != null
-                    ? 'Wszystkie mecze w tej drabince zostały już rozegrane.'
-                    : 'Wszystkie mecze w tej grupie zostały już rozegrane.'}
+                  Wszystkie mecze w tej grupie zostały już rozegrane.
                 </Text>
-              }
-            />
+              )
+            ) : (
+              <FlatList
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+                data={gamesInPlayoffSide}
+                keyExtractor={(game) => `${game.type}-${game.id}`}
+                renderItem={({ item: game }) => renderGameRow(game, true)}
+                ListEmptyComponent={
+                  <Text style={styles.modalEmpty}>
+                    Wszystkie mecze w tej drabince zostały już rozegrane.
+                  </Text>
+                }
+              />
+            )}
             <Pressable style={styles.closeButton} onPress={closeGroupModal}>
               <Text style={styles.closeButtonText}>Zamknij</Text>
             </Pressable>
@@ -436,6 +473,12 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: 'bold',
   },
+  groupPlayersText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 6,
+    lineHeight: 20,
+  },
   gameRow: {
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -478,6 +521,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     maxHeight: '85%',
+  },
+  modalContentWide: {
+    maxWidth: 720,
   },
   modalTitle: {
     fontSize: 20,

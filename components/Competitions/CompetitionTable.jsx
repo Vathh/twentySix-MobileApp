@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 
@@ -14,7 +14,9 @@ const CompetitionTable = ({
 	rows,
 	emptyText = 'Brak danych.',
 	onPlayerPress,
+	onGameCellPress,
 	showHorizontalScroll = false,
+	lockingGameId = null,
 }) => {
 	if (!rows || rows.length === 0) {
 		return <Text style={styles.empty}>{emptyText}</Text>;
@@ -57,13 +59,23 @@ const CompetitionTable = ({
 							const playerId = isPlayer && typeof raw === 'object' ? raw?.playerId : null;
 							const playerName =
 								isPlayer && typeof raw === 'object' ? raw?.name ?? text : text;
-							const canPress = Boolean(isPlayer && playerId && onPlayerPress);
+							const canPressPlayer = Boolean(isPlayer && playerId && onPlayerPress);
+							const playableGame =
+								!isPlayer &&
+								raw &&
+								typeof raw === 'object' &&
+								raw.playable &&
+								raw.game &&
+								onGameCellPress
+									? raw.game
+									: null;
+							const cellWidth = { width: scaleSize(col.width ?? 72) };
 
-							if (canPress) {
+							if (canPressPlayer) {
 								return (
 									<Pressable
 										key={col.key}
-										style={{ width: scaleSize(col.width ?? 72) }}
+										style={cellWidth}
 										onPress={() => onPlayerPress(playerId, playerName)}
 									>
 										<Text
@@ -76,12 +88,35 @@ const CompetitionTable = ({
 								);
 							}
 
+							if (playableGame) {
+								const isLocking = lockingGameId === playableGame.id;
+								return (
+									<Pressable
+										key={col.key}
+										style={[cellWidth, styles.playableCell]}
+										onPress={() => onGameCellPress(playableGame)}
+										disabled={lockingGameId != null}
+									>
+										{isLocking ? (
+											<ActivityIndicator size="small" color={colors.accent} />
+										) : (
+											<Text
+												style={[styles.playableCellText, alignStyle(col.align)]}
+												numberOfLines={1}
+											>
+												{text}
+											</Text>
+										)}
+									</Pressable>
+								);
+							}
+
 							return (
 								<Text
 									key={col.key}
 									style={[
 										styles.cell,
-										{ width: scaleSize(col.width ?? 72) },
+										cellWidth,
 										alignStyle(col.align),
 										isPlayer && styles.playerCellMuted,
 									]}
@@ -100,6 +135,7 @@ const CompetitionTable = ({
 
 function formatCell(value) {
 	if (value === null || value === undefined || value === '') return '—';
+	if (typeof value === 'object' && value.text != null) return String(value.text);
 	return String(value);
 }
 
@@ -128,6 +164,7 @@ const styles = StyleSheet.create({
 	},
 	bodyRow: {
 		flexDirection: 'row',
+		alignItems: 'center',
 		paddingVertical: 10,
 		borderBottomWidth: StyleSheet.hairlineWidth,
 		borderBottomColor: colors.borderSoft,
@@ -148,6 +185,15 @@ const styles = StyleSheet.create({
 	playerCellMuted: {
 		color: colors.text,
 		fontWeight: '600',
+	},
+	playableCell: {
+		justifyContent: 'center',
+		minHeight: 36,
+	},
+	playableCellText: {
+		color: colors.accent,
+		fontSize: 16,
+		fontWeight: '700',
 	},
 	alignLeft: { textAlign: 'left' },
 	alignCenter: { textAlign: 'center' },
