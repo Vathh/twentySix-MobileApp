@@ -44,7 +44,7 @@ export function createTournamentTransport({
 			return {
 				channelName: getGameScoringChannelName(channelKind, gameId),
 				channelType: 'public',
-				events: ['game.state', '.game.state'],
+				events: ['game.state', '.game.state', 'game.cancelled', '.game.cancelled'],
 				scope: 'game-scoring',
 				unwrapPayload: unwrapTournamentPayload,
 			};

@@ -134,7 +134,7 @@ export function useGameFinishedEffects({
 	]);
 
 	useEffect(() => {
-		if (!gameClosed || mode !== GAME_MODE.TOURNAMENT || !syncEnabled) return;
+		if (!gameClosed || gameAborted || mode !== GAME_MODE.TOURNAMENT || !syncEnabled) return;
 		if (tournamentResultSentRef.current) return;
 		tournamentResultSentRef.current = true;
 
@@ -156,6 +156,7 @@ export function useGameFinishedEffects({
 			kind: 'tournament',
 		});
 	}, [
+		gameAborted,
 		gameClosed,
 		mode,
 		syncEnabled,

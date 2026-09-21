@@ -9,7 +9,7 @@ import {
 	normalizeScoringState,
 	remainingFromPlayerVisits,
 } from '../helpers/gameScoring/index.js';
-import { consumeFfaAbortPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
+import { consumeFfaAbortPayload, consumeH2hCancelledPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
 import { announceRemoteVisit } from '../helpers/gameScoring/announceRemoteVisit.js';
 import {
 	clearOutbox,
@@ -20,6 +20,7 @@ import {
 import {
 	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
+	isGameCancelledScoringError,
 } from '../helpers/gameScoring/scoringRequestError.js';
 import {
 	CLOSED_LEG_UNDO_MESSAGE,
@@ -254,12 +255,22 @@ export function useGameScoring({
 	onAbortedRef.current = onAborted;
 
 	const handleAbortIfNeeded = useCallback(
-		(state) =>
-			consumeFfaAbortPayload(state, {
+		(state) => {
+			if (
+				consumeFfaAbortPayload(state, {
+					setGameClosed,
+					onAborted: () => onAbortedRef.current?.(),
+					handledRef: abortedRef,
+				})
+			) {
+				return true;
+			}
+			return consumeH2hCancelledPayload(state, {
 				setGameClosed,
 				onAborted: () => onAbortedRef.current?.(),
 				handledRef: abortedRef,
-			}),
+			});
+		},
 		[setGameClosed],
 	);
 
@@ -297,6 +308,11 @@ export function useGameScoring({
 				try {
 					const snapshot = await syncTransport.fetchState();
 					lastState = snapshot;
+					if (handleAbortIfNeeded(snapshot)) {
+						await clearOutbox(key);
+						setSyncPending(false);
+						return snapshot;
+					}
 					applyStateSafeRef.current(snapshot, 'external');
 					if (isMatchFinishedState(snapshot)) {
 						await clearOutbox(key);
@@ -304,7 +320,10 @@ export function useGameScoring({
 						markMatchFinishedFromState(snapshot);
 						return snapshot;
 					}
-				} catch {
+				} catch (fetchErr) {
+					if (isGameCancelledScoringError(fetchErr)) {
+						throw fetchErr;
+					}
 					// Brak sieci przy fetch — spróbuj flush wpisów i tak.
 				}
 			}
@@ -352,6 +371,16 @@ export function useGameScoring({
 			setSyncPending(false);
 			return lastState;
 		} catch (e) {
+			if (isGameCancelledScoringError(e)) {
+				if (!abortedRef.current) {
+					abortedRef.current = true;
+					setGameClosed(true);
+					onAbortedRef.current?.();
+				}
+				await clearOutbox(key);
+				setSyncPending(false);
+				return null;
+			}
 			if (isRetryableScoringError(e)) {
 				setSyncPending(true);
 				return null;
@@ -376,7 +405,7 @@ export function useGameScoring({
 			flushInFlightRef.current = false;
 			await refreshSyncPending();
 		}
-	}, [markMatchFinishedFromState, refreshSyncPending]);
+	}, [markMatchFinishedFromState, refreshSyncPending, handleAbortIfNeeded, setGameClosed]);
 
 	const flushOutboxRef = useRef(flushOutbox);
 	flushOutboxRef.current = flushOutbox;
@@ -404,6 +433,14 @@ export function useGameScoring({
 			}
 			return state;
 		} catch (e) {
+			if (isGameCancelledScoringError(e)) {
+				if (!abortedRef.current) {
+					abortedRef.current = true;
+					setGameClosed(true);
+					onAbortedRef.current?.();
+				}
+				return null;
+			}
 			console.warn('loadGameScoringState', e);
 			onStateLoadedRef.current?.(null);
 			return null;
@@ -426,6 +463,9 @@ export function useGameScoring({
 		ensureLegPromiseRef.current = (async () => {
 			try {
 				let state = await transport.fetchState();
+				if (handleAbortIfNeeded(state)) {
+					return null;
+				}
 				if (state.currentLeg?.id) {
 					currentLegIdRef.current = state.currentLeg.id;
 					applyStateSafe(state, 'submit');
@@ -435,6 +475,9 @@ export function useGameScoring({
 				try {
 					state = await transport.startLeg({ tracked });
 				} catch (startErr) {
+					if (isGameCancelledScoringError(startErr)) {
+						throw startErr;
+					}
 					const msg = startErr?.message ?? '';
 					if (msg.includes('otwarty leg') || msg.includes('już otwarty')) {
 						state = await transport.fetchState();
@@ -442,15 +485,28 @@ export function useGameScoring({
 						throw startErr;
 					}
 				}
+				if (handleAbortIfNeeded(state)) {
+					return null;
+				}
 				applyStateSafe(state, 'submit');
 				currentLegIdRef.current = state.currentLeg?.id ?? null;
 				return currentLegIdRef.current;
+			} catch (e) {
+				if (isGameCancelledScoringError(e)) {
+					if (!abortedRef.current) {
+						abortedRef.current = true;
+						setGameClosed(true);
+						onAbortedRef.current?.();
+					}
+					return null;
+				}
+				throw e;
 			} finally {
 				ensureLegPromiseRef.current = null;
 			}
 		})();
 		return ensureLegPromiseRef.current;
-	}, [enabled, transport, isPerDartMode, applyStateSafe]);
+	}, [enabled, transport, isPerDartMode, applyStateSafe, handleAbortIfNeeded]);
 
 	useEffect(() => {
 		if (!enabled || gameClosed) {

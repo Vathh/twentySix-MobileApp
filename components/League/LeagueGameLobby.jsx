@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Alert,
 	Pressable,
@@ -38,6 +38,8 @@ export default function LeagueGameLobby({ navigation, route }) {
 	const [game, setGame] = useState(route.params?.initialGame ?? null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
+	const previousStatusRef = useRef(route.params?.initialGame?.status ?? null);
+	const skipScheduledAlertRef = useRef(false);
 
 	const load = useCallback(async () => {
 		if (!auth?.accessToken || !gameId) {
@@ -49,8 +51,30 @@ export default function LeagueGameLobby({ navigation, route }) {
 				setGame(data);
 				setError('');
 				if (data.status === 'in_progress' && data.canResumeScoring) {
+					previousStatusRef.current = data.status;
 					navigateToLeagueScoring(navigation, data, { askOpener: false });
+					return;
 				}
+				if (
+					data.status === 'scheduled'
+					&& previousStatusRef.current
+					&& previousStatusRef.current !== 'scheduled'
+					&& !skipScheduledAlertRef.current
+				) {
+					previousStatusRef.current = data.status;
+					Alert.alert('Mecz anulowany', 'Administrator anulował ten mecz.', [
+						{
+							text: 'OK',
+							onPress: () => {
+								if (navigation.canGoBack()) {
+									navigation.goBack();
+								}
+							},
+						},
+					]);
+					return;
+				}
+				previousStatusRef.current = data.status;
 			} else {
 				setError(data?.message || 'Nie udało się odświeżyć lobby.');
 			}
@@ -76,6 +100,7 @@ export default function LeagueGameLobby({ navigation, route }) {
 			return;
 		}
 		setBusy(true);
+		skipScheduledAlertRef.current = true;
 		try {
 			const { ok, data, status, error } = await action(gameId, auth.accessToken);
 			if (ok) {
@@ -87,8 +112,11 @@ export default function LeagueGameLobby({ navigation, route }) {
 				}
 				if (data.status === 'scheduled') {
 					navigation.goBack();
+				} else {
+					skipScheduledAlertRef.current = false;
 				}
 			} else {
+				skipScheduledAlertRef.current = false;
 				Alert.alert(failTitle, userFacingErrorMessage({
 					error,
 					status,
@@ -97,6 +125,7 @@ export default function LeagueGameLobby({ navigation, route }) {
 				}));
 			}
 		} catch (error) {
+			skipScheduledAlertRef.current = false;
 			Alert.alert('Błąd', userFacingErrorMessage({
 				error,
 				fallback: 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',

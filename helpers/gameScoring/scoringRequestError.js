@@ -37,6 +37,17 @@ export function isRetryableScoringError(error) {
 	return false;
 }
 
+export function isGameCancelledScoringError(error) {
+	if (!error) {
+		return false;
+	}
+	if (error.status === 409) {
+		return true;
+	}
+	const msg = String(error.message || '').toLowerCase();
+	return msg.includes('nie jest w trakcie');
+}
+
 export function isRemainingBeforeMismatchError(error) {
 	const msg = String(error?.message || error || '').toLowerCase();
 	return msg.includes('nieprawidłowy wynik przed')

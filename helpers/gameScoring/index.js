@@ -1,9 +1,11 @@
 export { applyGameScoringState, scoringStateHasProgress } from './applyGameScoringState.js';
 export {
 	consumeFfaAbortPayload,
+	consumeH2hCancelledPayload,
 	ffaSessionStatus,
 	isFfaAbortedState,
 	isFfaFinishedState,
+	isH2hCancelledState,
 } from './ffaClosedStatus.js';
 export {
 	computeFfaStateRevision,

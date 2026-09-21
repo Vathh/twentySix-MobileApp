@@ -33,6 +33,7 @@ import { useGameScoring } from '../../hooks/useGameScoring';
 import { usePlayersBoard } from '../../hooks/usePlayersBoard';
 import { useLatestCallback } from '../../hooks/useLatestCallback';
 import { notifyFfaGameAborted } from '../../helpers/gameScoring/notifyFfaGameAborted';
+import { notifyH2hGameCancelled } from '../../helpers/gameScoring/notifyH2hGameCancelled';
 import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
 import { useGameFinishedEffects } from '../../hooks/useGameFinishedEffects';
 import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
@@ -369,7 +370,11 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		reloadKey,
 		onAborted: () => {
 			setGameAborted(true);
-			notifyFfaGameAborted(navigation);
+			if (mode === GAME_MODE.QUICK_FFA) {
+				notifyFfaGameAborted(navigation);
+			} else {
+				notifyH2hGameCancelled(navigation);
+			}
 		},
 		getCloseLegDoubleStats: () => {
 			const map = {};
