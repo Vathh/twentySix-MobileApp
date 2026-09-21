@@ -5,10 +5,12 @@ import { runCatch40Tests } from '../../catch40/__tests__/catch40Rules.test.js';
 import { runCricket56Tests } from '../../cricket56/__tests__/cricket56Rules.test.js';
 import { runAchievementHandlersTests } from './achievementHandlers.test.js';
 import { runDartHistoryTrackerTests } from './dartHistoryTracker.test.js';
+import { runBuildH2hLegVisitRowsTests } from './buildH2hLegVisitRows.test.js';
 import { runPerDartUndoTests } from './perDartUndo.test.js';
 import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
+import { runDartLimitRulesTests } from '../../matchFormat/__tests__/dartLimitRules.test.js';
 import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
 import { runPlayerResultReducerTests } from '../../reducers/__tests__/playerResultReducer.test.js';
 import { runUserFacingErrorTests } from '../../__tests__/userFacingError.test.js';
@@ -895,10 +897,12 @@ const tests = [
 	['cricket56 rules', runCricket56Tests],
 	['achievement handlers', runAchievementHandlersTests],
 	['dart history tracker', runDartHistoryTrackerTests],
+	['h2h leg visit rows', runBuildH2hLegVisitRowsTests],
 	['per-dart undo scoring', runPerDartUndoTests],
 	['ffa scoring sync', runFfaScoringSyncTests],
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
+	['dart limit rules', runDartLimitRulesTests],
 	['players board reducer', runPlayersBoardReducerTests],
 	['player result reducer', runPlayerResultReducerTests],
 	['user facing error', runUserFacingErrorTests],

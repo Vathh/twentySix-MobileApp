@@ -117,6 +117,8 @@ export function fromTournamentState(raw, uiPlayers = []) {
 			tournamentId: raw.game?.tournamentId ?? null,
 			quickGameId: null,
 			status: tournamentStatus(raw),
+			bullOffRequired: Boolean(raw.meta?.bullOffRequired),
+			lastLegClose: raw.meta?.lastLegClose ?? raw.lastLegClose ?? null,
 		},
 		turn,
 		currentLeg: raw.currentLeg
@@ -190,6 +192,8 @@ export function fromFfaState(raw, uiPlayers = []) {
 			tournamentId: null,
 			quickGameId: session.quickGameId ?? null,
 			status: ffaStatus(raw),
+			bullOffRequired: Boolean(raw.meta?.bullOffRequired ?? raw.bullOffRequired),
+			lastLegClose: raw.meta?.lastLegClose ?? raw.lastLegClose ?? null,
 		},
 		turn,
 		currentLeg: raw.currentLeg

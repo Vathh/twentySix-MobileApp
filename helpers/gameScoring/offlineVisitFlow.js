@@ -107,6 +107,29 @@ export function createOfflineVisitFlow(deps) {
 		checkoutClosingRef.current = false;
 	};
 
+	const finishOfflineBullOff = (idx) => {
+		if (checkoutClosingRef.current) {
+			return;
+		}
+		checkoutClosingRef.current = true;
+
+		const playerStates = getPlayerStates();
+		const playerDispatches = getPlayerDispatches();
+		const matchFormat = getMatchFormat();
+		playerDispatches[idx](legWin(0, matchFormat));
+		const setWillClose = matchFormat && wouldCloseSet(playerStates[idx], matchFormat);
+		for (let j = 0; j < N; j++) {
+			if (j !== idx) playerDispatches[j](legLose());
+		}
+		if (setWillClose) {
+			for (let j = 0; j < N; j++) {
+				playerDispatches[j](resetLegsInSet());
+			}
+		}
+		advanceToNextLegOpener();
+		checkoutClosingRef.current = false;
+	};
+
 	const handleOfflineCheckout = (
 		idx,
 		visitScore,
@@ -251,6 +274,7 @@ export function createOfflineVisitFlow(deps) {
 		promptOfflinePerDartCheckout,
 		finishOfflinePerDartVisit,
 		finishOfflineLegWin,
+		finishOfflineBullOff,
 		handleOfflineCheckout,
 		handleOfflineSumVisit,
 	};

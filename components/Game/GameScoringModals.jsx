@@ -24,6 +24,12 @@ export default function GameScoringModals({
 	scoringBusy,
 	scoringBusyLabel,
 	onLeaveScoring,
+	bullOffRequired = false,
+	canResolveBullOff = true,
+	onSelectBullOffWinner,
+	onUndoLastVisit,
+	lossThresholdNotice = null,
+	onDismissLossThreshold,
 }) {
 	const insets = useSafeAreaInsets();
 	const selectingOpenerRef = useRef(false);
@@ -97,7 +103,63 @@ export default function GameScoringModals({
 				</Modal>
 			)}
 
-			{scoringBusy && !isCheckoutModalVisible && (
+			<Modal visible={!!lossThresholdNotice} onRequestClose={onDismissLossThreshold}>
+				<View style={styles.modalContainer}>
+					<Text style={styles.modalText}>
+						{lossThresholdNotice ?? ''}
+					</Text>
+					<Pressable
+						style={[styles.modalBtn, styles.qfModalBtn]}
+						onPress={onDismissLossThreshold}
+					>
+						<Text style={styles.modalBtnText}>OK</Text>
+					</Pressable>
+				</View>
+			</Modal>
+
+			<Modal visible={bullOffRequired && !lossThresholdNotice} onRequestClose={() => {}}>
+				<View style={styles.modalContainer}>
+					<Text style={styles.modalText}>
+						Rzut do bulla, kto trafił bliżej?
+					</Text>
+					{canResolveBullOff ? (
+						<>
+							<View
+								style={[
+									styles.modalBtnsContainer,
+									playerCount > 2 && styles.modalBtnsWrap,
+								]}
+							>
+								{players.slice(0, playerCount).map((p, i) => (
+									<Pressable
+										key={p?.playerId ?? i}
+										style={[styles.modalBtn, scoringBusy && styles.countBtnDisabled]}
+										disabled={scoringBusy}
+										onPress={() => onSelectBullOffWinner?.(i)}
+									>
+										<Text style={styles.modalBtnText} numberOfLines={1}>
+											{p?.name ?? 'Gracz'}
+										</Text>
+									</Pressable>
+								))}
+							</View>
+							<Pressable
+								style={[styles.undoVisitBtn, scoringBusy && styles.countBtnDisabled]}
+								disabled={scoringBusy}
+								onPress={onUndoLastVisit}
+							>
+								<Text style={styles.modalBtnText}>Cofnij ostatnią kolejkę</Text>
+							</Pressable>
+						</>
+					) : (
+						<Text style={styles.modalHint}>
+							Host rozstrzyga rzut do bulla.
+						</Text>
+					)}
+				</View>
+			</Modal>
+
+			{scoringBusy && !isCheckoutModalVisible && !bullOffRequired && !lossThresholdNotice && (
 				<View style={styles.scoringBusyOverlay} pointerEvents="none">
 					<ActivityIndicator size="large" color={colors.accent} />
 					<Text style={styles.scoringBusyText}>{scoringBusyLabel}</Text>
@@ -152,6 +214,24 @@ const styles = StyleSheet.create({
 	},
 	qfModalBtn: {
 		marginTop: 30,
+	},
+	undoVisitBtn: {
+		marginTop: 36,
+		borderRadius: 10,
+		borderWidth: 2,
+		borderColor: colors.borderMuted,
+		justifyContent: 'center',
+		alignItems: 'center',
+		paddingHorizontal: 16,
+	},
+	modalHint: {
+		color: colors.textMuted,
+		fontSize: 16,
+		textAlign: 'center',
+		paddingHorizontal: 40,
+	},
+	countBtnDisabled: {
+		opacity: 0.45,
 	},
 	modalBtnText: {
 		color: colors.textMuted,

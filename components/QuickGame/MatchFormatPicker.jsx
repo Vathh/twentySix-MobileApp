@@ -20,6 +20,10 @@ import {
 } from '../../helpers/matchFormat/matchFormat';
 import { colors } from '../../theme/colors';
 import SelectMenu from '../Core/SelectMenu';
+import {
+	DEFAULT_DART_LIMIT,
+	snapDartLimit,
+} from '../../helpers/matchFormat/dartLimitRules';
 
 const LEGS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const SETS_OPTIONS = [1, 2, 3];
@@ -61,6 +65,7 @@ export default function MatchFormatPicker({
 	onChange,
 	disabled = false,
 	showGameTypeSelect = true,
+	showDartLimit = true,
 }) {
 	const format = normalizeMatchFormat(value);
 	const cricket = isCricketFormat(format);
@@ -276,6 +281,43 @@ export default function MatchFormatPicker({
 					}
 				/>
 			)}
+			{!hideX01Fields && showDartLimit && (
+				<View style={styles.stepperBlock}>
+					<Pressable
+						style={[styles.checkRow, disabled && styles.countBtnDisabled]}
+						disabled={disabled}
+						onPress={() =>
+							setField({
+								dartLimit: format.dartLimit == null ? DEFAULT_DART_LIMIT : null,
+							})
+						}
+					>
+						<View style={[styles.checkbox, format.dartLimit != null && styles.checkboxOn]}>
+							{format.dartLimit != null ? (
+								<Text style={styles.checkboxMark}>✓</Text>
+							) : null}
+						</View>
+						<Text style={styles.label}>Ogranicznik lotek</Text>
+					</Pressable>
+					{format.dartLimit != null ? (
+						<Stepper
+							label="Limit lotek na zawodnika w legu"
+							value={format.dartLimit}
+							disabled={disabled}
+							onDecrement={() =>
+								setField({
+									dartLimit: snapDartLimit(format.dartLimit - 3),
+								})
+							}
+							onIncrement={() =>
+								setField({
+									dartLimit: snapDartLimit(format.dartLimit + 3),
+								})
+							}
+						/>
+					) : null}
+				</View>
+			)}
 		</View>
 	);
 }
@@ -332,6 +374,31 @@ const styles = StyleSheet.create({
 		color: colors.textMuted,
 		textAlign: 'center',
 		marginBottom: 8,
+	},
+	checkRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 10,
+		marginBottom: 8,
+	},
+	checkbox: {
+		width: 24,
+		height: 24,
+		borderRadius: 6,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.bgElevated,
+	},
+	checkboxOn: {
+		borderColor: colors.accent,
+	},
+	checkboxMark: {
+		color: colors.accent,
+		fontSize: 16,
+		fontWeight: '700',
 	},
 	stepperBlock: {
 		marginTop: 8,

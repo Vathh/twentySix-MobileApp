@@ -82,6 +82,9 @@ export function useGameScoring({
 	const [wsHealthy, setWsHealthy] = useState(false);
 	const [ffaPresence, setFfaPresence] = useState(null);
 	const [syncPending, setSyncPending] = useState(false);
+	const [bullOffRequired, setBullOffRequired] = useState(false);
+	const [lastLegClose, setLastLegClose] = useState(null);
+	const [legVisits, setLegVisits] = useState([]);
 	const getCloseLegDoubleStatsRef = useRef(getCloseLegDoubleStats);
 	getCloseLegDoubleStatsRef.current = getCloseLegDoubleStats;
 
@@ -131,12 +134,16 @@ export function useGameScoring({
 				const normalized = isNormalizedScoringState(state)
 					? state
 					: normalizeScoringState(state, sync.players);
+				const visits = normalized?.visits ?? [];
 				lastSyncStateRef.current = {
 					currentLeg: normalized?.currentLeg ?? null,
-					visits: normalized?.visits ?? [],
+					visits,
 					legs: Array.isArray(state.legs) ? state.legs : [],
 					turn: normalized?.turn ?? null,
 				};
+				setLegVisits(visits);
+				setBullOffRequired(Boolean(normalized?.meta?.bullOffRequired ?? state.meta?.bullOffRequired));
+				setLastLegClose(normalized?.meta?.lastLegClose ?? state.meta?.lastLegClose ?? null);
 				if (normalized?.meta?.matchFormat) {
 					sync.onMatchFormat?.(normalized.meta.matchFormat);
 				}
@@ -648,6 +655,13 @@ export function useGameScoring({
 						applyStateSafe(state, 'submit');
 						if (isMatchFinishedState(state)) {
 							markMatchFinishedFromState(state);
+						} else if (transport.format === 'h2h') {
+							const legClosed =
+								state?.currentLeg == null ||
+								state?.currentLeg?.open === false;
+							if (legClosed) {
+								await ensureLegStarted();
+							}
 						}
 						return state;
 					};
@@ -920,6 +934,109 @@ export function useGameScoring({
 		],
 	);
 
+	const closeLegByBullOff = useCallback(
+		(playerIndex) =>
+			runSerialized(async () => {
+				if (!enabled || !transport?.closeLeg) {
+					return null;
+				}
+				const player = players[playerIndex];
+				if (!player?.playerId) {
+					return null;
+				}
+
+				pendingWritesRef.current += 1;
+				let closePayload = null;
+				let legId = null;
+				try {
+					if (transport.requiresLegId) {
+						legId = currentLegIdRef.current ?? (await ensureLegStarted());
+						if (!legId) {
+							throw new Error('Brak otwartego lega');
+						}
+						closePayload = {
+							winnerId: player.playerId,
+							players: buildCloseLegPlayers(player.playerId, 0),
+							reason: 'bull_off',
+						};
+					} else {
+						closePayload = { winnerPlayerId: player.playerId };
+					}
+
+					const state = await transport.closeLeg(legId, closePayload);
+					const applied = applyStateSafe(state, 'submit');
+					const matchFinished = isMatchFinishedState(state);
+
+					if (matchFinished) {
+						if (!applied) {
+							lastRevisionRef.current = Math.max(
+								lastRevisionRef.current,
+								computeStateRevision(state),
+							);
+							applyStateInternal(state);
+						}
+						setGameClosed(true);
+					}
+
+					const legClosed =
+						state?.currentLeg == null ||
+						state?.currentLeg?.open === false;
+					if (legClosed) {
+						currentLegIdRef.current = null;
+					}
+
+					if (
+						transport.format === 'h2h' &&
+						!matchFinished &&
+						legClosed
+					) {
+						await ensureLegStarted();
+					}
+					return state;
+				} catch (e) {
+					if (isRetryableScoringError(e) && closePayload) {
+						const key = transport.getOutboxKey?.() ?? null;
+						if (key) {
+							await enqueueOutbox(key, {
+								op: 'closeLeg',
+								legId,
+								payload: closePayload,
+							});
+							setSyncPending(true);
+							Alert.alert(
+								'Brak połączenia',
+								'Zapiszę na serwerze, gdy wróci internet.',
+							);
+						} else {
+							Alert.alert(
+								'Błąd',
+								e.message || 'Nie udało się zamknąć lega',
+							);
+						}
+						return null;
+					}
+					Alert.alert(
+						'Błąd',
+						e.message || 'Nie udało się zamknąć lega',
+					);
+					return null;
+				} finally {
+					pendingWritesRef.current -= 1;
+				}
+			}),
+		[
+			runSerialized,
+			enabled,
+			transport,
+			players,
+			ensureLegStarted,
+			buildCloseLegPlayers,
+			applyStateSafe,
+			applyStateInternal,
+			setGameClosed,
+		],
+	);
+
 	const undoVisit = useCallback(
 		() =>
 			runSerialized(async () => {
@@ -981,6 +1098,7 @@ export function useGameScoring({
 	return {
 		submitVisit,
 		closeLegWithWinner,
+		closeLegByBullOff,
 		undoVisit,
 		ensureLegStarted,
 		getOpenLegId: () => currentLegIdRef.current,
@@ -988,5 +1106,8 @@ export function useGameScoring({
 		ffaPresence,
 		syncPending,
 		flushOutbox,
+		bullOffRequired,
+		lastLegClose,
+		legVisits,
 	};
 }

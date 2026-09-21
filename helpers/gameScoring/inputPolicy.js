@@ -13,8 +13,9 @@ export function canCounterInput({
 	currentPlayerIndex,
 	ffaPresence = null,
 	players = [],
+	bullOffRequired = false,
 }) {
-	if (gameClosed || scoringBusy) {
+	if (gameClosed || scoringBusy || bullOffRequired) {
 		return false;
 	}
 

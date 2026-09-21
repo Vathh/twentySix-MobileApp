@@ -365,6 +365,7 @@ const QuickGameLobby = ({ navigation, route }) => {
           <MatchFormatPicker
             value={matchFormat}
             disabled={!isHost}
+            showDartLimit={scoringMode === SCORING_MODES.ONE_DEVICE}
             onChange={(next) => {
               if (!isHost) return;
               const withType = normalizeMatchFormat(next);

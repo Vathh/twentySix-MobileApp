@@ -67,6 +67,10 @@ import {
 import { playCheckoutWinSound, playClick, playGameOn, playVisitScore } from '../../helpers/gameSounds';
 import { buildFfaPresenceBannerMessages } from '../../helpers/ffaPresenceMessages';
 import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
+import {
+	isDartLimitApplicable,
+	isDartLimitReached,
+} from '../../helpers/matchFormat/dartLimitRules';
 
 function scoringStateHasProgress(state) {
 	if (!state) {
@@ -223,6 +227,9 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	const [resultEdited, setResultEdited] = useState(false);
 	const [scoringBusy, setScoringBusy] = useState(false);
 	const [scoringBusyLabel, setScoringBusyLabel] = useState('Zapisywanie wyniku…');
+	const [localBullOffRequired, setLocalBullOffRequired] = useState(false);
+	const [lossThresholdNotice, setLossThresholdNotice] = useState(null);
+	const dismissedLossKeyRef = useRef(null);
 	/** Pozostały wynik w bieżącej wizycie (per-dart, tylko lokalnie — nad głównym licznikiem). */
 	const [localVisitRemaining, setLocalVisitRemainingState] = useState(null);
 	const localVisitRemainingRef = useRef(null);
@@ -376,7 +383,14 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		},
 	});
 
-	const { ffaPresence, syncPending } = gameScoring;
+	const { ffaPresence, syncPending, bullOffRequired: syncedBullOffRequired, lastLegClose, legVisits } = gameScoring;
+
+	const bullOffRequired = syncEnabled
+		? !!syncedBullOffRequired
+		: localBullOffRequired;
+
+	const canResolveBullOff =
+		mode !== GAME_MODE.QUICK_FFA || isHost;
 
 	const myPlayerId = useMemo(() => {
 		if (myPlayerIndex == null || myPlayerIndex < 0) return null;
@@ -408,6 +422,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 				currentPlayerIndex,
 				ffaPresence,
 				players,
+				bullOffRequired,
 			}),
 		[
 			mode,
@@ -419,6 +434,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			currentPlayerIndex,
 			ffaPresence,
 			players,
+			bullOffRequired,
 		],
 	);
 
@@ -426,7 +442,52 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		counterTurnAllowed &&
 		!isModalVisible &&
 		!openerCheckPending &&
-		!scoringBusy;
+		!scoringBusy &&
+		!lossThresholdNotice;
+
+	useEffect(() => {
+		if (!syncEnabled || gameClosed) {
+			return;
+		}
+		if (lastLegClose?.reason !== 'loss_threshold') {
+			return;
+		}
+		const key = `${lastLegClose.legId ?? lastLegClose.legNumber ?? ''}:${lastLegClose.winnerId}`;
+		if (dismissedLossKeyRef.current === key) {
+			return;
+		}
+		const playerIdOf = (p) => p?.playerId ?? p?.id;
+		const loser = players.find((p) => playerIdOf(p) === lastLegClose.loserId);
+		const winner = players.find((p) => playerIdOf(p) === lastLegClose.winnerId);
+		setLossThresholdNotice(
+			`${loser?.name ?? 'Zawodnik'} przegrywa lega (próg przegranej). Wygrywa ${winner?.name ?? 'rywal'}.`,
+		);
+		dismissedLossKeyRef.current = key;
+	}, [syncEnabled, gameClosed, lastLegClose, players]);
+
+	useEffect(() => {
+		if (syncEnabled || gameClosed) {
+			if (syncEnabled) {
+				setLocalBullOffRequired(false);
+			}
+			return;
+		}
+		if (!isDartLimitApplicable(matchFormat)) {
+			setLocalBullOffRequired(false);
+			return;
+		}
+		if (playerHasInProgressPerDartVisit(dartHistoryRef.current, currentPlayerIndex)) {
+			return;
+		}
+		const darts = playerStates.map((state) => Number(state?.dartsThrown ?? 0));
+		setLocalBullOffRequired(isDartLimitReached(matchFormat.dartLimit, darts));
+	}, [
+		syncEnabled,
+		gameClosed,
+		matchFormat,
+		playerStates,
+		currentPlayerIndex,
+	]);
 
 	useEffect(() => {
 		if (prevPerDartModeRef.current === isPerDartMode) {
@@ -1068,6 +1129,34 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		playerDispatches[prevIdx](undo());
 	};
 
+	const handleBullOffWinner = (idx) => {
+		if (scoringBusy || gameClosed) return;
+		if (syncEnabled) {
+			beginScoringBusy('Zamykanie lega…');
+			void gameScoring.closeLegByBullOff(idx).finally(() => {
+				dartHistoryRef.current = [];
+				visitClientIdRef.current = null;
+				setLocalRemaining(null);
+				setCurrentResult(0);
+				setResultEdited(false);
+				endScoringBusy();
+			});
+			return;
+		}
+		offlineVisit.finishOfflineBullOff(idx);
+		setLocalBullOffRequired(false);
+		setCurrentResult(0);
+		setResultEdited(false);
+	};
+
+	const handleBullOffUndo = () => {
+		handleUndoBtn();
+	};
+
+	const dismissLossThresholdNotice = () => {
+		setLossThresholdNotice(null);
+	};
+
 	useLeaveGameConfirmation({
 		navigation,
 		mode,
@@ -1123,6 +1212,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 						handleUndoSingleDart={onUndoSingleDart}
 						localVisitRemaining={localVisitRemaining}
 						matchFormat={matchFormat}
+						legVisits={isH2hOnline && N === 2 ? legVisits : null}
 					/>
 				</View>
 			);
@@ -1163,6 +1253,12 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 						? () => navigation.goBack()
 						: undefined
 				}
+				bullOffRequired={bullOffRequired}
+				canResolveBullOff={canResolveBullOff}
+				onSelectBullOffWinner={handleBullOffWinner}
+				onUndoLastVisit={handleBullOffUndo}
+				lossThresholdNotice={lossThresholdNotice}
+				onDismissLossThreshold={dismissLossThresholdNotice}
 			/>
 
 			<GameFinishedModal {...finishedModalProps} />

@@ -1,3 +1,8 @@
+import {
+	normalizeDartLimit,
+	normalizeLossThreshold,
+} from './dartLimitRules.js';
+
 export const DEFAULT_MATCH_FORMAT = {
 	startingScore: 501,
 	legsToWinSet: 2,
@@ -8,6 +13,8 @@ export const DEFAULT_MATCH_FORMAT = {
 	bob27Bull: 'with',
 	winMode: 'first_to',
 	winLength: 2,
+	dartLimit: null,
+	lossThreshold: null,
 };
 
 export const STARTING_SCORE_OPTIONS = [
@@ -153,6 +160,12 @@ export function normalizeMatchFormat(input) {
 				? Math.max(2, (Number(input.legsToWinSet ?? input.legs_to_win_set ?? base.legsToWinSet) * 2) - 1)
 				: (Number(input.legsToWinSet ?? input.legs_to_win_set ?? base.legsToWinSet))),
 	);
+	const dartLimit = hideSets
+		? null
+		: normalizeDartLimit(input.dartLimit ?? input.dart_limit ?? null);
+	const lossThreshold = dartLimit == null
+		? null
+		: normalizeLossThreshold(input.lossThreshold ?? input.loss_threshold ?? null);
 
 	return {
 		startingScore: Number(
@@ -174,11 +187,17 @@ export function normalizeMatchFormat(input) {
 		bob27Bull: normalizeBob27Bull(input.bob27Bull ?? input.bob27_bull ?? base.bob27Bull),
 		winMode,
 		winLength,
+		dartLimit,
+		lossThreshold,
 	};
 }
 
 export function isSingleSetFormat(format) {
 	return (format?.setsToWinMatch ?? 1) === 1;
+}
+
+function dartLimitSuffix(format) {
+	return format?.dartLimit != null ? ` · max ${format.dartLimit} lotek` : '';
 }
 
 export function formatMatchLabel(format) {
@@ -202,13 +221,13 @@ export function formatMatchLabel(format) {
 	}
 	if (isSingleSetFormat(f)) {
 		if (f.winMode === 'best_of') {
-			return `${f.startingScore} · best of ${f.winLength}`;
+			return `${f.startingScore} · best of ${f.winLength}${dartLimitSuffix(f)}`;
 		}
 
-		return `${f.startingScore} · do ${f.legsToWinSet} legów`;
+		return `${f.startingScore} · do ${f.legsToWinSet} legów${dartLimitSuffix(f)}`;
 	}
 
-	return `${f.startingScore} · ${f.setsToWinMatch} sety · ${f.legsToWinSet} legi/set`;
+	return `${f.startingScore} · ${f.setsToWinMatch} sety · ${f.legsToWinSet} legi/set${dartLimitSuffix(f)}`;
 }
 
 export function isMatchWon(playerState, format) {

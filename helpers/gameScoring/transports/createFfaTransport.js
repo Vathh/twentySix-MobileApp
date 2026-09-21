@@ -12,6 +12,7 @@ import {
 	undoFfaCricket56Visit,
 	undoFfaCricketVisit,
 	undoFfaVisit,
+	closeFfaLegByBullOff,
 } from '../../quickGameFfaApi';
 import { newClientVisitId } from '../newClientVisitId.js';
 import { createFfaInputGuards } from './ffaTransportGuards.js';
@@ -101,6 +102,8 @@ export function createFfaTransport({
 			recordVisit: (_legId, payload) =>
 				variant.record(lobbyId, accessToken, payload),
 			undoVisit: () => variant.undo(lobbyId, accessToken),
+			closeLeg: (_legId, payload) =>
+				closeFfaLegByBullOff(lobbyId, accessToken, payload?.winnerPlayerId),
 			newClientVisitId,
 			requiresLegId: false,
 			getOutboxKey: () =>

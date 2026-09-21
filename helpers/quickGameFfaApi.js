@@ -4,6 +4,7 @@ import {
 	getQuickGameFfaVisitUrl,
 	getQuickGameFfaPresenceUrl,
 	getQuickGameFfaAbortUrl,
+	getQuickGameFfaCloseLegUrl,
 	getQuickGameFfaCricketVisitUrl,
 	getQuickGameFfaCricketUndoUrl,
 	getQuickGameFfaBob27DartUrl,
@@ -86,6 +87,15 @@ export async function undoFfaVisit(lobbyId, accessToken) {
 		getQuickGameFfaUndoUrl(lobbyId),
 		accessToken,
 		'Nie udało się cofnąć wizyty',
+	);
+}
+
+export async function closeFfaLegByBullOff(lobbyId, accessToken, winnerPlayerId) {
+	return ffaPost(
+		getQuickGameFfaCloseLegUrl(lobbyId),
+		accessToken,
+		'Nie udało się zamknąć lega',
+		{ winnerPlayerId },
 	);
 }
 

@@ -11,6 +11,7 @@ import {
 } from '../../helpers/matchFormat/matchFormatScoring'
 import { colors } from '../../theme/colors'
 import TickingScore from './TickingScore'
+import H2hLegVisitTable from './H2hLegVisitTable'
 
 const PER_DART_ACCENT = colors.perDartAccent;
 
@@ -40,6 +41,8 @@ const Counter = ({
   showWaitingOverlay = true,
   /** false = tylko pole wyniku + klawiatura (Catch 40 ma własną tabelę remaining). */
   showPlayerScores = true,
+  /** Wizyty bieżącego lega H2H 2P — tablica (także pusta) pokazuje tabelę rund. */
+  legVisits = null,
 }) => {
   const format = normalizeMatchFormat(matchFormat);
   const unitLabel = scoreUnitLabel(format);
@@ -48,6 +51,7 @@ const Counter = ({
   const isOnePlayer = N === 1;
   const isTwoPlayer = N === 2;
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
+  const showLegVisitTable = isTwoPlayer && Array.isArray(legVisits);
   const inputDisabled = !canInput || submitting;
   const multiScrollRef = useRef(null);
   const rowOffsetsRef = useRef({});
@@ -220,6 +224,10 @@ const Counter = ({
           </Text>
         </View>
       );
+    }
+
+    if (showLegVisitTable) {
+      return null;
     }
 
     const lastScore = lastCompletedVisitScore(playerIndex);
@@ -550,30 +558,55 @@ const Counter = ({
         </View>
 
         <View style={styles.countersContainer}>
-          <View style={styles.countersScoresRow}>
+          <View style={[styles.countersScoresRow, showLegVisitTable && styles.countersScoresRowCompact]}>
             <View style={[styles.counterContainer, styles.counterContainerWithBorder]}>
-              <View style={[styles.counterScoreStack, isPerDart && styles.counterScoreStackOverlayRoot]}>
+              <View style={[
+                styles.counterScoreStack,
+                showLegVisitTable && styles.counterScoreStackCompact,
+                isPerDart && styles.counterScoreStackOverlayRoot,
+              ]}>
                 {renderLocalVisitRemainingOverlay(0)}
                 <TickingScore
                   value={s0?.score ?? 501}
-                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}
+                  style={[
+                    styles.counterText,
+                    styles.counterTextNoFlex,
+                    showLegVisitTable && styles.counterTextCompact,
+                    currentPlayerIndex === 0 && styles.goldText,
+                  ]}
                   numberOfLines={1}
                 />
                 {renderVisitDartsUnderScore(0, { overlay: isPerDart })}
               </View>
             </View>
             <View style={styles.counterContainer}>
-              <View style={[styles.counterScoreStack, isPerDart && styles.counterScoreStackOverlayRoot]}>
+              <View style={[
+                styles.counterScoreStack,
+                showLegVisitTable && styles.counterScoreStackCompact,
+                isPerDart && styles.counterScoreStackOverlayRoot,
+              ]}>
                 {renderLocalVisitRemainingOverlay(1)}
                 <TickingScore
                   value={s1?.score ?? 501}
-                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 1 && styles.goldText]}
+                  style={[
+                    styles.counterText,
+                    styles.counterTextNoFlex,
+                    showLegVisitTable && styles.counterTextCompact,
+                    currentPlayerIndex === 1 && styles.goldText,
+                  ]}
                   numberOfLines={1}
                 />
                 {renderVisitDartsUnderScore(1, { alignRight: true, overlay: isPerDart })}
               </View>
             </View>
           </View>
+          {showLegVisitTable ? (
+            <H2hLegVisitTable
+              visits={legVisits}
+              leftPlayerId={p0?.playerId ?? p0?.id}
+              rightPlayerId={p1?.playerId ?? p1?.id}
+            />
+          ) : null}
           <View style={styles.averagesRow}>
             <View style={[styles.averagesContainer, styles.counterContainerWithBorder]}>
               <Text style={styles.averageText}>
@@ -787,9 +820,15 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 96,
   },
+  countersScoresRowCompact: {
+    flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 72,
+  },
   averagesRow: {
     flexDirection: 'row',
     width: '100%',
+    flexShrink: 0,
   },
   counterContainer: {
     flex: 1,
@@ -805,6 +844,11 @@ const styles = StyleSheet.create({
     minHeight: 96,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  counterScoreStackCompact: {
+    flex: 0,
+    minHeight: 64,
+    paddingVertical: 4,
   },
   counterScoreStackOverlayRoot: {
     position: 'relative',
@@ -840,6 +884,10 @@ const styles = StyleSheet.create({
     flex: 0,
     width: '100%',
     textAlign: 'center',
+  },
+  counterTextCompact: {
+    fontSize: 56,
+    lineHeight: 62,
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
