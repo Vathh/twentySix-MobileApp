@@ -197,7 +197,7 @@ export function createOfflineVisitFlow(deps) {
 		const resultToApply = getCurrentResult();
 
 		okHandlingRef.current = true;
-		handleMaxAndOneSeventy(player);
+		handleMaxAndOneSeventy(player, resultToApply);
 
 		if (resultToApply < state.score - 1) {
 			playVisitScore(resultToApply);
@@ -226,8 +226,8 @@ export function createOfflineVisitFlow(deps) {
 					style: 'destructive',
 					onPress: () => {
 						okHandlingRef.current = false;
-						handleHf();
-						handleOfflineCheckout(idx);
+						handleHf(resultToApply, player);
+						handleOfflineCheckout(idx, resultToApply);
 					},
 				},
 			]);

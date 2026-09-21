@@ -211,6 +211,8 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	/** Indeks zawodnika rozpoczynającego bieżący leg (rotacja: opener+1 po zamknięciu lega). */
 	const legOpenerIndexRef = useRef(0);
 	const okHandlingRef = useRef(false);
+	/** Wynik wizyty z przycisku „Zostało” (licznik − wpisane), aż OK go zużyje. */
+	const visitScoreOverrideRef = useRef(null);
 	/** Checkout w trybie sumy — czeka na wybór lotki (1–3) przed zamknięciem lega online. */
 	const pendingCheckoutRef = useRef(null);
 	/** Blokada podwójnego kliknięcia w modalu lotki checkout (API trwa długo). */
@@ -658,7 +660,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		handleHf,
 		handleQf,
 		getCheckoutPrompt,
-		getCurrentResult: () => currentResult,
+		getCurrentResult: () => visitScoreOverrideRef.current ?? currentResult,
 		advanceToNextLegOpener,
 		openCheckoutDartModal,
 	});
@@ -688,7 +690,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		openCheckoutDartModal,
 		getMatchFormat: () => matchFormat,
 		getGameScoring: () => gameScoring,
-		getCurrentResult: () => currentResult,
+		getCurrentResult: () => visitScoreOverrideRef.current ?? currentResult,
 		beginScoringBusy,
 		endScoringBusy,
 		dartHistoryRef,
@@ -901,21 +903,47 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		playerDispatches[idx](undoSingleDart());
 	};
 
-	const handleOkBtn = () => {
+	const submitSumVisitScore = (score, { fromRemaining = false } = {}) => {
 		if (gameClosed) return;
 		if (
-			currentResult > 180 ||
-			typeof currentResult !== 'number' ||
-			currentResult < 0 ||
-			(currentResult === 0 && !resultEdited)
+			typeof score !== 'number' ||
+			!Number.isFinite(score) ||
+			score > 180 ||
+			score < 0 ||
+			(score === 0 && !resultEdited && !fromRemaining)
 		) {
 			return;
 		}
+		visitScoreOverrideRef.current = fromRemaining ? score : null;
 		if (syncEnabled) {
-			void handleOnlineOkBtn();
+			void handleOnlineOkBtn().finally(() => {
+				visitScoreOverrideRef.current = null;
+			});
 			return;
 		}
-		offlineVisit.handleOfflineSumVisit();
+		try {
+			offlineVisit.handleOfflineSumVisit();
+		} finally {
+			visitScoreOverrideRef.current = null;
+		}
+	};
+
+	const handleOkBtn = () => {
+		submitSumVisitScore(currentResult);
+	};
+
+	const handleRemainingBtn = () => {
+		if (gameClosed || !resultEdited) return;
+		const remaining = Number(playerStates[currentPlayerIndex]?.score ?? startingScore);
+		const typed = Number(currentResult);
+		if (!Number.isFinite(remaining) || !Number.isFinite(typed) || typed < 0) {
+			return;
+		}
+		const visitScore = remaining - typed;
+		if (visitScore > 180) {
+			return;
+		}
+		submitSumVisitScore(visitScore, { fromRemaining: true });
 	};
 
 	const handleCheckout = (
@@ -1064,6 +1092,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 
 	const onNumberBtn = useLatestCallback(handleNumberBtn);
 	const onOkBtn = useLatestCallback(handleOkBtn);
+	const onRemainingBtn = useLatestCallback(handleRemainingBtn);
 	const onUndoBtn = useLatestCallback(handleUndoBtn);
 	const onClearBtn = useLatestCallback(handleClearBtn);
 	const onDartSubmit = useLatestCallback(handleDartSubmit);
@@ -1081,6 +1110,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 						resultEdited={resultEdited}
 						handleNumberBtn={onNumberBtn}
 						handleOkBtn={onOkBtn}
+						handleRemainingBtn={onRemainingBtn}
 						handleUndoBtn={onUndoBtn}
 						handleClearBtn={onClearBtn}
 						scoringMode={scoringMode}

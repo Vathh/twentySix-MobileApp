@@ -23,6 +23,7 @@ const Counter = ({
   resultEdited = false,
   handleNumberBtn,
   handleOkBtn,
+  handleRemainingBtn,
   handleUndoBtn,
   handleClearBtn,
   handleDartSubmit,
@@ -393,6 +394,14 @@ const Counter = ({
         <Text style={styles.scoreText}>{scoreDisplayText}</Text>
       </View>
       <View style={styles.undoContainer}>
+        <Pressable
+          style={styles.remainingBtn}
+          onPress={() => handleRemainingBtn?.()}
+          accessibilityRole="button"
+          accessibilityLabel="Zostało"
+        >
+          <Text style={styles.remainingText}>Zostało</Text>
+        </Pressable>
         <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
           <Text style={styles.undoText}>Cofnij</Text>
         </Pressable>
@@ -879,9 +888,23 @@ const styles = StyleSheet.create({
     color: colors.textMuted
   },
   undoContainer: {
-    flex: 1,
-    alignItems: 'flex-end',
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  remainingBtn: {
+    paddingRight: 10,
+    paddingLeft: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+    marginRight: 6,
+    backgroundColor: colors.scrimMild,
     justifyContent: 'center',
+  },
+  remainingText: {
+    fontSize: 18,
+    color: colors.textMuted
   },
   undoBtn: {
     paddingRight: 10,

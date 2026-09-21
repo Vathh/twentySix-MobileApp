@@ -281,14 +281,13 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 		visitTotalRef.current = 0;
 	};
 
-	const handleOkBtn = () => {
+	const applyEnteredVisitScore = (score, { fromRemaining = false } = {}) => {
 		if (!canInput) return;
-		const score = Number(currentResult);
 		if (
 			!Number.isFinite(score) ||
 			score > 180 ||
 			score < 0 ||
-			(score === 0 && !resultEdited)
+			(score === 0 && !resultEdited && !fromRemaining)
 		) {
 			return;
 		}
@@ -309,6 +308,22 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 			return;
 		}
 		finishSumVisit(score, 3, false, false);
+	};
+
+	const handleOkBtn = () => {
+		applyEnteredVisitScore(Number(currentResult));
+	};
+
+	const handleRemainingBtn = () => {
+		if (!canInput || !resultEdited) return;
+		const remaining = catch40StatesRef.current[currentPlayerIndexRef.current]?.remaining ?? 61;
+		const typed = Number(currentResult);
+		if (!Number.isFinite(typed) || typed < 0) return;
+		const visitScore = remaining - typed;
+		if (visitScore > 180) {
+			return;
+		}
+		applyEnteredVisitScore(visitScore, { fromRemaining: true });
 	};
 
 	const handleCheckoutDart = (dartNumber) => {
@@ -439,6 +454,7 @@ export default function Catch40GameScoringScreen({ route, navigation }) {
 					resultEdited={resultEdited}
 					handleNumberBtn={handleNumberBtn}
 					handleOkBtn={handleOkBtn}
+					handleRemainingBtn={handleRemainingBtn}
 					handleUndoBtn={handleUndo}
 					handleClearBtn={handleClearBtn}
 					handleDartSubmit={handleDartSubmit}
