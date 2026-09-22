@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import CompetitionTabs from './CompetitionTabs';
+import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 
@@ -532,6 +533,7 @@ function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress }) {
 			<PlayerRow
 				player={game.player1}
 				score={scoreText(game, 1)}
+				average={matchAverage(game.player1Average)}
 				won={winnerId != null && winnerId === game.player1?.id}
 				tbd={!game.player1?.id}
 				onPress={onPlayerPress}
@@ -540,6 +542,7 @@ function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress }) {
 			<PlayerRow
 				player={game.player2}
 				score={scoreText(game, 2)}
+				average={matchAverage(game.player2Average)}
 				won={winnerId != null && winnerId === game.player2?.id}
 				tbd={!game.player2?.id}
 				onPress={onPlayerPress}
@@ -548,22 +551,62 @@ function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress }) {
 	);
 }
 
-function PlayerRow({ player, score, won, tbd, onPress }) {
+function matchAverage(value) {
+	return hasAverage(value) ? formatAverage(value) : null;
+}
+
+const NAME_AVERAGE_GAP = 6;
+
+function PlayerRow({ player, score, average, won, tbd, onPress }) {
 	const canOpen = !tbd && player?.userId && onPress;
 	const name = playerLabel(player);
+	const [lineWidth, setLineWidth] = useState(0);
+	const [nameWidth, setNameWidth] = useState(0);
+	const [averageWidth, setAverageWidth] = useState(0);
+	const measured = lineWidth > 0 && nameWidth > 0 && (!average || averageWidth > 0);
+	const wrapAverage = measured
+		&& !!average
+		&& nameWidth + NAME_AVERAGE_GAP + averageWidth > lineWidth;
+	const nameStyle = [
+		styles.playerName,
+		won && styles.playerNameWon,
+		tbd && styles.playerNameTbd,
+	];
 
 	const content = (
 		<>
-			<Text
-				style={[
-					styles.playerName,
-					won && styles.playerNameWon,
-					tbd && styles.playerNameTbd,
-				]}
-				numberOfLines={1}
+			<View
+				style={styles.playerIdentity}
+				onLayout={(event) => setLineWidth(event.nativeEvent.layout.width)}
 			>
-				{name}
-			</Text>
+				<Text
+					style={[nameStyle, wrapAverage && styles.playerNameFull]}
+					numberOfLines={1}
+				>
+					{name}
+				</Text>
+				{average ? (
+					<Text style={styles.playerAverage} numberOfLines={1}>
+						{average}
+					</Text>
+				) : null}
+				<View style={styles.measureHost} pointerEvents="none" accessible={false}>
+					<Text
+						style={nameStyle}
+						onLayout={(event) => setNameWidth(event.nativeEvent.layout.width)}
+					>
+						{name}
+					</Text>
+					{average ? (
+						<Text
+							style={styles.playerAverage}
+							onLayout={(event) => setAverageWidth(event.nativeEvent.layout.width)}
+						>
+							{average}
+						</Text>
+					) : null}
+				</View>
+			</View>
 			<Text style={[styles.playerScore, won && styles.playerScoreWon]}>
 				{score}
 			</Text>
@@ -706,9 +749,34 @@ const styles = StyleSheet.create({
 		marginHorizontal: 12,
 	},
 	playerName: {
-		flex: 1,
+		flexShrink: 0,
 		color: colors.text,
 		fontSize: 15,
+	},
+	playerNameFull: {
+		width: '100%',
+	},
+	measureHost: {
+		position: 'absolute',
+		opacity: 0,
+		left: 0,
+		top: 0,
+		alignItems: 'flex-start',
+	},
+	playerIdentity: {
+		flex: 1,
+		minWidth: 0,
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		alignItems: 'baseline',
+		columnGap: NAME_AVERAGE_GAP,
+		rowGap: 1,
+	},
+	playerAverage: {
+		flexShrink: 0,
+		color: colors.textMuted,
+		fontSize: 11,
+		fontVariant: ['tabular-nums'],
 	},
 	playerNameWon: {
 		color: colors.accent,

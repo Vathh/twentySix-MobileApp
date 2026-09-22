@@ -16,6 +16,7 @@ import CompetitionTable from './CompetitionTable';
 import CompetitionTabs from './CompetitionTabs';
 import { colors } from '../../theme/colors';
 import ScreenLoading from '../Common/ScreenLoading';
+import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 
 function standingsColumns(allowsDraws) {
 	const columns = [
@@ -43,6 +44,7 @@ function mapStandingRows(items) {
 			text: row.playerName,
 			playerId: row.userId ? row.playerId : null,
 			name: row.playerName,
+			subtitle: hasAverage(row.average) ? formatAverage(row.average) : null,
 		},
 		unitDiff: row.unitDiff > 0 ? `+${row.unitDiff}` : String(row.unitDiff),
 	}));

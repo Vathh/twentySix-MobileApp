@@ -56,6 +56,9 @@ const CompetitionTable = ({
 							const text = isPlayer
 								? (typeof raw === 'object' ? raw?.text : raw) ?? '—'
 								: formatCell(raw);
+							const subtitle = isPlayer && typeof raw === 'object' ? raw?.subtitle ?? null : null;
+							const matchAverage = !isPlayer && raw && typeof raw === 'object' ? raw?.average ?? null : null;
+							const secondary = subtitle || matchAverage || null;
 							const playerId = isPlayer && typeof raw === 'object' ? raw?.playerId : null;
 							const playerName =
 								isPlayer && typeof raw === 'object' ? raw?.name ?? text : text;
@@ -108,12 +111,12 @@ const CompetitionTable = ({
 										style={cellWidth}
 										onPress={() => onPlayerPress(playerId, playerName)}
 									>
-										<Text
-											style={[styles.playerCell, alignStyle(col.align)]}
-											numberOfLines={1}
-										>
-											{text}
-										</Text>
+										<CellLines
+											text={text}
+											secondary={secondary}
+											textStyle={[styles.playerCell, alignStyle(col.align)]}
+											align={alignStyle(col.align)}
+										/>
 									</Pressable>
 								);
 							}
@@ -142,18 +145,18 @@ const CompetitionTable = ({
 							}
 
 							return (
-								<Text
-									key={col.key}
-									style={[
-										styles.cell,
-										cellWidth,
-										alignStyle(col.align),
-										isPlayer && styles.playerCellMuted,
-									]}
-									numberOfLines={1}
-								>
-									{text}
-								</Text>
+								<View key={col.key} style={cellWidth}>
+									<CellLines
+										text={text}
+										secondary={secondary}
+										textStyle={[
+											styles.cell,
+											alignStyle(col.align),
+											isPlayer && styles.playerCellMuted,
+										]}
+										align={alignStyle(col.align)}
+									/>
+								</View>
 							);
 						})}
 					</View>
@@ -162,6 +165,21 @@ const CompetitionTable = ({
 		</ScrollView>
 	);
 };
+
+function CellLines({ text, secondary, textStyle, align }) {
+	return (
+		<View>
+			<Text style={textStyle} numberOfLines={1}>
+				{text}
+			</Text>
+			{secondary ? (
+				<Text style={[styles.average, align]} numberOfLines={1}>
+					{secondary}
+				</Text>
+			) : null}
+		</View>
+	);
+}
 
 function SequenceBadge({ value }) {
 	return (
@@ -223,6 +241,12 @@ const styles = StyleSheet.create({
 	playerCellMuted: {
 		color: colors.text,
 		fontWeight: '600',
+	},
+	average: {
+		marginTop: 2,
+		color: colors.textMuted,
+		fontSize: 11,
+		fontVariant: ['tabular-nums'],
 	},
 	playableCell: {
 		justifyContent: 'center',

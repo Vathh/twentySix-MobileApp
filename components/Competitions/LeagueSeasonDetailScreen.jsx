@@ -16,6 +16,7 @@ import CompetitionTable from './CompetitionTable';
 import CompetitionTabs from './CompetitionTabs';
 import { colors } from '../../theme/colors';
 import ScreenLoading from '../Common/ScreenLoading';
+import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 
 function standingsColumns(allowsDraws) {
 	const columns = [
@@ -43,6 +44,7 @@ function mapStandingRows(items) {
 			text: row.playerName,
 			playerId: row.userId ? row.playerId : null,
 			name: row.playerName,
+			subtitle: hasAverage(row.average) ? formatAverage(row.average) : null,
 		},
 		unitDiff: row.unitDiff > 0 ? `+${row.unitDiff}` : String(row.unitDiff),
 	}));
@@ -83,11 +85,22 @@ const PlayerName = ({ player, onPress }) => {
 	);
 };
 
+const GameSide = ({ player, average, onPress, align }) => (
+	<View style={[styles.gameSide, align === 'right' && styles.gameSideRight]}>
+		<PlayerName player={player} onPress={onPress} />
+		{hasAverage(average) ? (
+			<Text style={[styles.gameAverage, align === 'right' && styles.gameAverageRight]}>
+				{formatAverage(average)}
+			</Text>
+		) : null}
+	</View>
+);
+
 const GameRow = ({ game, onPlayerPress }) => (
 	<View style={styles.gameRow}>
-		<PlayerName player={game.player1} onPress={onPlayerPress} />
+		<GameSide player={game.player1} average={game.player1Average} onPress={onPlayerPress} align="right" />
 		<Text style={styles.gameScore}>{gameScoreText(game)}</Text>
-		<PlayerName player={game.player2} onPress={onPlayerPress} />
+		<GameSide player={game.player2} average={game.player2Average} onPress={onPlayerPress} />
 		{game.isThirdPlace ? <Text style={styles.gameHint}>· o 3. miejsce</Text> : null}
 	</View>
 );
@@ -341,6 +354,15 @@ const styles = StyleSheet.create({
 	gameName: { color: colors.text, fontSize: 14, fontWeight: '600' },
 	gameNameLink: { color: colors.accent, fontSize: 14, fontWeight: '600' },
 	gameScore: { color: colors.textSecondary, fontSize: 14, fontVariant: ['tabular-nums'] },
+	gameSide: { maxWidth: '42%' },
+	gameSideRight: { alignItems: 'flex-end' },
+	gameAverage: {
+		marginTop: 2,
+		color: colors.textMuted,
+		fontSize: 11,
+		fontVariant: ['tabular-nums'],
+	},
+	gameAverageRight: { textAlign: 'right' },
 	gameHint: { color: colors.textMuted, fontSize: 12 },
 });
 

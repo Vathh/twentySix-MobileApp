@@ -1,3 +1,5 @@
+import { formatAverage, hasAverage } from './formatAverage.js';
+
 export function shortPlayerLabel(name) {
 	const text = String(name ?? '').trim();
 	if (text.length <= 10) {
@@ -19,28 +21,50 @@ function scoreForRow(game, rowPlayerId) {
 	return `${s2} - ${s1}`;
 }
 
+function averageLabel(game, rowPlayerId) {
+	if (!game) {
+		return null;
+	}
+	const isP1 = Number(game.player1?.id) === Number(rowPlayerId);
+	const value = isP1 ? game.player1Average : game.player2Average;
+	return hasAverage(value) ? formatAverage(value) : null;
+}
+
 export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = false } = {}) {
 	if (!game) {
-		return { text: '—', sequence: null, playable: false, game: null };
+		return { text: '—', average: null, sequence: null, playable: false, game: null };
 	}
 	if (isFinishedStatus(game.status)) {
-		return { text: scoreForRow(game, rowPlayerId), sequence: null, playable: false, game };
+		return {
+			text: scoreForRow(game, rowPlayerId),
+			average: averageLabel(game, rowPlayerId),
+			sequence: null,
+			playable: false,
+			game,
+		};
 	}
 	if (game.status === 'scheduled' && game.sequence != null) {
 		return {
 			text: String(game.sequence),
+			average: null,
 			sequence: game.sequence,
 			playable: playableUnfinished,
 			game,
 		};
 	}
 	if (playableUnfinished) {
-		return { text: '—', sequence: null, playable: true, game };
+		return { text: '—', average: null, sequence: null, playable: true, game };
 	}
 	if (game.status === 'scheduled') {
-		return { text: '—', sequence: null, playable: false, game };
+		return { text: '—', average: null, sequence: null, playable: false, game };
 	}
-	return { text: scoreForRow(game, rowPlayerId), sequence: null, playable: false, game };
+	return {
+		text: scoreForRow(game, rowPlayerId),
+		average: averageLabel(game, rowPlayerId),
+		sequence: null,
+		playable: false,
+		game,
+	};
 }
 
 export function groupRefereeSlots(games) {
@@ -65,11 +89,11 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 	});
 
 	const columns = [
-		{ key: 'player', label: 'Zawodnik', width: 120, align: 'left', player: true },
+		{ key: 'player', label: 'Zawodnik', width: 132, align: 'left', player: true },
 		...standings.map((row) => ({
 			key: `vs_${row.playerId}`,
 			label: shortPlayerLabel(row.playerName),
-			width: playableUnfinished ? 72 : 64,
+			width: playableUnfinished ? 76 : 72,
 		})),
 		{ key: 'gamesWon', label: 'W', width: 36 },
 		{ key: 'gamesLost', label: 'L', width: 36 },
@@ -85,6 +109,7 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 				text: row.playerName,
 				playerId: row.userId ? row.playerId : null,
 				name: row.playerName,
+				subtitle: hasAverage(row.average) ? formatAverage(row.average) : null,
 			},
 			gamesWon: row.gamesWon,
 			gamesLost: row.gamesLost,

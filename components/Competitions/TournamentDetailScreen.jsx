@@ -18,6 +18,7 @@ import GroupRefereeLine from './GroupRefereeLine';
 import PlayoffBracket from './PlayoffBracket';
 import { colors } from '../../theme/colors';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
+import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 
 const TAB_LABELS = {
 	results: 'Wyniki',
@@ -124,6 +125,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 		if (tournament?.tracksSeasonPoints) {
 			cols.push({ key: 'points', label: 'Pkt', width: 48 });
 		}
+		cols.splice(2, 0, { key: 'average', label: 'Średnia', width: 72 });
 		if (showStageInResults) {
 			cols.push(RESULTS_COLUMNS_BASE[2]);
 		}
@@ -132,6 +134,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 
 	const resultsRows = (data?.results ?? []).map((row) => ({
 		...row,
+		average: hasAverage(row.average) ? formatAverage(row.average) : '—',
 		player: {
 			text: row.playerName,
 			playerId: row.userId ? row.playerId : null,
