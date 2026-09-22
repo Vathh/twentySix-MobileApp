@@ -14,6 +14,7 @@ export default function GroupRefereeLine({ games }) {
 			<Text style={styles.label}>Sędziowie: </Text>
 			{slots.map((slot, index) => (
 				<Text key={slot.id}>
+					<Text style={styles.num}>{slot.sequence} </Text>
 					<Text
 						style={[
 							slot.status === 'finished' && styles.done,
@@ -39,6 +40,12 @@ const styles = StyleSheet.create({
 	},
 	label: {
 		color: colors.textMuted,
+	},
+	num: {
+		fontSize: 11,
+		fontWeight: '700',
+		color: colors.textMuted,
+		fontVariant: ['tabular-nums'],
 	},
 	done: {
 		color: colors.textMuted,

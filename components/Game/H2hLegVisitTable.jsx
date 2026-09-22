@@ -74,6 +74,7 @@ const H2hLegVisitTable = ({ visits, leftPlayerId, rightPlayerId }) => {
 const styles = StyleSheet.create({
 	wrap: {
 		flex: 1,
+		flexShrink: 1,
 		minHeight: 0,
 		width: '100%',
 	},

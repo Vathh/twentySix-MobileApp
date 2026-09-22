@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
 	MAX_UI_SCALE,
 	computeUiScale,
+	mainCounterBoost,
 	scaleNumeric,
 	scaleStyle,
 	scaleStyles,
@@ -20,6 +21,12 @@ const tenInch = computeUiScale(800);
 assert.ok(tenInch >= 1.3 && tenInch <= 1.36, `10" scale ${tenInch}`);
 
 assert.equal(computeUiScale(1400), MAX_UI_SCALE);
+
+assert.equal(mainCounterBoost(390), 1);
+assert.equal(mainCounterBoost(599), 1);
+assert.equal(mainCounterBoost(600), 2.76);
+assert.ok(mainCounterBoost(800) > 3.1 && mainCounterBoost(800) < 3.4, `10" counter ${mainCounterBoost(800)}`);
+assert.equal(mainCounterBoost(1200), 3.7);
 
 assert.equal(scaleNumeric(16, 1), 16);
 assert.equal(scaleNumeric(0, 2), 0);

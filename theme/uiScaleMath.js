@@ -73,6 +73,21 @@ const SCALABLE_KEYS = new Set([
 
 const TRANSLATE_KEYS = new Set(['translateX', 'translateY', 'translateZ']);
 
+/**
+ * Dodatkowe powiększenie głównego licznika wyniku na tablecie.
+ * Telefon zostaje 1. Od 7" rośnie tak, by wynik było widać z ponad 2 m.
+ * 7" ≈ 2.76, 10" ≈ 3.23, większe do 3.70.
+ * StyleSheet i tak pomnoży font przez computeUiScale — tu jest sam dopisek.
+ */
+export function mainCounterBoost(shortestSide) {
+	const shortest = Number(shortestSide);
+	if (!Number.isFinite(shortest) || shortest < TABLET_SHORTEST_DP) {
+		return 1;
+	}
+	const span = Math.min(1, (shortest - TABLET_SHORTEST_DP) / 400);
+	return Math.round((1.75 + span * 0.6) * 1.575 * 100) / 100;
+}
+
 export function computeUiScale(shortestSide) {
 	const shortest = Number(shortestSide);
 	if (!Number.isFinite(shortest) || shortest < TABLET_SHORTEST_DP) {

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
+import { Dimensions, StyleSheet, Text, View, Pressable, ScrollView } from 'react-native'
+import { mainCounterBoost } from '../../theme/uiScaleMath'
+import { getUiScale } from '../../theme/uiScale'
 import { SCORING_MODES } from '../../hooks/useGameSettings'
 import { formatAverage, hasAverage } from '../../helpers/formatAverage'
 import { formatDartLabel } from '../../helpers/formatDartLabel'
@@ -14,6 +16,27 @@ import TickingScore from './TickingScore'
 import H2hLegVisitTable from './H2hLegVisitTable'
 
 const PER_DART_ACCENT = colors.perDartAccent;
+
+const counterBoost = mainCounterBoost(
+  Math.min(Dimensions.get('window').width, Dimensions.get('window').height),
+);
+
+function boostedSize(size, strength = 1) {
+  const extra = 1 + (counterBoost - 1) * strength;
+  return Math.round(size * extra);
+}
+
+const counterFont = Math.max(
+  56,
+  Math.min(
+    Math.round(boostedSize(72) * getUiScale()),
+    Math.floor(Dimensions.get('window').width / 2 / 2.24),
+  ),
+);
+const stableCounterText = {
+  fontSize: counterFont,
+  lineHeight: counterFont,
+};
 
 
 const Counter = ({
@@ -523,7 +546,7 @@ const Counter = ({
                 {renderLocalVisitRemainingOverlay(0)}
                 <TickingScore
                   value={s0?.score ?? 501}
-                  style={[styles.counterText, styles.counterTextNoFlex, currentPlayerIndex === 0 && styles.goldText]}
+                  style={[styles.counterText, styles.counterTextNoFlex, stableCounterText, currentPlayerIndex === 0 && styles.goldText]}
                   numberOfLines={1}
                 />
                 {renderVisitDartsUnderScore(0, { overlay: isPerDart })}
@@ -604,6 +627,7 @@ const Counter = ({
                     styles.counterText,
                     styles.counterTextNoFlex,
                     showLegVisitTable && styles.counterTextCompact,
+                    stableCounterText,
                     currentPlayerIndex === 0 && styles.goldText,
                   ]}
                   numberOfLines={1}
@@ -624,6 +648,7 @@ const Counter = ({
                     styles.counterText,
                     styles.counterTextNoFlex,
                     showLegVisitTable && styles.counterTextCompact,
+                    stableCounterText,
                     currentPlayerIndex === 1 && styles.goldText,
                   ]}
                   numberOfLines={1}
@@ -700,6 +725,9 @@ const Counter = ({
                 <TickingScore
                   value={st?.score ?? 501}
                   style={[styles.multiScore, i === currentPlayerIndex && styles.goldText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
                 />
                 <Text style={styles.multiLegs}>
                   {matchScoreForDisplay(st, format)} {unitLabel}
@@ -852,21 +880,22 @@ const styles = StyleSheet.create({
   },
   countersContainer: {
     flex: 1,
+    minHeight: 0,
     flexDirection: 'column',
     width: '100%',
     position: 'relative',
+    overflow: 'hidden',
   },
   countersScoresRow: {
     flexGrow: 1,
-    flexShrink: 0,
+    flexShrink: 1,
     flexDirection: 'row',
     width: '100%',
-    minHeight: 96,
+    minHeight: 0,
   },
   countersScoresRowCompact: {
     flexGrow: 0,
     flexShrink: 0,
-    minHeight: 72,
   },
   averagesRow: {
     flexDirection: 'row',
@@ -877,21 +906,20 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
     overflow: 'visible',
   },
   counterScoreStack: {
     flex: 1,
-    width: '100%',
+    alignSelf: 'stretch',
     minWidth: 0,
-    minHeight: 96,
+    minHeight: 0,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   counterScoreStackCompact: {
     flex: 0,
-    minHeight: 64,
-    paddingVertical: 4,
+    paddingVertical: 0,
   },
   counterScoreStackOverlayRoot: {
     position: 'relative',
@@ -903,7 +931,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: '50%',
-    marginBottom: 54,
+    marginBottom: Math.max(54, Math.round(boostedSize(84) * 0.55)),
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
@@ -925,22 +953,23 @@ const styles = StyleSheet.create({
   },
   counterTextNoFlex: {
     flex: 0,
-    width: '100%',
+    alignSelf: 'stretch',
     textAlign: 'center',
   },
   counterTextCompact: {
-    fontSize: 56,
-    lineHeight: 62,
+    fontSize: boostedSize(72),
+    lineHeight: boostedSize(72),
+    includeFontPadding: false,
   },
   counterContainerWithBorder: {
     borderRightWidth: 2,
     borderColor: colors.scrimMild
   },
   counterText: {
-    fontSize: 72,
-    lineHeight: 80,
-    flex: 1,
-    justifyContent: 'center',
+    fontSize: boostedSize(72),
+    lineHeight: boostedSize(72),
+    includeFontPadding: false,
+    flex: 0,
     textAlignVertical: 'center',
     color: colors.textMuted
   },
@@ -966,6 +995,7 @@ const styles = StyleSheet.create({
   },
   scoreContainer: {
     flexDirection: 'row',
+    alignItems: 'stretch',
   },
   score: {
     flex: 2,
@@ -981,29 +1011,33 @@ const styles = StyleSheet.create({
   undoContainer: {
     flex: 1.2,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'flex-end',
   },
   remainingBtn: {
-    paddingRight: 10,
-    paddingLeft: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
+    flex: 1,
+    paddingHorizontal: 10,
     marginRight: 6,
     backgroundColor: colors.scrimMild,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 8,
   },
   remainingText: {
     fontSize: 18,
     color: colors.textMuted
   },
   undoBtn: {
-    paddingRight: 10,
-    paddingLeft: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
+    flex: 1,
+    paddingHorizontal: 10,
     backgroundColor: colors.scrimStrong,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 8,
   },
   undoText: {
     fontSize: 18,
@@ -1114,7 +1148,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   multiScore: {
-    fontSize: 36,
+    fontSize: boostedSize(36, 0.7),
     color: colors.textMuted,
     fontWeight: 'bold',
   },

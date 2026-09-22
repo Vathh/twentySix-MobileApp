@@ -5,7 +5,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -23,8 +22,7 @@ import { scaleSize } from '../../theme/uiScale';
 import { lockTournamentGame } from '../../helpers/lockTournamentGame';
 import { fetchActiveGames, fetchRemainingGroups } from '../../helpers/gameListApi';
 import { buildGroupMatrix, playerNamesFromStandings } from '../../helpers/groupMatrix';
-import CompetitionTable from '../Competitions/CompetitionTable';
-import GroupRefereeLine from '../Competitions/GroupRefereeLine';
+import GroupBoard from './GroupBoard';
 
 const PLAYOFF_ROUND_ORDER = [
   'SIXTEEN',
@@ -93,10 +91,10 @@ const GameList = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchGames();
-      if (selectedGroup != null || selectedPlayoffSide != null) {
+      if (selectedPlayoffSide != null) {
         setIsModalVisible(true);
       }
-    }, [fetchGames, selectedGroup, selectedPlayoffSide]),
+    }, [fetchGames, selectedPlayoffSide]),
   );
 
   const playoffGames = useMemo(
@@ -156,19 +154,17 @@ const GameList = ({ navigation }) => {
   }, [selectedPlayoffSide, consolationPlayoffGames, mainPlayoffGames]);
 
   const modalTitle =
-    selectedPlayoffSide === 'consolation'
-      ? 'Drabinka pocieszenia'
-      : selectedPlayoffSide === 'main'
-        ? 'Drabinka główna'
-        : selectedGroup != null
-          ? `Grupa ${selectedGroup}`
-          : 'Wybierz mecz';
+    selectedPlayoffSide === 'consolation' ? 'Drabinka pocieszenia' : 'Drabinka główna';
 
-  const openGroupModal = (group) => {
+  const openGroup = (group) => {
     setSelectedPlayoffSide(null);
+    setIsModalVisible(false);
     setSelectedGroup(group);
-    setIsModalVisible(true);
   };
+
+  const closeGroupBoard = useCallback(() => {
+    setSelectedGroup(null);
+  }, []);
 
   const openPlayoffModal = (side) => {
     setSelectedGroup(null);
@@ -307,7 +303,7 @@ const GameList = ({ navigation }) => {
       return (
         <Pressable
           style={styles.groupButton}
-          onPress={() => openGroupModal(item.group)}
+          onPress={() => openGroup(item.group)}
         >
           <Text style={styles.groupButtonText}>Grupa {item.group}</Text>
           {playerNames ? (
@@ -329,10 +325,20 @@ const GameList = ({ navigation }) => {
     return renderGameRow(item.game, true);
   };
 
-  const isGroupModal = selectedGroup != null && selectedPlayoffSide == null;
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, selectedGroup != null && styles.containerGroup]}>
+      {selectedGroup != null ? (
+        <GroupBoard
+          groupNumber={selectedGroup}
+          matrix={selectedGroupMatrix}
+          games={selectedGroupData?.games}
+          empty={!selectedGroupData}
+          onBack={closeGroupBoard}
+          onGamePress={handleGamePress}
+          lockingGameId={lockingGameId}
+        />
+      ) : (
+      <>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Mecze turnieju</Text>
         <Pressable
@@ -371,50 +377,32 @@ const GameList = ({ navigation }) => {
       >
         <Pressable style={styles.modalOverlay} onPress={closeGroupModal}>
           <Pressable
-            style={[styles.modalContent, isGroupModal && styles.modalContentWide]}
+            style={styles.modalContent}
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={styles.modalTitle}>{modalTitle}</Text>
-            {isGroupModal ? (
-              selectedGroupData ? (
-                <ScrollView style={styles.modalScroll} nestedScrollEnabled>
-                  <CompetitionTable
-                    columns={selectedGroupMatrix.columns}
-                    rows={selectedGroupMatrix.rows}
-                    emptyText="Brak tabeli."
-                    showHorizontalScroll
-                    onGameCellPress={handleGamePress}
-                    lockingGameId={lockingGameId}
-                  />
-                  <GroupRefereeLine games={selectedGroupData.games} />
-                </ScrollView>
-              ) : (
+            <FlatList
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              data={gamesInPlayoffSide}
+              keyExtractor={(game) => `${game.type}-${game.id}`}
+              renderItem={({ item: game }) => renderGameRow(game, true)}
+              ListEmptyComponent={
                 <Text style={styles.modalEmpty}>
-                  Wszystkie mecze w tej grupie zostały już rozegrane.
+                  Wszystkie mecze w tej drabince zostały już rozegrane.
                 </Text>
-              )
-            ) : (
-              <FlatList
-                style={styles.modalScroll}
-                contentContainerStyle={styles.modalScrollContent}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-                data={gamesInPlayoffSide}
-                keyExtractor={(game) => `${game.type}-${game.id}`}
-                renderItem={({ item: game }) => renderGameRow(game, true)}
-                ListEmptyComponent={
-                  <Text style={styles.modalEmpty}>
-                    Wszystkie mecze w tej drabince zostały już rozegrane.
-                  </Text>
-                }
-              />
-            )}
+              }
+            />
             <Pressable style={styles.closeButton} onPress={closeGroupModal}>
               <Text style={styles.closeButtonText}>Zamknij</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
+      </>
+      )}
     </View>
   );
 };
@@ -424,6 +412,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     padding: 24,
+  },
+  containerGroup: {
+    paddingHorizontal: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -526,9 +517,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     maxHeight: '85%',
-  },
-  modalContentWide: {
-    maxWidth: 720,
   },
   modalTitle: {
     fontSize: 20,

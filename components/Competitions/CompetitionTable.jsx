@@ -17,6 +17,9 @@ const CompetitionTable = ({
 	onGameCellPress,
 	showHorizontalScroll = false,
 	lockingGameId = null,
+	playerLines = 1,
+	rowMinHeight = null,
+	contentInset = 0,
 }) => {
 	if (!rows || rows.length === 0) {
 		return <Text style={styles.empty}>{emptyText}</Text>;
@@ -28,16 +31,18 @@ const CompetitionTable = ({
 			showsHorizontalScrollIndicator={showHorizontalScroll}
 			nestedScrollEnabled
 			style={styles.scroll}
+			contentContainerStyle={styles.scrollContent}
 		>
-			<View>
+			<View style={styles.sheet}>
 				<View style={styles.headerRow}>
-					{columns.map((col) => (
+					{columns.map((col, colIndex) => (
 						<Text
 							key={col.key}
 							style={[
 								styles.headerCell,
 								{ width: scaleSize(col.width ?? 72) },
 								alignStyle(col.align),
+								edgeInset(colIndex, columns.length, contentInset, col.player),
 							]}
 							numberOfLines={1}
 						>
@@ -48,9 +53,13 @@ const CompetitionTable = ({
 				{rows.map((row, rowIndex) => (
 					<View
 						key={row.key ?? row.id ?? row.playerId ?? `row-${rowIndex}`}
-						style={[styles.bodyRow, rowIndex % 2 === 1 && styles.bodyRowAlt]}
+						style={[
+							styles.bodyRow,
+							rowMinHeight != null && { height: rowMinHeight, paddingVertical: 0, overflow: 'hidden' },
+							rowIndex % 2 === 1 && styles.bodyRowAlt,
+						]}
 					>
-						{columns.map((col) => {
+						{columns.map((col, colIndex) => {
 							const raw = row[col.key];
 							const isPlayer = col.player;
 							const text = isPlayer
@@ -76,7 +85,10 @@ const CompetitionTable = ({
 								!isPlayer && raw && typeof raw === 'object' && raw.sequence != null
 									? raw.sequence
 									: null;
-							const cellWidth = { width: scaleSize(col.width ?? 72) };
+							const cellWidth = {
+								width: scaleSize(col.width ?? 72),
+								...edgeInset(colIndex, columns.length, contentInset, isPlayer),
+							};
 
 							if (sequence != null) {
 								const badge = <SequenceBadge value={sequence} />;
@@ -116,6 +128,7 @@ const CompetitionTable = ({
 											secondary={secondary}
 											textStyle={[styles.playerCell, alignStyle(col.align)]}
 											align={alignStyle(col.align)}
+											lines={playerLines}
 										/>
 									</Pressable>
 								);
@@ -155,6 +168,7 @@ const CompetitionTable = ({
 											isPlayer && styles.playerCellMuted,
 										]}
 										align={alignStyle(col.align)}
+										lines={isPlayer ? playerLines : 1}
 									/>
 								</View>
 							);
@@ -166,10 +180,10 @@ const CompetitionTable = ({
 	);
 };
 
-function CellLines({ text, secondary, textStyle, align }) {
+function CellLines({ text, secondary, textStyle, align, lines = 1 }) {
 	return (
 		<View>
-			<Text style={textStyle} numberOfLines={1}>
+			<Text style={textStyle} numberOfLines={lines}>
 				{text}
 			</Text>
 			{secondary ? (
@@ -195,6 +209,16 @@ function formatCell(value) {
 	return String(value);
 }
 
+function edgeInset(index, count, inset, isPlayer) {
+	if (!inset) {
+		return null;
+	}
+	return {
+		paddingLeft: index === 0 || isPlayer ? inset : 0,
+		paddingRight: index === count - 1 ? inset : 0,
+	};
+}
+
 function alignStyle(align) {
 	if (align === 'left') return styles.alignLeft;
 	if (align === 'right') return styles.alignRight;
@@ -205,8 +229,15 @@ const styles = StyleSheet.create({
 	scroll: {
 		marginBottom: 8,
 	},
+	scrollContent: {
+		minWidth: '100%',
+	},
+	sheet: {
+		minWidth: '100%',
+	},
 	headerRow: {
 		flexDirection: 'row',
+		width: '100%',
 		borderBottomWidth: 1,
 		borderBottomColor: colors.border,
 		paddingBottom: 8,
@@ -221,6 +252,7 @@ const styles = StyleSheet.create({
 	bodyRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		width: '100%',
 		paddingVertical: 10,
 		borderBottomWidth: StyleSheet.hairlineWidth,
 		borderBottomColor: colors.borderSoft,
@@ -257,18 +289,19 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 	},
 	sequenceBadge: {
-		minWidth: 22,
-		paddingHorizontal: 6,
-		paddingVertical: 2,
+		minWidth: 30,
+		height: 28,
+		paddingHorizontal: 8,
 		borderRadius: 6,
 		borderWidth: 1,
-		borderColor: colors.border,
-		backgroundColor: colors.bgElevated,
+		borderColor: colors.accentBorder,
+		backgroundColor: colors.accentSoft,
 		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	sequenceBadgeText: {
-		color: colors.textSecondary,
-		fontSize: 12,
+		color: colors.text,
+		fontSize: 14,
 		fontWeight: '700',
 		fontVariant: ['tabular-nums'],
 	},

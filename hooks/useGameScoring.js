@@ -1012,7 +1012,7 @@ export function useGameScoring({
 						}
 						closePayload = {
 							winnerId: player.playerId,
-							players: buildCloseLegPlayers(player.playerId, 0),
+							players: buildCloseLegPlayers(player.playerId, null),
 							reason: 'bull_off',
 						};
 					} else {
