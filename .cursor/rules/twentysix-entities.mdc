@@ -1,0 +1,12 @@
+---
+description: twentySix — byty aplikacji
+alwaysApply: true
+---
+
+# Byty aplikacji
+
+Źródło prawdy: **`../twentysix-backend/CONVENTIONS.md`** (sekcja „Byty aplikacji”).
+
+Gdy użytkownik pisze **byty aplikacji**, chodzi o organizację, sezon (`Season`), turniej, ligę i sezon ligowy (`LeagueSeason`).
+
+Sezon organizacji i sezon ligowy to dwa różne byty. Mecz, gracz i użytkownik nie są bytami aplikacji.
