@@ -17,6 +17,10 @@ import {
 	HEADER_LOGOTYP_WIDTH,
 	INTRO_CONTENT_HEIGHT_RATIO,
 	INTRO_CONTENT_WIDTH_RATIO,
+	INTRO_LOGOTYP_CONTENT_X,
+	INTRO_LOGOTYP_CONTENT_Y,
+	INTRO_LOGOTYP_SRC_HEIGHT,
+	INTRO_LOGOTYP_SRC_WIDTH,
 	introLogotypMaxWidth,
 	introLogotypSizeForWidth,
 	settledIntroLogotypXml,
@@ -67,11 +71,10 @@ function buildIntroHtml(svgXml, introWidthPx) {
 }
 
 function fallbackLogotypRect(insets) {
-	const headerContent = Platform.OS === 'ios' ? 44 : 56;
 	const logoHeight = scaleSize(HEADER_LOGO_HEIGHT);
 	return {
 		x: scaleSize(16),
-		y: insets.top + Math.max(0, (headerContent - logoHeight) / 2),
+		y: insets.top,
 		width: scaleSize(HEADER_LOGOTYP_WIDTH),
 		height: logoHeight,
 	};
@@ -129,8 +132,9 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 	const applyTargetRect = useCallback(
 		(logotypRect) => {
 			const write = (originX = 0, originY = 0) => {
-				slotX.value = logotypRect.x - originX;
-				slotY.value = logotypRect.y - originY;
+				// Ujemny origin z measureInWindow (edge-to-edge) zjeżdżał cel w dół.
+				slotX.value = logotypRect.x - Math.max(0, originX);
+				slotY.value = logotypRect.y - Math.max(0, originY);
 				slotW.value = logotypRect.width;
 				slotH.value = logotypRect.height;
 			};
@@ -237,9 +241,13 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 			slotH.value / (introBox.height * INTRO_CONTENT_HEIGHT_RATIO),
 		);
 		const scale = 1 + (endScale - 1) * p;
+		const contentX = introBox.width * (INTRO_LOGOTYP_CONTENT_X / INTRO_LOGOTYP_SRC_WIDTH);
+		const contentY = introBox.height * (INTRO_LOGOTYP_CONTENT_Y / INTRO_LOGOTYP_SRC_HEIGHT);
+		const centeredX = (introBox.width * (1 - INTRO_CONTENT_WIDTH_RATIO)) / 2;
+		const centeredY = (introBox.height * (1 - INTRO_CONTENT_HEIGHT_RATIO)) / 2;
 		return {
-			left: (wrapW - introBox.width) / 2,
-			top: (wrapH - introBox.height) / 2,
+			left: (wrapW - introBox.width) / 2 + (centeredX - contentX) * scale * p,
+			top: (wrapH - introBox.height) / 2 + (centeredY - contentY) * scale * p,
 			transform: [{ scale }],
 		};
 	});

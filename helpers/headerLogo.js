@@ -35,6 +35,25 @@ export function settledIntroLogotypXml(svgXml) {
 export const INTRO_CONTENT_WIDTH_RATIO = LOGOTYP_SRC_WIDTH / INTRO_LOGOTYP_SRC_WIDTH;
 export const INTRO_CONTENT_HEIGHT_RATIO = LOGOTYP_SRC_HEIGHT / INTRO_LOGOTYP_SRC_HEIGHT;
 
+/**
+ * Kadr logotyp.svg (920×580) w intro-logotyp.svg.
+ * Nie jest wyśrodkowany w kwadracie — niżej i bardziej w lewo.
+ */
+export const INTRO_LOGOTYP_CONTENT_X = 150.05107;
+export const INTRO_LOGOTYP_CONTENT_Y = 341.22724;
+
+/** Przesunięcie, żeby środek 26 z intro pokrył się ze slotem logo, nie ze środkiem kwadratu. */
+export function introLogotypContentShift(introBox, scale) {
+	const contentX = introBox.width * (INTRO_LOGOTYP_CONTENT_X / INTRO_LOGOTYP_SRC_WIDTH);
+	const contentY = introBox.height * (INTRO_LOGOTYP_CONTENT_Y / INTRO_LOGOTYP_SRC_HEIGHT);
+	const centeredX = (introBox.width * (1 - INTRO_CONTENT_WIDTH_RATIO)) / 2;
+	const centeredY = (introBox.height * (1 - INTRO_CONTENT_HEIGHT_RATIO)) / 2;
+	return {
+		x: (centeredX - contentX) * scale,
+		y: (centeredY - contentY) * scale,
+	};
+}
+
 export function introLogotypFitScale(introBox, slotWidth, slotHeight) {
 	const contentW = introBox.width * INTRO_CONTENT_WIDTH_RATIO;
 	const contentH = introBox.height * INTRO_CONTENT_HEIGHT_RATIO;
@@ -44,11 +63,13 @@ export function introLogotypFitScale(introBox, slotWidth, slotHeight) {
 /** Kadrowanie intro-26 do slotu logotypu w headerze — ten sam math co wlot. */
 export function introLogotypSlotLayout(windowWidth, slotWidth, slotHeight, introBox) {
 	const box = introBox ?? introLogotypSizeForWidth(introLogotypMaxWidth(windowWidth));
+	const scale = introLogotypFitScale(box, slotWidth, slotHeight);
+	const shift = introLogotypContentShift(box, scale);
 	return {
 		introBox: box,
-		scale: introLogotypFitScale(box, slotWidth, slotHeight),
-		left: (slotWidth - box.width) / 2,
-		top: (slotHeight - box.height) / 2,
+		scale,
+		left: (slotWidth - box.width) / 2 + shift.x,
+		top: (slotHeight - box.height) / 2 + shift.y,
 	};
 }
 

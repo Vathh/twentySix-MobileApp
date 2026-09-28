@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
 	Easing,
 	runOnJS,
@@ -8,7 +9,6 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import IntroLogotypMark from './IntroLogotypMark';
 import { getLogoXml } from '../../helpers/svgAssets';
 import { useIntroOverlay } from '../../context/IntroOverlayContext';
@@ -75,10 +75,9 @@ const HeaderTitle = () => {
 			if (!(width > 0) || !(height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) {
 				return;
 			}
-			const headerContent = Platform.OS === 'ios' ? 44 : 56;
-			const windowY = y < insets.top - 1
-				? insets.top + Math.max(0, (headerContent - height) / 2)
-				: y;
+			// Pomiar z native headera bywa nad paskiem statusu. Poprzednio
+			// dociąganie do środka belki (56/44) lądowało pod slotem logo.
+			const windowY = y < insets.top - 1 ? insets.top : y;
 			reportHeaderLogoLayout({
 				x: Math.max(0, x),
 				y: windowY,
