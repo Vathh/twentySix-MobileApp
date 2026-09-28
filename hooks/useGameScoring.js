@@ -341,10 +341,6 @@ export function useGameScoring({
 						entry.legId,
 						entry.payload,
 					);
-				} else if (entry.op === 'achievements') {
-					// Obsługiwane przez useGameFinishedEffects / postGame retry.
-					remaining = await dequeueOutbox(key);
-					continue;
 				} else {
 					remaining = await dequeueOutbox(key);
 					continue;

@@ -74,6 +74,21 @@ const scheduledAverage = matrixCellForPair(
 );
 assert(scheduledAverage.average == null, 'sequence cell hides match average');
 
+const liveOther = matrixCellForPair(
+	{ ...open, status: 'in_progress', sequence: 1, lockedByOther: true },
+	1,
+	{ playableUnfinished: true },
+);
+assert(liveOther.playable === false, 'in progress on another device is not playable');
+assert(liveOther.text === '1', 'in progress keeps sequence');
+
+const liveFree = matrixCellForPair(
+	{ ...open, status: 'in_progress', sequence: 1 },
+	1,
+	{ playableUnfinished: true },
+);
+assert(liveFree.playable === true, 'released in progress can be continued');
+
 const matrixWithAverage = buildGroupMatrix({
 	...group,
 	standings: group.standings.map((row, index) => (

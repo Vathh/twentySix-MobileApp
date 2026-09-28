@@ -75,17 +75,6 @@ export async function enqueueOutbox(key, entry) {
 		} else {
 			next.push(item);
 		}
-	} else if (entry.op === 'achievements') {
-		const idx = next.findIndex((e) => e.op === 'achievements');
-		const item = {
-			...entry,
-			createdAt: entry.createdAt ?? Date.now(),
-		};
-		if (idx >= 0) {
-			next[idx] = item;
-		} else {
-			next.push(item);
-		}
 	} else {
 		next.push({
 			...entry,

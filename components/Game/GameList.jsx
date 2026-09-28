@@ -64,9 +64,11 @@ const GameList = ({ navigation }) => {
     },
   });
 
-  const fetchGames = useCallback(async () => {
+  const fetchGames = useCallback(async ({ silent = false } = {}) => {
     if (!auth?.accessToken || auth?.tournamentId == null) return;
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [activeResult, groupsResult] = await Promise.all([
         fetchActiveGames(auth.tournamentId, auth.accessToken),
@@ -84,7 +86,9 @@ const GameList = ({ navigation }) => {
     } catch (e) {
       console.warn('fetchGames', e);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [auth?.accessToken, auth?.tournamentId]);
 
@@ -94,6 +98,10 @@ const GameList = ({ navigation }) => {
       if (selectedPlayoffSide != null) {
         setIsModalVisible(true);
       }
+      const timer = setInterval(() => {
+        fetchGames({ silent: true });
+      }, 10000);
+      return () => clearInterval(timer);
     }, [fetchGames, selectedPlayoffSide]),
   );
 

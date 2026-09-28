@@ -38,6 +38,7 @@ import { useFfaPresenceHeartbeat } from '../../hooks/useFfaPresenceHeartbeat';
 import { useGameFinishedEffects } from '../../hooks/useGameFinishedEffects';
 import { useGameFinishedModal } from '../../hooks/useGameFinishedModal';
 import { useLeaveGameConfirmation } from '../../hooks/useLeaveGameConfirmation';
+import { useTournamentScoringLease } from '../../hooks/useTournamentScoringLease';
 import {
 	markTournamentFinishedPrompted,
 	useTournamentFinishedRealtime,
@@ -614,8 +615,6 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		accessToken: auth?.accessToken,
 		ffaFinishedQuickGameId,
 		finishedQuickGameIdRef: gameScoring.finishedQuickGameIdRef,
-		activeGame,
-		N,
 		onFinished: showMatchFinished,
 		foldTrainingDoubles: () => collectLegDoubleStats(),
 		matchDoubleAccRef,
@@ -1201,6 +1200,13 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		intentionalFfaLeaveRef,
 		onClosedLeave: logoutAfterTournamentIfNeeded,
 		lobbyScoringMode,
+	});
+
+	useTournamentScoringLease({
+		mode,
+		gameClosed,
+		tournamentGame,
+		accessToken: auth?.accessToken,
 	});
 
 	useFfaPresenceHeartbeat({

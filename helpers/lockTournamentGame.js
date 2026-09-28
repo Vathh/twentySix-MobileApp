@@ -1,4 +1,4 @@
-import { GAME_IN_PROGRESS_API_URL, GAME_RELEASE_API_URL } from './apiConfig';
+import { GAME_HEARTBEAT_API_URL, GAME_IN_PROGRESS_API_URL, GAME_RELEASE_API_URL } from './apiConfig';
 import { notifyIfUnauthorized } from './sessionExpired';
 import { userFacingErrorMessage } from './userFacingError';
 
@@ -56,7 +56,8 @@ export async function lockTournamentGame({ gameId, type, accessToken }) {
 }
 
 /**
- * Odblokowuje mecz bez wyniku (status scheduled) po opuszczeniu scoringu.
+ * Zdejmuje lock po wyjściu z sędziowania.
+ * Bez wizyt mecz wraca do listy oczekujących. Z wizytami zostaje w trakcie, do podjęcia na innym urządzeniu.
  */
 export async function releaseTournamentGame({ gameId, type, accessToken }) {
 	try {
@@ -83,4 +84,54 @@ export async function releaseTournamentGame({ gameId, type, accessToken }) {
 	}
 
 	return { ok: false };
+}
+
+/**
+ * Odnawia dzierżawę locku, dopóki ekran sędziowania jest otwarty.
+ * @returns {Promise<{ ok: true } | { ok: false, message: string, status: number }>}
+ */
+export async function heartbeatTournamentGame({ gameId, type, accessToken }) {
+	try {
+		const res = await fetch(GAME_HEARTBEAT_API_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json',
+				Authorization: `Bearer ${accessToken}`,
+			},
+			body: JSON.stringify({ gameId, type }),
+		});
+
+		if (res.ok) {
+			return { ok: true };
+		}
+
+		notifyIfUnauthorized(res.status);
+
+		let data = {};
+		try {
+			data = await res.json();
+		} catch {
+			// ignore
+		}
+
+		return {
+			ok: false,
+			message: userFacingErrorMessage({
+				status: res.status,
+				data,
+				fallback: 'Utracono sędziowanie tego meczu.',
+			}),
+			status: res.status,
+		};
+	} catch (error) {
+		return {
+			ok: false,
+			message: userFacingErrorMessage({
+				error,
+				fallback: 'Utracono sędziowanie tego meczu.',
+			}),
+			status: 0,
+		};
+	}
 }

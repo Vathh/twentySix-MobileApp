@@ -52,7 +52,7 @@ export function useLeaveGameConfirmation({
 						message: isOneDeviceFfa
 							? 'Gra pozostanie aktywna. Możesz wrócić z ekranu szybkiej gry albo skasować ją tam.'
 							: isTournament
-								? 'Mecz wróci do listy oczekujących na sędziowanie.'
+								? 'Inne urządzenie będzie mogło kontynuować ten mecz od ostatniej wizyty.'
 								: 'Czy na pewno chcesz opuścić mecz?',
 						cancelLabel: isOneDeviceFfa ? 'Zostań' : 'Kontynuuj mecz',
 						confirmLabel: isOneDeviceFfa ? 'Wyjdź' : isTournament ? 'Wyjdź' : 'Opuść mecz',

@@ -1,6 +1,6 @@
-import { Alert } from 'react-native';
 import { playCheckoutWinSound, playVisitScore } from '../gameSounds';
 import { resetVisitDartLabels } from '../reducers/playerResultActions';
+import { askCheckoutLegConfirmation } from './inputPolicy';
 import { recordedDartsInVisit, openVisitDarts } from './visitDarts';
 
 /**
@@ -81,63 +81,56 @@ export function createOnlineVisitFlow(deps) {
 		if (isCheckout) {
 			okHandlingRef.current = true;
 			return new Promise((resolve) => {
-				Alert.alert('UWAGA', getCheckoutPrompt(player), [
-					{
-						text: 'NIE',
-						style: 'cancel',
-						onPress: () => {
-							okHandlingRef.current = false;
+				askCheckoutLegConfirmation({
+					message: getCheckoutPrompt(player),
+					onCancel: () => {
+						okHandlingRef.current = false;
+						if (isPerDartMode()) {
+							popDartHistory(3);
+							getPlayerDispatches()[idx](resetVisitDartLabels());
+							setLocalRemaining(visitStart);
+						}
+						resolve('cancelled');
+					},
+					onConfirm: async () => {
+						try {
+							handleMaxAndOneSeventy(player, resultToApply);
+							if (resultToApply >= 100) {
+								handleHf(resultToApply, player);
+							}
 							if (isPerDartMode()) {
-								popDartHistory(3);
-								getPlayerDispatches()[idx](resetVisitDartLabels());
-								setLocalRemaining(visitStart);
-							}
-							resolve('cancelled');
-						},
-					},
-					{
-						text: 'TAK',
-						style: 'destructive',
-						onPress: async () => {
-							try {
-								handleMaxAndOneSeventy(player, resultToApply);
-								if (resultToApply >= 100) {
-									handleHf(resultToApply, player);
+								playCheckoutWinSound(
+									getPlayerStatesRef().current[idx],
+									getMatchFormat(),
+								);
+								recordQfIfNeeded(player, idx, dartsInVisit);
+								await getGameScoring().closeLegWithWinner(
+									idx,
+									resultToApply,
+									dartsInVisit,
+									visitOpts,
+								);
+								if (dartHistoryRef) {
+									dartHistoryRef.current = [];
 								}
-								if (isPerDartMode()) {
-									playCheckoutWinSound(
-										getPlayerStatesRef().current[idx],
-										getMatchFormat(),
-									);
-									recordQfIfNeeded(player, idx, dartsInVisit);
-									await getGameScoring().closeLegWithWinner(
-										idx,
-										resultToApply,
-										dartsInVisit,
-										visitOpts,
-									);
-									if (dartHistoryRef) {
-										dartHistoryRef.current = [];
-									}
-									visitClientIdRef.current = null;
-									okHandlingRef.current = false;
-									setLocalRemaining(null);
-									setCurrentResult(0);
-									setResultEdited(false);
-									resolve('done');
-								} else {
-									openCheckoutDartModal(idx, resultToApply, visitOpts);
-									setCurrentResult(0);
-									setResultEdited(false);
-									resolve('checkout_modal');
-								}
-							} catch {
+								visitClientIdRef.current = null;
 								okHandlingRef.current = false;
-								resolve('error');
+								setLocalRemaining(null);
+								setCurrentResult(0);
+								setResultEdited(false);
+								resolve('done');
+							} else {
+								openCheckoutDartModal(idx, resultToApply, visitOpts);
+								setCurrentResult(0);
+								setResultEdited(false);
+								resolve('checkout_modal');
 							}
-						},
+						} catch {
+							okHandlingRef.current = false;
+							resolve('error');
+						}
 					},
-				]);
+				});
 			});
 		}
 
@@ -199,56 +192,49 @@ export function createOnlineVisitFlow(deps) {
 			okHandlingRef.current = true;
 			handleMaxAndOneSeventy(player, resultToApply);
 
-			Alert.alert('UWAGA', getCheckoutPrompt(player), [
-				{
-					text: 'NIE',
-					style: 'cancel',
-					onPress: () => {
-						popDartHistory(dartsInVisit);
-						getPlayerDispatches()[idx](resetVisitDartLabels());
-						setLocalRemaining(visitStart);
+			askCheckoutLegConfirmation({
+				message: getCheckoutPrompt(player),
+				onCancel: () => {
+					popDartHistory(dartsInVisit);
+					getPlayerDispatches()[idx](resetVisitDartLabels());
+					setLocalRemaining(visitStart);
+					visitPointsTotalRef.current = 0;
+					okHandlingRef.current = false;
+					resolve('ended');
+				},
+				onConfirm: async () => {
+					try {
+						if (resultToApply >= 100) {
+							handleHf(resultToApply, player);
+						}
+						recordQfIfNeeded(player, idx, dartsInVisit);
+						playCheckoutWinSound(
+							getPlayerStatesRef().current[idx],
+							getMatchFormat(),
+						);
+						await getGameScoring().closeLegWithWinner(
+							idx,
+							resultToApply,
+							dartsInVisit,
+							visitOpts,
+						);
+						if (dartHistoryRef) {
+							dartHistoryRef.current = [];
+						}
+						visitClientIdRef.current = null;
 						visitPointsTotalRef.current = 0;
+						visitStartScoreRef.current = null;
+						setLocalRemaining(null);
+						setCurrentResult(0);
+						setResultEdited(false);
+					} catch {
+						// closeLegWithWinner pokazuje Alert przy błędzie API
+					} finally {
 						okHandlingRef.current = false;
 						resolve('ended');
-					},
+					}
 				},
-				{
-					text: 'TAK',
-					style: 'destructive',
-					onPress: async () => {
-						try {
-							if (resultToApply >= 100) {
-								handleHf(resultToApply, player);
-							}
-							recordQfIfNeeded(player, idx, dartsInVisit);
-							playCheckoutWinSound(
-								getPlayerStatesRef().current[idx],
-								getMatchFormat(),
-							);
-							await getGameScoring().closeLegWithWinner(
-								idx,
-								resultToApply,
-								dartsInVisit,
-								visitOpts,
-							);
-							if (dartHistoryRef) {
-								dartHistoryRef.current = [];
-							}
-							visitClientIdRef.current = null;
-							visitPointsTotalRef.current = 0;
-							visitStartScoreRef.current = null;
-							setLocalRemaining(null);
-							setCurrentResult(0);
-							setResultEdited(false);
-						} catch {
-							// closeLegWithWinner pokazuje Alert przy błędzie API
-						} finally {
-							okHandlingRef.current = false;
-							resolve('ended');
-						}
-					},
-				},
-			]);
+			});
 		});
 
 	const handleOnlineOkBtn = async () => {

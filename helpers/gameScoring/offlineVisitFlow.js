@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import {
 	completeCurrentVisit,
 	legLose,
@@ -9,6 +8,7 @@ import {
 } from '../reducers/playerResultActions';
 import { playCheckoutWinSound, playVisitScore } from '../gameSounds';
 import { wouldCloseSet } from '../matchFormat/matchFormatScoring';
+import { askCheckoutLegConfirmation } from './inputPolicy';
 import { recordedDartsInVisit } from './visitDarts';
 
 /**
@@ -156,31 +156,24 @@ export function createOfflineVisitFlow(deps) {
 		okHandlingRef.current = true;
 		handleMaxAndOneSeventy(player, resultToApply);
 
-		Alert.alert('UWAGA', getCheckoutPrompt(player), [
-			{
-				text: 'NIE',
-				style: 'cancel',
-				onPress: () => {
-					popDartHistory(dartsInVisit);
-					getPlayerDispatches()[idx](resetVisitDartLabels());
-					setLocalRemaining(visitStart);
-					visitPointsTotalRef.current = 0;
-					okHandlingRef.current = false;
-				},
+		askCheckoutLegConfirmation({
+			message: getCheckoutPrompt(player),
+			onCancel: () => {
+				popDartHistory(dartsInVisit);
+				getPlayerDispatches()[idx](resetVisitDartLabels());
+				setLocalRemaining(visitStart);
+				visitPointsTotalRef.current = 0;
+				okHandlingRef.current = false;
 			},
-			{
-				text: 'TAK',
-				style: 'destructive',
-				onPress: () => {
-					okHandlingRef.current = false;
-					handleHf(resultToApply, player);
-					handleOfflineCheckout(idx, resultToApply, {}, dartsInVisit);
-					setLocalRemaining(null);
-					visitPointsTotalRef.current = 0;
-					visitStartScoreRef.current = null;
-				},
+			onConfirm: () => {
+				okHandlingRef.current = false;
+				handleHf(resultToApply, player);
+				handleOfflineCheckout(idx, resultToApply, {}, dartsInVisit);
+				setLocalRemaining(null);
+				visitPointsTotalRef.current = 0;
+				visitStartScoreRef.current = null;
 			},
-		]);
+		});
 	};
 
 	const finishOfflinePerDartVisit = (
@@ -236,24 +229,17 @@ export function createOfflineVisitFlow(deps) {
 		}
 
 		if (resultToApply === state.score) {
-			Alert.alert('UWAGA', getCheckoutPrompt(player), [
-				{
-					text: 'NIE',
-					style: 'cancel',
-					onPress: () => {
-						okHandlingRef.current = false;
-					},
+			askCheckoutLegConfirmation({
+				message: getCheckoutPrompt(player),
+				onCancel: () => {
+					okHandlingRef.current = false;
 				},
-				{
-					text: 'TAK',
-					style: 'destructive',
-					onPress: () => {
-						okHandlingRef.current = false;
-						handleHf(resultToApply, player);
-						handleOfflineCheckout(idx, resultToApply);
-					},
+				onConfirm: () => {
+					okHandlingRef.current = false;
+					handleHf(resultToApply, player);
+					handleOfflineCheckout(idx, resultToApply);
 				},
-			]);
+			});
 			setCurrentResult(0);
 			setResultEdited(false);
 			return;

@@ -1,4 +1,32 @@
+import { Alert } from 'react-native';
 import { GAME_MODE } from './resolveGameContext.js';
+
+/**
+ * Pytanie „Czy zawodnik wygrał lega?”.
+ * false — po zatwierdzeniu checkoutu gra idzie dalej od razu.
+ * true — z powrotem pokazuje potwierdzenie.
+ */
+export const CHECKOUT_LEG_CONFIRMATION_ENABLED = false;
+
+export function askCheckoutLegConfirmation({ message, onConfirm, onCancel }) {
+	if (!CHECKOUT_LEG_CONFIRMATION_ENABLED) {
+		onConfirm();
+		return;
+	}
+
+	Alert.alert('UWAGA', message, [
+		{
+			text: 'NIE',
+			style: 'cancel',
+			onPress: onCancel,
+		},
+		{
+			text: 'TAK',
+			style: 'destructive',
+			onPress: onConfirm,
+		},
+	]);
+}
 
 /**
  * Czy użytkownik może wpisywać wynik na Counterze.

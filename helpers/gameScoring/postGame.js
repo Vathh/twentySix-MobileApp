@@ -1,8 +1,5 @@
 import { Alert } from 'react-native';
-import {
-	QUICK_GAME_UPDATE_API_URL,
-	UPDATE_GAME_API_URL,
-} from '../apiConfig';
+import { QUICK_GAME_UPDATE_API_URL } from '../apiConfig';
 import { GAME_MODE } from './resolveGameContext.js';
 import { notifyIfUnauthorized } from '../sessionExpired.js';
 
@@ -11,7 +8,6 @@ import {
 	isMatchFinished,
 	normalizeMatchFormat,
 } from '../matchFormat/matchFormat.js';
-import { matchScoreForDisplay } from '../matchFormat/matchFormatScoring.js';
 
 export function findWinnerIndex(playerStates, matchFormat) {
 	const format = normalizeMatchFormat(matchFormat);
@@ -25,84 +21,6 @@ export function mapAchievementsForQuick(achievementsState) {
 		value: a.value ?? null,
 		type: a.type,
 	}));
-}
-
-export function mapAchievementsForTournament(achievementsState) {
-	return (achievementsState?.achievements || []).map((a) => ({
-		playerId: a.playerId,
-		tournamentId: a.tournamentId,
-		value: a.value ?? null,
-		type: a.type,
-	}));
-}
-
-export async function sendTournamentAchievements({
-	accessToken,
-	activeGame,
-	players,
-	playerStates,
-	N,
-	achievements,
-	matchFormat,
-}) {
-	if (!activeGame?.id || !achievements?.length || !accessToken) {
-		return { ok: true, skipped: true };
-	}
-
-	const format = normalizeMatchFormat(matchFormat ?? { legsToWinSet: 2 });
-	const winnerIdx = findWinnerIndex(playerStates, format);
-	const winner = players[winnerIdx] ?? players[0];
-
-	const gameResultDTO = {
-		game: {
-			id: activeGame.id,
-			type: activeGame.type,
-			player1Id: players[0]?.playerId ?? players[0]?.id,
-			player2Id: players[1]?.playerId ?? players[1]?.id,
-			player1Score: matchScoreForDisplay(playerStates[0], format),
-			player2Score: matchScoreForDisplay(playerStates[1], format),
-			winnerId: winner?.playerId ?? winner?.id,
-			tournamentId: activeGame.tournamentId,
-			groupNumber: activeGame.type === 'playoff' ? 0 : activeGame.groupNumber,
-		},
-		achievements,
-		legs: [],
-	};
-
-	const attempt = async () => {
-		const response = await fetch(UPDATE_GAME_API_URL, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${accessToken}`,
-			},
-			body: JSON.stringify(gameResultDTO),
-		});
-		if (!response.ok) {
-			notifyIfUnauthorized(response.status);
-			const text = await response.text();
-			const err = new Error(text || response.statusText || 'Błąd achievementów');
-			err.status = response.status;
-			err.retryable = response.status >= 500 || response.status === 429;
-			throw err;
-		}
-		return { ok: true };
-	};
-
-	try {
-		return await attempt();
-	} catch (error) {
-		console.error('Blad podczas wysylania wyniku turnieju', error);
-		if (error?.retryable || error instanceof TypeError) {
-			try {
-				return await attempt();
-			} catch (retryErr) {
-				console.error('Retry achievementów turniejowych nieudany', retryErr);
-				return { ok: false, error: retryErr };
-			}
-		}
-		return { ok: false, error };
-	}
 }
 
 export async function sendQuickGameAchievements({

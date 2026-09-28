@@ -18,7 +18,9 @@ export {
 } from './computeStateRevision.js';
 export { inferCurrentPlayerIndex } from './inferCurrentPlayerIndex.js';
 export {
+	askCheckoutLegConfirmation,
 	canCounterInput,
+	CHECKOUT_LEG_CONFIRMATION_ENABLED,
 	checkoutLegPrompt,
 	isOneDeviceSpectator,
 } from './inputPolicy.js';
@@ -32,9 +34,7 @@ export {
 export {
 	findWinnerIndex,
 	mapAchievementsForQuick,
-	mapAchievementsForTournament,
 	sendQuickGameAchievements,
-	sendTournamentAchievements,
 	shouldHandleLocalTrainingWin,
 	showGameFinishedAlert,
 	showTrainingFinishedAlert,

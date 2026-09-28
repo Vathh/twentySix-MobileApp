@@ -26,6 +26,10 @@ function boostedSize(size, strength = 1) {
   return Math.round(size * extra);
 }
 
+/** Nazwy H2H na tablecie: wyraźnie większe niż na telefonie, dużo mniejsze niż licznik. */
+const PLAYER_NAME_BOOST_STRENGTH = 0.55;
+const playerNameFont = boostedSize(18, PLAYER_NAME_BOOST_STRENGTH);
+
 const counterFont = Math.max(
   56,
   Math.min(
@@ -86,6 +90,8 @@ const Counter = ({
       <Text
         style={[styles.playerText, canPress && styles.playerTextSwitchable]}
         numberOfLines={1}
+        adjustsFontSizeToFit={counterBoost > 1}
+        minimumFontScale={0.65}
       >
         {label}
       </Text>
@@ -458,7 +464,9 @@ const Counter = ({
           accessibilityRole="button"
           accessibilityLabel="Zostało"
         >
-          <Text style={styles.remainingText}>Zostało</Text>
+          <Text style={styles.remainingText} numberOfLines={1}>
+            Zostało
+          </Text>
         </Pressable>
         <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
           <Text style={styles.undoText}>Cofnij</Text>
@@ -774,7 +782,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end'
   },
   playerText: {
-    fontSize: 18,
+    fontSize: playerNameFont,
+    ...(counterBoost > 1 ? { lineHeight: Math.round(playerNameFont * 1.2) } : {}),
     color: colors.textMuted
   },
   playerTextSwitchable: {
@@ -998,7 +1007,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   score: {
-    flex: 2,
+    flex: 1.75,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1009,13 +1018,13 @@ const styles = StyleSheet.create({
     color: colors.textMuted
   },
   undoContainer: {
-    flex: 1.2,
+    flex: 1.45,
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'flex-end',
   },
   remainingBtn: {
-    flex: 1,
+    flex: 1.28,
     paddingHorizontal: 10,
     marginRight: 6,
     backgroundColor: colors.scrimMild,

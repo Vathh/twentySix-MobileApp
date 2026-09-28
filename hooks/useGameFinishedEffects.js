@@ -3,17 +3,15 @@ import {
 	GAME_MODE,
 	findWinnerIndex,
 	mapAchievementsForQuick,
-	mapAchievementsForTournament,
 	sendQuickGameAchievements,
-	sendTournamentAchievements,
 	shouldHandleLocalTrainingWin,
 } from '../helpers/gameScoring';
 import { saveCompletedTrainingGame } from '../helpers/trainingHistory/saveCompletedTrainingGame';
 import { finishedKindForMode } from './useGameFinishedModal';
 
 /**
- * Efekty końca meczu (quick FFA / trening lokalny / turniej): wysyłka achievementów
- * i pokazanie modala zwycięzcy.
+ * Efekty końca meczu: achievementy quick FFA, zapis treningu, modal zwycięzcy.
+ * Turniej (180 / 170+ / HF / QF) liczy backend z wizyt — bez POST-a na koniec meczu.
  */
 export function useGameFinishedEffects({
 	mode,
@@ -27,8 +25,6 @@ export function useGameFinishedEffects({
 	accessToken,
 	ffaFinishedQuickGameId,
 	finishedQuickGameIdRef,
-	activeGame,
-	N,
 	onFinished,
 	foldTrainingDoubles = null,
 	matchDoubleAccRef = null,
@@ -139,18 +135,6 @@ export function useGameFinishedEffects({
 		tournamentResultSentRef.current = true;
 
 		const winnerIdx = findWinnerIndex(playerStates, matchFormat);
-		const achievementsPayload = mapAchievementsForTournament(achievementsState);
-		if (achievementsPayload.length > 0) {
-			void sendTournamentAchievements({
-				accessToken,
-				activeGame,
-				players,
-				playerStates,
-				N,
-				achievements: achievementsPayload,
-				matchFormat,
-			});
-		}
 		onFinished?.({
 			winnerName: players[winnerIdx]?.name,
 			kind: 'tournament',
@@ -161,12 +145,8 @@ export function useGameFinishedEffects({
 		mode,
 		syncEnabled,
 		matchFormat,
-		achievementsState?.achievements,
-		accessToken,
-		activeGame,
 		players,
 		playerStates,
-		N,
 		onFinished,
 	]);
 }
