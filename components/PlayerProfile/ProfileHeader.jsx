@@ -6,6 +6,9 @@ import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 
+const formatFastestQf = (darts) => (darts != null ? `${darts} lotek` : '–');
+const formatHighestHf = (score) => (score != null ? String(score) : '–');
+
 const ProfileHeader = ({
 	name,
 	initials,
@@ -14,6 +17,8 @@ const ProfileHeader = ({
 	isSelf,
 	relationLabel,
 	liveGames,
+	fastestQf,
+	highestHf,
 	onEditPress,
 	children,
 }) => {
@@ -40,6 +45,16 @@ const ProfileHeader = ({
 								<Text style={styles.chipAccentText}>{relationLabel}</Text>
 							</View>
 						) : null}
+					</View>
+					<View style={styles.highlights}>
+						<Text style={styles.highlight}>
+							Najszybsza lotka{' '}
+							<Text style={styles.highlightValue}>{formatFastestQf(fastestQf)}</Text>
+						</Text>
+						<Text style={styles.highlight}>
+							Najwyższy finish{' '}
+							<Text style={styles.highlightValue}>{formatHighestHf(highestHf)}</Text>
+						</Text>
 					</View>
 				</View>
 				{isSelf ? (
@@ -141,6 +156,21 @@ const styles = StyleSheet.create({
 	meta: {
 		fontSize: 13,
 		color: colors.textSecondary,
+	},
+	highlights: {
+		marginTop: 8,
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 10,
+	},
+	highlight: {
+		fontSize: 12,
+		color: colors.textSecondary,
+	},
+	highlightValue: {
+		fontSize: 12,
+		fontWeight: '700',
+		color: colors.text,
 	},
 	chip: {
 		paddingHorizontal: 8,

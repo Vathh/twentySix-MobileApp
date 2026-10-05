@@ -152,6 +152,8 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							name={profile?.player?.name}
 							initials={profile?.player?.initials}
 							registeredAt={profile?.player?.registeredAt}
+							fastestQf={profile?.highlights?.fastestQf}
+							highestHf={profile?.highlights?.highestHf}
 							description={profile?.player?.description}
 							isSelf={!!friendship?.isSelf}
 							relationLabel={relationLabel(friendship)}
