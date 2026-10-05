@@ -5,8 +5,14 @@ export const FFA_BACKUP_POLL_MS = 2500;
 /**
  * Backup HTTP poll tylko gdy WS nie żyje — ten sam kontrakt co X01 (`useGameScoring`).
  */
-export function shouldStartFfaBackupPoll({ enabled, hasTransport, wsHealthy, closed }) {
-	return Boolean(enabled && hasTransport && !wsHealthy && !closed);
+export function shouldStartFfaBackupPoll({
+	enabled,
+	hasTransport,
+	wsHealthy,
+	closed,
+	realtimeEnabled = true,
+}) {
+	return Boolean(enabled && hasTransport && realtimeEnabled && !wsHealthy && !closed);
 }
 
 export function shouldSkipFfaBackupTick({ pendingWrites, wsHealthy }) {

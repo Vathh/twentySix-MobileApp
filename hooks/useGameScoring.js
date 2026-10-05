@@ -21,7 +21,9 @@ import {
 	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
 	isGameCancelledScoringError,
+	isLeaseStolenScoringError,
 } from '../helpers/gameScoring/scoringRequestError.js';
+import { replayOutboxOnRawState } from '../helpers/gameScoring/queuedScoringState.js';
 import {
 	CLOSED_LEG_UNDO_MESSAGE,
 	CLOSED_LEG_UNDO_TITLE,
@@ -63,6 +65,7 @@ export function useGameScoring({
 	onMatchFormat = null,
 	getCloseLegDoubleStats = null,
 	onAborted = null,
+	onLeaseLost = null,
 	openerChosenRef = null,
 }) {
 	const confirm = useConfirm();
@@ -77,6 +80,7 @@ export function useGameScoring({
 	const visitChainRef = useRef(Promise.resolve());
 	const finishedQuickGameIdRef = useRef(null);
 	const lastSyncStateRef = useRef(null);
+	const lastRawStateRef = useRef(null);
 	const abortedRef = useRef(false);
 	const wsHealthyRef = useRef(false);
 	const flushInFlightRef = useRef(false);
@@ -132,6 +136,7 @@ export function useGameScoring({
 			const sync = scoringSyncRef.current;
 			const h2h = sync.transport?.format === 'h2h';
 			if (state) {
+				lastRawStateRef.current = state;
 				const normalized = isNormalizedScoringState(state)
 					? state
 					: normalizeScoringState(state, sync.players);
@@ -253,6 +258,8 @@ export function useGameScoring({
 	onStateLoadedRef.current = onStateLoaded;
 	const onAbortedRef = useRef(onAborted);
 	onAbortedRef.current = onAborted;
+	const onLeaseLostRef = useRef(onLeaseLost);
+	onLeaseLostRef.current = onLeaseLost;
 
 	const handleAbortIfNeeded = useCallback(
 		(state) => {
@@ -296,14 +303,19 @@ export function useGameScoring({
 	const flushOutbox = useCallback(async () => {
 		const syncTransport = scoringSyncRef.current.transport;
 		const key = syncTransport?.getOutboxKey?.() ?? null;
-		if (!key || !syncTransport || flushInFlightRef.current) {
+		if (!key || !syncTransport) {
 			return null;
+		}
+		if (flushInFlightRef.current) {
+			await new Promise((resolve) => setTimeout(resolve, 40));
+			return flushOutbox();
 		}
 
 		flushInFlightRef.current = true;
 		pendingWritesRef.current += 1;
 		let lastState = null;
 		try {
+			const queuedBefore = await loadOutbox(key);
 			if (syncTransport.fetchState) {
 				try {
 					const snapshot = await syncTransport.fetchState();
@@ -313,18 +325,19 @@ export function useGameScoring({
 						setSyncPending(false);
 						return snapshot;
 					}
-					applyStateSafeRef.current(snapshot, 'external');
 					if (isMatchFinishedState(snapshot)) {
 						await clearOutbox(key);
 						setSyncPending(false);
 						markMatchFinishedFromState(snapshot);
 						return snapshot;
 					}
+					if (queuedBefore.length === 0) {
+						applyStateSafeRef.current(snapshot, 'external');
+					}
 				} catch (fetchErr) {
-					if (isGameCancelledScoringError(fetchErr)) {
+					if (isGameCancelledScoringError(fetchErr) || isLeaseStolenScoringError(fetchErr)) {
 						throw fetchErr;
 					}
-					// Brak sieci przy fetch — spróbuj flush wpisów i tak.
 				}
 			}
 
@@ -341,6 +354,8 @@ export function useGameScoring({
 						entry.legId,
 						entry.payload,
 					);
+				} else if (entry.op === 'undoVisit' && syncTransport.undoVisit) {
+					lastState = await syncTransport.undoVisit(entry.legId ?? null);
 				} else {
 					remaining = await dequeueOutbox(key);
 					continue;
@@ -367,6 +382,12 @@ export function useGameScoring({
 			setSyncPending(false);
 			return lastState;
 		} catch (e) {
+			if (isLeaseStolenScoringError(e)) {
+				await clearOutbox(key);
+				setSyncPending(false);
+				onLeaseLostRef.current?.();
+				return null;
+			}
 			if (isGameCancelledScoringError(e)) {
 				if (!abortedRef.current) {
 					abortedRef.current = true;
@@ -382,16 +403,20 @@ export function useGameScoring({
 				return null;
 			}
 			if (e?.status === 422) {
-				await dequeueOutbox(key);
+				await clearOutbox(key);
+				setSyncPending(false);
 				try {
 					const snapshot = await syncTransport.fetchState?.();
 					if (snapshot) {
 						applyStateSafeRef.current(snapshot, 'submit');
 					}
 				} catch {
-					// ignore — stan i tak dojedzie z WS / poll
+					// brak sieci — tablica zostaje przy ostatnim potwierdzonym stanie
 				}
-				await refreshSyncPending();
+				Alert.alert(
+					'Rozjazd wyniku',
+					'Serwer odrzucił wizytę. Tablica pokazuje zapisany stan meczu.',
+				);
 				return null;
 			}
 			console.warn('flushOutbox', e);
@@ -405,6 +430,89 @@ export function useGameScoring({
 
 	const flushOutboxRef = useRef(flushOutbox);
 	flushOutboxRef.current = flushOutbox;
+
+	const replayQueuedLocally = useCallback(async () => {
+		const syncTransport = scoringSyncRef.current.transport;
+		if (!syncTransport?.queueCommands) {
+			return;
+		}
+		const key = syncTransport.getOutboxKey?.() ?? null;
+		if (!key) {
+			return;
+		}
+		const entries = await loadOutbox(key);
+		if (entries.length === 0) {
+			return;
+		}
+		let raw = lastRawStateRef.current;
+		if (!raw) {
+			const sync = scoringSyncRef.current;
+			const legId = entries.find((entry) => entry.legId != null)?.legId ?? null;
+			raw = {
+				players: (sync.players ?? []).map((player, index) => ({
+					playerId: player.playerId,
+					name: player.name,
+					remaining: sync.playerStates?.[index]?.startingScore
+						?? sync.playerStates?.[index]?.score
+						?? 501,
+					legsWon: 0,
+				})),
+				visits: [],
+				currentLeg: legId != null ? { id: legId, open: true, legNumber: 1 } : null,
+				game: { status: 'in_progress', player1LegsWon: 0, player2LegsWon: 0 },
+				legs: [],
+			};
+		}
+		const next = replayOutboxOnRawState(raw, entries);
+		if (next) {
+			applyStateInternal(next);
+			setSyncPending(true);
+		}
+	}, [applyStateInternal]);
+
+	const replayQueuedRef = useRef(replayQueuedLocally);
+	replayQueuedRef.current = replayQueuedLocally;
+
+	const notePendingQueue = useCallback(async (key) => {
+		const pending = await loadOutbox(key);
+		if (pending.length > 0) {
+			setSyncPending(true);
+			Alert.alert(
+				'Brak połączenia',
+				'Zapiszę na serwerze, gdy wróci internet.',
+			);
+		}
+		return pending.length > 0;
+	}, []);
+
+	const rawStateForQueue = useCallback((legId) => {
+		if (lastRawStateRef.current) {
+			return lastRawStateRef.current;
+		}
+		const sync = scoringSyncRef.current;
+		return {
+			players: (sync.players ?? []).map((player, index) => ({
+				playerId: player.playerId,
+				name: player.name,
+				remaining: sync.playerStates?.[index]?.startingScore
+					?? sync.playerStates?.[index]?.score
+					?? 501,
+				legsWon: 0,
+			})),
+			visits: [],
+			currentLeg: legId != null ? { id: legId, open: true, legNumber: 1 } : null,
+			game: { status: 'in_progress', player1LegsWon: 0, player2LegsWon: 0 },
+			legs: [],
+		};
+	}, []);
+
+	const applyQueuedEntries = useCallback((entries) => {
+		const legId = entries.find((entry) => entry.legId != null)?.legId ?? null;
+		const next = replayOutboxOnRawState(rawStateForQueue(legId), entries);
+		if (next) {
+			applyStateInternal(next);
+		}
+	}, [applyStateInternal, rawStateForQueue]);
 
 	const loadState = useCallback(async () => {
 		const { enabled: syncEnabled, transport: syncTransport } =
@@ -510,13 +618,14 @@ export function useGameScoring({
 		}
 		void (async () => {
 			await loadStateRef.current();
+			await replayQueuedRef.current?.();
 			await flushOutboxRef.current();
 		})();
 		return undefined;
 	}, [enabled, gameClosed, reloadKey]);
 
 	useEffect(() => {
-		if (!enabled || gameClosed || !transport || wsHealthy) {
+		if (!enabled || gameClosed || !realtimeConfig?.channelName || wsHealthy) {
 			return undefined;
 		}
 		let cancelled = false;
@@ -531,7 +640,7 @@ export function useGameScoring({
 			cancelled = true;
 			clearInterval(t);
 		};
-	}, [enabled, gameClosed, transport, wsHealthy]);
+	}, [enabled, gameClosed, realtimeConfig, wsHealthy]);
 
 	useEffect(() => {
 		if (!enabled || !outboxKey) {
@@ -613,6 +722,23 @@ export function useGameScoring({
 		},
 		[players, N, isPerDartMode],
 	);
+
+	const continueLegAfterQueue = useCallback(async (state) => {
+		const syncTransport = scoringSyncRef.current.transport;
+		if (!state || syncTransport?.format !== 'h2h' || isMatchFinishedState(state)) {
+			return;
+		}
+		const legClosed = state.currentLeg == null || state.currentLeg?.open === false;
+		if (!legClosed) {
+			return;
+		}
+		currentLegIdRef.current = null;
+		try {
+			await ensureLegStarted();
+		} catch {
+			// Kolejny leg wystartuje przy następnej wizycie.
+		}
+	}, [ensureLegStarted]);
 
 	const enqueueRetryable = useCallback(
 		async (entry, userMessage) => {
@@ -702,6 +828,23 @@ export function useGameScoring({
 						}
 					}
 
+					if (transport.queueCommands && transport.getOutboxKey?.()) {
+						const key = transport.getOutboxKey();
+						const entry = {
+							op: 'recordVisit',
+							legId,
+							payload,
+							clientVisitId: resolvedClientVisitId,
+						};
+						await enqueueOutbox(key, entry);
+						applyQueuedEntries([entry]);
+						setSyncPending(true);
+						const queuedState = await flushOutboxRef.current();
+						await notePendingQueue(key);
+						await continueLegAfterQueue(queuedState);
+						return queuedState;
+					}
+
 					const record = async (visitPayload) => {
 						const state = await transport.recordVisit(legId, visitPayload);
 						applyStateSafe(state, 'submit');
@@ -771,6 +914,9 @@ export function useGameScoring({
 			markMatchFinishedFromState,
 			remainingBeforeForPlayer,
 			resyncFromServer,
+			applyQueuedEntries,
+			notePendingQueue,
+			continueLegAfterQueue,
 		],
 	);
 
@@ -836,6 +982,29 @@ export function useGameScoring({
 								checkoutDart,
 							),
 						};
+
+						if (transport.queueCommands && transport.getOutboxKey?.()) {
+							const key = transport.getOutboxKey();
+							const visitEntry = {
+								op: 'recordVisit',
+								legId,
+								payload: visitPayload,
+								clientVisitId: resolvedClientVisitId,
+							};
+							const closeEntry = {
+								op: 'closeLeg',
+								legId,
+								payload: closePayload,
+							};
+							await enqueueOutbox(key, visitEntry);
+							await enqueueOutbox(key, closeEntry);
+							applyQueuedEntries([visitEntry]);
+							setSyncPending(true);
+							const queuedState = await flushOutboxRef.current();
+							await notePendingQueue(key);
+							await continueLegAfterQueue(queuedState);
+							return queuedState;
+						}
 
 						await transport.recordVisit(legId, visitPayload);
 						const state = await transport.closeLeg(legId, closePayload);
@@ -983,6 +1152,9 @@ export function useGameScoring({
 			enqueueRetryable,
 			markMatchFinishedFromState,
 			submitVisit,
+			applyQueuedEntries,
+			notePendingQueue,
+			continueLegAfterQueue,
 		],
 	);
 
@@ -1013,6 +1185,21 @@ export function useGameScoring({
 						};
 					} else {
 						closePayload = { winnerPlayerId: player.playerId };
+					}
+
+					if (transport.queueCommands && transport.getOutboxKey?.()) {
+						const key = transport.getOutboxKey();
+						const entry = {
+							op: 'closeLeg',
+							legId,
+							payload: closePayload,
+						};
+						await enqueueOutbox(key, entry);
+						setSyncPending(true);
+						const queuedState = await flushOutboxRef.current();
+						await notePendingQueue(key);
+						await continueLegAfterQueue(queuedState);
+						return queuedState;
 					}
 
 					const state = await transport.closeLeg(legId, closePayload);
@@ -1086,6 +1273,8 @@ export function useGameScoring({
 			applyStateSafe,
 			applyStateInternal,
 			setGameClosed,
+			notePendingQueue,
+			continueLegAfterQueue,
 		],
 	);
 
@@ -1114,6 +1303,18 @@ export function useGameScoring({
 					pendingWritesRef.current += 1;
 					const visitsBefore = lastSyncStateRef.current?.visits?.length ?? 0;
 					try {
+						if (transport.queueCommands && transport.getOutboxKey?.()) {
+							const key = transport.getOutboxKey();
+							const entry = { op: 'undoVisit', legId };
+							await enqueueOutbox(key, entry);
+							if (!needsClosedLegConfirm) {
+								applyQueuedEntries([entry]);
+							}
+							setSyncPending(true);
+							const queuedState = await flushOutboxRef.current();
+							await notePendingQueue(key);
+							return queuedState;
+						}
 						const state = await transport.undoVisit(legId);
 						applyStateSafe(state, 'submit');
 						return state;
@@ -1144,7 +1345,7 @@ export function useGameScoring({
 				}
 				return performUndo();
 			}),
-		[runSerialized, enabled, transport, applyStateSafe, confirm, resyncFromServer],
+		[runSerialized, enabled, transport, applyStateSafe, confirm, resyncFromServer, applyQueuedEntries, notePendingQueue],
 	);
 
 	return {

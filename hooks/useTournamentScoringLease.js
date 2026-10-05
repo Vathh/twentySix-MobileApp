@@ -1,21 +1,29 @@
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
 import { GAME_MODE } from '../helpers/gameScoring/resolveGameContext';
-import { heartbeatTournamentGame, lockTournamentGame } from '../helpers/lockTournamentGame';
+import { heartbeatTournamentGame } from '../helpers/lockTournamentGame';
+import { clearOutbox } from '../helpers/gameScoring/scoringOutbox';
 
 const HEARTBEAT_MS = 20000;
 
+function tournamentOutboxKey(tournamentGame) {
+	const kind = tournamentGame?.type === 'playoff' ? 'playoff' : 'group';
+	return `scoring-outbox:tournament:${kind}:${tournamentGame.id}`;
+}
+
 /**
  * Trzyma lock meczu turniejowego, dopóki ekran sędziowania jest otwarty.
- * Po wygaśnięciu próbuje przejąć mecz z powrotem; jeśli trzyma go ktoś inny, pokazuje komunikat.
+ * Nie woła lock() ponownie — anulowanie i przejęcie kończą sędziowanie na tym ekranie.
  */
 export function useTournamentScoringLease({
 	mode,
 	gameClosed,
 	tournamentGame,
 	accessToken,
+	onEnded = null,
 }) {
 	const lostRef = useRef(false);
+	const onEndedRef = useRef(onEnded);
+	onEndedRef.current = onEnded;
 
 	useEffect(() => {
 		if (
@@ -32,20 +40,37 @@ export function useTournamentScoringLease({
 		const gameId = tournamentGame.id;
 		const type = tournamentGame.type === 'playoff' ? 'playoff' : 'group';
 
+		const end = async (reason) => {
+			if (stopped || lostRef.current) {
+				return;
+			}
+			lostRef.current = true;
+			stopped = true;
+			await clearOutbox(tournamentOutboxKey(tournamentGame));
+			onEndedRef.current?.(reason);
+		};
+
 		const beat = async () => {
 			if (stopped) {
 				return;
 			}
 			const renewed = await heartbeatTournamentGame({ gameId, type, accessToken });
-			if (stopped || renewed.ok || renewed.status === 0) {
+			if (stopped || renewed.status === 0) {
 				return;
 			}
-			const reclaimed = await lockTournamentGame({ gameId, type, accessToken });
-			if (stopped || reclaimed.ok || lostRef.current) {
+			if (renewed.ok) {
+				if (renewed.gameStatus === 'finished') {
+					await end('finished');
+				}
 				return;
 			}
-			lostRef.current = true;
-			Alert.alert('Mecz niedostępny', reclaimed.message);
+			if (renewed.reason === 'cancelled') {
+				await end('cancelled');
+				return;
+			}
+			if (renewed.reason === 'stolen' || renewed.status === 409 || renewed.status === 403) {
+				await end('stolen');
+			}
 		};
 
 		beat();
@@ -55,5 +80,5 @@ export function useTournamentScoringLease({
 			stopped = true;
 			clearInterval(timer);
 		};
-	}, [mode, gameClosed, tournamentGame?.id, tournamentGame?.type, accessToken]);
+	}, [mode, gameClosed, tournamentGame, accessToken]);
 }

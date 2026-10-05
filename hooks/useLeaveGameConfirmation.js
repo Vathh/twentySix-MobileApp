@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useConfirm } from '../context/ConfirmProvider';
 import { GAME_MODE } from '../helpers/gameScoring';
 import { releaseTournamentGame } from '../helpers/lockTournamentGame';
+import { clearOutbox } from '../helpers/gameScoring/scoringOutbox';
 import { postFfaPresence } from '../helpers/quickGameFfaApi';
 
 /**
@@ -64,9 +65,13 @@ export function useLeaveGameConfirmation({
 						tournamentGame?.id &&
 						accessToken
 					) {
+						const kind = tournamentGame.type === 'playoff' ? 'playoff' : 'group';
+						await clearOutbox(
+							`scoring-outbox:tournament:${kind}:${tournamentGame.id}`,
+						);
 						await releaseTournamentGame({
 							gameId: tournamentGame.id,
-							type: tournamentGame.type === 'playoff' ? 'playoff' : 'group',
+							type: kind,
 							accessToken,
 						});
 					}

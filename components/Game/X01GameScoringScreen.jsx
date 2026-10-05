@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useIsFocused } from '@react-navigation/native';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   appendDartLabel,
@@ -353,6 +353,22 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			} else {
 				notifyH2hGameCancelled(navigation);
 			}
+		},
+		onLeaseLost: () => {
+			setGameAborted(true);
+			setGameClosed(true);
+			Alert.alert(
+				'Mecz niedostępny',
+				'Mecz jest sędziowany na innym urządzeniu.',
+				[{
+					text: 'OK',
+					onPress: () => {
+						if (navigation?.canGoBack?.()) {
+							navigation.goBack();
+						}
+					},
+				}],
+			);
 		},
 		getCloseLegDoubleStats: () => {
 			const map = {};
@@ -1207,6 +1223,30 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		gameClosed,
 		tournamentGame,
 		accessToken: auth?.accessToken,
+		onEnded: (reason) => {
+			if (reason === 'finished') {
+				setGameClosed(true);
+				return;
+			}
+			setGameAborted(true);
+			setGameClosed(true);
+			if (reason === 'cancelled') {
+				notifyH2hGameCancelled(navigation);
+				return;
+			}
+			Alert.alert(
+				'Mecz niedostępny',
+				'Mecz jest sędziowany na innym urządzeniu.',
+				[{
+					text: 'OK',
+					onPress: () => {
+						if (navigation?.canGoBack?.()) {
+							navigation.goBack();
+						}
+					},
+				}],
+			);
+		},
 	});
 
 	useFfaPresenceHeartbeat({

@@ -137,6 +137,7 @@ export function useFfaScoringSync({
 			hasTransport: Boolean(transport?.fetchState),
 			wsHealthy,
 			closed: closedRef.current,
+			realtimeEnabled: Boolean(realtimeConfig?.channelName),
 		})) {
 			return undefined;
 		}
@@ -160,7 +161,7 @@ export function useFfaScoringSync({
 			cancelled = true;
 			clearInterval(id);
 		};
-	}, [enabled, loadState, transport, wsHealthy]);
+	}, [enabled, loadState, realtimeConfig, transport, wsHealthy]);
 
 	const enqueueWrite = useCallback((fn) => {
 		pendingWritesRef.current += 1;

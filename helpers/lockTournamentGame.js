@@ -88,7 +88,7 @@ export async function releaseTournamentGame({ gameId, type, accessToken }) {
 
 /**
  * Odnawia dzierżawę locku, dopóki ekran sędziowania jest otwarty.
- * @returns {Promise<{ ok: true } | { ok: false, message: string, status: number }>}
+ * @returns {Promise<{ ok: true, status: number, gameStatus: string } | { ok: false, message: string, status: number, reason: string|null }>}
  */
 export async function heartbeatTournamentGame({ gameId, type, accessToken }) {
 	try {
@@ -102,18 +102,22 @@ export async function heartbeatTournamentGame({ gameId, type, accessToken }) {
 			body: JSON.stringify({ gameId, type }),
 		});
 
-		if (res.ok) {
-			return { ok: true };
-		}
-
-		notifyIfUnauthorized(res.status);
-
 		let data = {};
 		try {
 			data = await res.json();
 		} catch {
 			// ignore
 		}
+
+		if (res.ok) {
+			return {
+				ok: true,
+				status: res.status,
+				gameStatus: data.status ?? 'in_progress',
+			};
+		}
+
+		notifyIfUnauthorized(res.status);
 
 		return {
 			ok: false,
@@ -123,6 +127,7 @@ export async function heartbeatTournamentGame({ gameId, type, accessToken }) {
 				fallback: 'Utracono sędziowanie tego meczu.',
 			}),
 			status: res.status,
+			reason: data.reason ?? null,
 		};
 	} catch (error) {
 		return {
@@ -132,6 +137,7 @@ export async function heartbeatTournamentGame({ gameId, type, accessToken }) {
 				fallback: 'Utracono sędziowanie tego meczu.',
 			}),
 			status: 0,
+			reason: null,
 		};
 	}
 }

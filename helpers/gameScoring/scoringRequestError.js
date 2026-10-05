@@ -9,11 +9,12 @@ import {
  * Błąd HTTP scoringu z flagą retryable (sieć / 5xx → outbox).
  */
 export class ScoringRequestError extends Error {
-	constructor(message, { status = null, retryable = false } = {}) {
+	constructor(message, { status = null, retryable = false, reason = null } = {}) {
 		super(message);
 		this.name = 'ScoringRequestError';
 		this.status = status;
 		this.retryable = retryable;
+		this.reason = reason;
 	}
 }
 
@@ -37,9 +38,16 @@ export function isRetryableScoringError(error) {
 	return false;
 }
 
+export function isLeaseStolenScoringError(error) {
+	return error?.reason === 'stolen';
+}
+
 export function isGameCancelledScoringError(error) {
-	if (!error) {
+	if (!error || error.reason === 'stolen') {
 		return false;
+	}
+	if (error.reason === 'cancelled') {
+		return true;
 	}
 	if (error.status === 409) {
 		return true;
@@ -80,7 +88,7 @@ export function throwIfScoringResponseNotOk(res, data, text, fallbackMessage) {
 				data: payload,
 				fallback: fallbackMessage,
 			}),
-		{ status, retryable },
+		{ status, retryable, reason: payload.reason ?? null },
 	);
 }
 

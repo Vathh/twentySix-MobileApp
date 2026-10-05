@@ -1,4 +1,3 @@
-import { getGameScoringChannelName } from '../../apiConfig';
 import {
 	closeGameLeg,
 	fetchGameScoringState,
@@ -7,10 +6,6 @@ import {
 	undoGameVisit,
 } from '../../gameScoringApi';
 import { newClientVisitId } from '../newClientVisitId.js';
-
-function unwrapTournamentPayload(data) {
-	return data;
-}
 
 /**
  * Transport scoringu turniejowego (group / playoff, H2H).
@@ -33,22 +28,12 @@ export function createTournamentTransport({
 			closeGameLeg(baseUrl, legId, accessToken, payload),
 		newClientVisitId,
 		requiresLegId: true,
+		queueCommands: true,
 		getOutboxKey: () =>
 			channelKind && gameId
 				? `scoring-outbox:tournament:${channelKind}:${gameId}`
 				: null,
-		getRealtimeConfig: () => {
-			if (!channelKind || !gameId) {
-				return null;
-			}
-			return {
-				channelName: getGameScoringChannelName(channelKind, gameId),
-				channelType: 'public',
-				events: ['game.state', '.game.state', 'game.cancelled', '.game.cancelled'],
-				scope: 'game-scoring',
-				unwrapPayload: unwrapTournamentPayload,
-			};
-		},
+		getRealtimeConfig: () => null,
 		assertCanInput: () => true,
 		assertCanUndo: () => true,
 	};

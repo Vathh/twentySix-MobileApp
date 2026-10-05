@@ -123,6 +123,16 @@ function testPollOnlyWhenWsDown() {
 		}),
 		'no poll when disabled',
 	);
+	assert(
+		!shouldStartFfaBackupPoll({
+			enabled: true,
+			hasTransport: true,
+			wsHealthy: false,
+			closed: false,
+			realtimeEnabled: false,
+		}),
+		'no poll when writer does not subscribe',
+	);
 }
 
 function testSkipTickDuringWrites() {

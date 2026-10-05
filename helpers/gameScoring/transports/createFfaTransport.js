@@ -83,15 +83,20 @@ export function createFfaTransport({
 		getCurrentPlayerIndex,
 	});
 
+	const isOneDeviceHost = lobbyScoringMode === 'one_device' && isHost;
 	const base = {
 		format: variant.format,
 		kind,
+		queueCommands: isOneDeviceHost,
 		fetchState: () => fetchFfaScoringState(lobbyId, accessToken),
-		getRealtimeConfig: () => createFfaRealtimeConfig({
-			lobbyId,
-			accessToken,
-			scope: variant.scope,
-		}),
+		getRealtimeConfig: () =>
+			isOneDeviceHost
+				? null
+				: createFfaRealtimeConfig({
+					lobbyId,
+					accessToken,
+					scope: variant.scope,
+				}),
 		assertCanInput,
 		assertCanUndo,
 	};
