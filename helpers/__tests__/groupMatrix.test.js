@@ -99,4 +99,18 @@ const matrixWithAverage = buildGroupMatrix({
 assert(matrixWithAverage.rows[0].player.subtitle === '80.50', 'group average under the name');
 assert(matrixWithAverage.rows[0].vs_2.average === '80.50', 'match cell uses row player average');
 
+assert(matrix.columns[0].key === 'player', 'first column is the player');
+assert(matrix.columns[0].width < 100, 'short names keep the player column narrow');
+assert(matrix.columns[0].width >= 72, 'player column still fits its header');
+
+const longName = buildGroupMatrix({
+	...group,
+	standings: [
+		{ ...group.standings[0], playerName: 'Aleksandra Wiśniewska' },
+		group.standings[1],
+	],
+});
+assert(longName.columns[0].width > matrix.columns[0].width, 'longer names widen the player column');
+assert(longName.columns[0].width <= 120, 'player column stays capped');
+
 console.log('groupMatrix tests ok');

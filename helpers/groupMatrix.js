@@ -84,6 +84,18 @@ export function groupRefereeSlots(games) {
 		.sort((a, b) => a.sequence - b.sequence || a.id - b.id);
 }
 
+const PLAYER_COLUMN_MIN = 80;
+const PLAYER_COLUMN_MAX = 120;
+
+/** Nagłówek „Zawodnik” albo najdłuższe nazwisko — bez szerokiego pustego marginesu. */
+function playerColumnWidth(standings) {
+	const longest = (standings ?? []).reduce(
+		(max, row) => Math.max(max, String(row?.playerName ?? '').trim().length),
+		0,
+	);
+	return Math.min(PLAYER_COLUMN_MAX, Math.max(PLAYER_COLUMN_MIN, longest * 7 + 12));
+}
+
 export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 	const standings = group?.standings ?? [];
 	const games = group?.games ?? [];
@@ -99,7 +111,7 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 	});
 
 	const columns = [
-		{ key: 'player', label: 'Zawodnik', width: 132, align: 'left', player: true },
+		{ key: 'player', label: 'Zawodnik', width: playerColumnWidth(standings), align: 'left', player: true },
 		...standings.map((row) => ({
 			key: `vs_${row.playerId}`,
 			label: shortPlayerLabel(row.playerName),

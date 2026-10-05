@@ -16,6 +16,7 @@ import CompetitionTabs from './CompetitionTabs';
 import CompetitionTable from './CompetitionTable';
 import GroupRefereeLine from './GroupRefereeLine';
 import PlayoffBracket from './PlayoffBracket';
+import TournamentAchievements from './TournamentAchievements';
 import { colors } from '../../theme/colors';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
@@ -28,9 +29,9 @@ const TAB_LABELS = {
 };
 
 const RESULTS_COLUMNS_BASE = [
-	{ key: 'place', label: '#', width: 40 },
-	{ key: 'player', label: 'Zawodnik', width: 150, align: 'left', player: true },
-	{ key: 'stageLabel', label: 'Etap', width: 120, align: 'left' },
+	{ key: 'place', label: '#', width: 40, pinned: true },
+	{ key: 'player', label: 'Zawodnik', width: 120, align: 'left', player: true },
+	{ key: 'stageLabel', label: 'Etap', fitContent: true, align: 'left' },
 ];
 
 const TournamentDetailScreen = ({ navigation, route }) => {
@@ -188,6 +189,9 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 									rows={resultsRows}
 									emptyText="Brak wyników — pojawią się po odpadnięciu zawodników z turnieju."
 									onPlayerPress={openPlayer}
+									showHorizontalScroll
+									freezePlayerColumn
+									hugContent
 								/>
 							) : null}
 
@@ -208,6 +212,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 													emptyText="Brak tabeli."
 													onPlayerPress={openPlayer}
 													showHorizontalScroll
+													freezePlayerColumn
 												/>
 												<GroupRefereeLine games={group.games} />
 											</View>
@@ -241,26 +246,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 							) : null}
 
 							{activeTab === 'achievements' ? (
-								(data?.achievements ?? []).length === 0 ? (
-									<Text style={styles.empty}>Brak osiągnięć.</Text>
-								) : (
-									(data?.achievements ?? []).map((row) => (
-										<View key={row.playerId ?? row.playerName} style={styles.achCard}>
-											<Text style={styles.achName}>{row.playerName}</Text>
-											<Text style={styles.achLine}>
-												180: {row.max} · 170+: {row.oneSeventy}
-											</Text>
-											{row.qf?.length ? (
-												<Text style={styles.achLine}>
-													QF: {row.qf.join(', ')} lotek
-												</Text>
-											) : null}
-											{row.hf?.length ? (
-												<Text style={styles.achLine}>HF: {row.hf.join(', ')}</Text>
-											) : null}
-										</View>
-									))
-								)
+								<TournamentAchievements rows={data?.achievements ?? []} />
 							) : null}
 						</>
 					)}
@@ -291,16 +277,6 @@ const styles = StyleSheet.create({
 	sectionTitleSpaced: {
 		marginTop: 24,
 	},
-	achCard: {
-		padding: 14,
-		backgroundColor: colors.bgElevated,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: colors.border,
-		marginBottom: 10,
-	},
-	achName: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 6 },
-	achLine: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
 });
 
 export default TournamentDetailScreen;
