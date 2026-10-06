@@ -5,18 +5,20 @@ Mapa zgodności z [`../twentysix-backend/docs/product.md`](../twentysix-backend/
 
 Backend: [`../twentysix-backend/IMPLEMENTED_FEATURES.md`](../twentysix-backend/IMPLEMENTED_FEATURES.md)
 
-Ostatnia aktualizacja: lipiec 2026 — MVP v1 otagowane. Zadania: [`../twentysix-backend/docs/NEXT_STEPS.md`](../twentysix-backend/docs/NEXT_STEPS.md).
+Ostatnia aktualizacja: październik 2026. Kryteria MVP v1 (tag `v1.0.0-mvp`) są spełnione. Otwarte tematy: [`../twentysix-backend/docs/NEXT_STEPS.md`](../twentysix-backend/docs/NEXT_STEPS.md).
 
 ---
 
 ## Podsumowanie
 
-| Obszar | Postęp |
-|--------|--------|
-| Tablet turniejowy | ~95% |
-| Quick game online | ~95% |
-| Trening (local) | ✅ |
+| Obszar | Stan |
+|--------|------|
+| Tablet turniejowy | ✅ kod, lista, lock, scoring H2H; grupy i playoff (w tym pocieszenie, etykiety DE) |
+| Quick game online | ✅ FFA 2–8, `one_device` i `each_own` |
+| Trening | ✅ 1–8, solo, bez konta; slot JA zalogowanego idzie na konto |
 | Znajomi / zaproszenia | ✅ |
+| Liga | ✅ lista kolejek, lobby, scoring na jednym telefonie |
+| Profil | ✅ ten sam zestaw co web: przegląd, historia, kariera, checkouty |
 
 ---
 
@@ -54,7 +56,7 @@ Ostatnia aktualizacja: lipiec 2026 — MVP v1 otagowane. Zadania: [`../twentysix
 
 | Wymaganie | Status | Pliki |
 |-----------|--------|-------|
-| 2–8 graczy, imiona lokalne | ✅ | `TrainingMatchSetup.jsx` |
+| 1–8 graczy, imiona lokalne, solo | ✅ | `TrainingMatchSetup.jsx` (`MIN_PLAYERS = 1`) |
 | Bez internetu / bez konta | ✅ | brak wywołań API |
 | Wynik nie zapisywany | ✅ | alert po meczu |
 | `one_device` — jeden telefon | ✅ | domyślnie w treningu |
@@ -112,6 +114,17 @@ Skrót:
 
 ---
 
-## Po MVP v1
+## Po tagu `v1.0.0-mvp`
 
-Aktywne zadania: [`../twentysix-backend/docs/NEXT_STEPS.md`](../twentysix-backend/docs/NEXT_STEPS.md).
+| Obszar | Status | Pliki |
+|--------|--------|-------|
+| Mecz ligowy | ✅ | `components/League/LeagueGameLobby.jsx`, scoring H2H |
+| Profil = web | ✅ | `PlayerProfileScreen.jsx`, `ProfileCareerDashboard.jsx` |
+| Playoff: główna i pocieszenie | ✅ | kafelki na liście tabletu |
+| Etykiety rund DE | ✅ | polskie nazwy rund na scoringu |
+| Średnia 3-dartowa w turnieju i lidze | ✅ | licznik na ekranie meczu |
+| Zmiana zaczynającego przed pierwszą wizytą | ✅ | H2H |
+| Outbox wizyty po powrocie sieci | ✅ | sędzia nie gubi komendy, gdy serwer już ją ma |
+| Cricket i pozostałe tryby quick/trening | ✅ | wtyczki padu w `helpers/gameScoring/`; brak tych trybów w turnieju |
+
+Otwarte zadania: [`../twentysix-backend/docs/NEXT_STEPS.md`](../twentysix-backend/docs/NEXT_STEPS.md).
