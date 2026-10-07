@@ -362,6 +362,8 @@ export const USERS_SEARCH_URL = API_BASE_URL + '/users/search';
 
 export const getPlayerProfileUrl = (playerId) =>
 	API_BASE_URL + '/players/' + playerId;
+export const getPlayerAvatarUrl = (playerId) =>
+	API_BASE_URL + '/players/' + playerId + '/avatar';
 export const getPlayerGamesUrl = (playerId, page = 1) =>
 	API_BASE_URL + '/players/' + playerId + '/games?page=' + page;
 export const getPlayerCareerUrl = (playerId, windowKey = '90d', source = 'all') =>

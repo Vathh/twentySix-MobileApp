@@ -5,6 +5,7 @@ import { initialsFromName } from '../../helpers/initialsFromName';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
+import PlayerAvatar from '../Common/PlayerAvatar';
 
 const formatFastestQf = (darts) => (darts != null ? `${darts} lotek` : '–');
 const formatHighestHf = (score) => (score != null ? String(score) : '–');
@@ -19,6 +20,7 @@ const ProfileHeader = ({
 	liveGames,
 	fastestQf,
 	highestHf,
+	avatarUrl,
 	onEditPress,
 	children,
 }) => {
@@ -27,9 +29,13 @@ const ProfileHeader = ({
 	return (
 		<View style={[styles.hero, cardToneStyle(colors.accent)]}>
 			<View style={styles.topRow}>
-				<View style={styles.mono}>
-					<Text style={styles.monoText}>{mono}</Text>
-				</View>
+				<PlayerAvatar
+					name={name}
+					initials={mono}
+					avatarUrl={avatarUrl}
+					size={56}
+					rounded={12}
+				/>
 				<View style={styles.idBlock}>
 					<Text style={styles.name}>{name || 'Gracz'}</Text>
 					<View style={styles.metaRow}>
@@ -122,20 +128,6 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'flex-start',
 		gap: 12,
-	},
-	mono: {
-		width: 56,
-		height: 56,
-		borderRadius: 12,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.accentMuted,
-	},
-	monoText: {
-		fontSize: 18,
-		fontWeight: '700',
-		color: colors.accent,
-		letterSpacing: 0.6,
 	},
 	idBlock: {
 		flex: 1,

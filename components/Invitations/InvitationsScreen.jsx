@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import ScreenLoading from '../Common/ScreenLoading';
+import PlayerAvatar from '../Common/PlayerAvatar';
 import {
 	actOnFriendInvitation,
 	actOnLeagueMembershipInvitation,
@@ -41,16 +42,6 @@ const TAB_FRIENDS = 'friends';
 
 function resolveInitialTab(route) {
 	return route?.params?.tab === TAB_FRIENDS ? TAB_FRIENDS : TAB_GRA;
-}
-
-function initialsFromName(name) {
-	const trimmed = String(name || '').trim();
-	if (!trimmed) return '?';
-	const parts = trimmed.split(/\s+/).filter(Boolean);
-	if (parts.length >= 2) {
-		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-	}
-	return trimmed.slice(0, 2).toUpperCase();
 }
 
 function membershipKindLabel(kind) {
@@ -105,6 +96,7 @@ function ActionChip({ label, onPress, disabled, busy, variant = 'accept' }) {
 function InviteRow({
 	icon,
 	avatarName,
+	avatarUrl,
 	title,
 	subtitle,
 	onPress,
@@ -113,9 +105,7 @@ function InviteRow({
 	last = false,
 }) {
 	const media = avatarName ? (
-		<View style={styles.avatar}>
-			<Text style={styles.avatarText}>{initialsFromName(avatarName)}</Text>
-		</View>
+		<PlayerAvatar name={avatarName} avatarUrl={avatarUrl} size={36} rounded={18} />
 	) : (
 		<View style={styles.typeIcon}>
 			<Ionicons name={icon} size={scaleSize(18)} color={colors.accent} />
@@ -449,7 +439,8 @@ const InvitationsScreen = ({ navigation, route }) => {
 		return (
 			<InviteRow
 				key={`${isLeague ? 'league' : 'lobby'}-${inv.id}`}
-				icon={isLeague ? 'medal-outline' : 'flash-outline'}
+				avatarName={inv.hostName ?? 'Gracz'}
+				avatarUrl={inv.hostAvatarUrl}
 				title={title}
 				subtitle={subtitle}
 				first={index === 0}
@@ -559,6 +550,7 @@ const InvitationsScreen = ({ navigation, route }) => {
 			<InviteRow
 				key={`friend-${item.id}`}
 				avatarName={name}
+				avatarUrl={item.sender?.avatarUrl}
 				title={name}
 				subtitle="Chce dodać Cię do znajomych"
 				first={index === 0}
@@ -858,20 +850,6 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center',
 		backgroundColor: colors.accentMuted,
-	},
-	avatar: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.accentMuted,
-	},
-	avatarText: {
-		fontSize: 12,
-		fontWeight: '700',
-		color: colors.accent,
-		letterSpacing: 0.3,
 	},
 	textCol: {
 		flex: 1,

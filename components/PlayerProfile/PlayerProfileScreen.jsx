@@ -155,6 +155,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							fastestQf={profile?.highlights?.fastestQf}
 							highestHf={profile?.highlights?.highestHf}
 							description={profile?.player?.description}
+							avatarUrl={profile?.player?.avatarUrl}
 							isSelf={!!friendship?.isSelf}
 							relationLabel={relationLabel(friendship)}
 							liveGames={profile?.liveGames}
@@ -162,6 +163,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								navigation.navigate('EditPlayerProfile', {
 									playerId,
 									description: profile?.player?.description ?? '',
+									avatarUrl: profile?.player?.avatarUrl ?? null,
 								})
 							}
 						>

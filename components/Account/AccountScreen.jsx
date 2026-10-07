@@ -5,16 +5,7 @@ import useAuth from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmProvider';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
-
-function initialsFromName(name) {
-	const trimmed = String(name || '').trim();
-	if (!trimmed) return '?';
-	const parts = trimmed.split(/\s+/).filter(Boolean);
-	if (parts.length >= 2) {
-		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-	}
-	return trimmed.slice(0, 2).toUpperCase();
-}
+import PlayerAvatar from '../Common/PlayerAvatar';
 
 function MenuRow({ icon, title, hint, onPress, last = false, danger = false }) {
 	return (
@@ -85,9 +76,12 @@ const AccountScreen = ({ navigation }) => {
 					onPress={openOwnProfile}
 					style={({ pressed }) => [styles.identity, pressed && styles.rowPressed]}
 				>
-					<View style={styles.avatar}>
-						<Text style={styles.avatarText}>{initialsFromName(name)}</Text>
-					</View>
+					<PlayerAvatar
+						name={name}
+						avatarUrl={auth?.avatarUrl}
+						size={52}
+						rounded={26}
+					/>
 					<View style={styles.identityText}>
 						<Text style={styles.identityName} numberOfLines={1}>
 							{name}
@@ -160,20 +154,6 @@ const styles = StyleSheet.create({
 		borderRadius: 10,
 		borderWidth: 1,
 		borderColor: colors.border,
-	},
-	avatar: {
-		width: 52,
-		height: 52,
-		borderRadius: 26,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.accentMuted,
-	},
-	avatarText: {
-		fontSize: 16,
-		fontWeight: '700',
-		color: colors.accent,
-		letterSpacing: 0.4,
 	},
 	identityText: {
 		flex: 1,

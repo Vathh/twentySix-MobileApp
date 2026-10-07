@@ -17,6 +17,7 @@ export function mapLoginResponseToAuth(data) {
 		playerId: data?.user?.playerId ?? null,
 		playerName: data?.user?.name ?? null,
 		email: data?.user?.email ?? null,
+		avatarUrl: data?.user?.avatarUrl ?? null,
 	};
 }
 

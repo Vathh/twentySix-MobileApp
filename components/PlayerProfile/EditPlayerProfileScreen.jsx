@@ -10,27 +10,56 @@ import {
 	TextInput,
 	View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import useAuth from '../../hooks/useAuth';
-import { updatePlayerProfile } from '../../helpers/playerProfileApi';
+import { deletePlayerAvatar, updatePlayerProfile, uploadPlayerAvatar } from '../../helpers/playerProfileApi';
 import { userFacingErrorMessage } from '../../helpers/userFacingError';
 import { colors } from '../../theme/colors';
+import PlayerAvatar from '../Common/PlayerAvatar';
 
 const MAX_DESCRIPTION = 1000;
 
 const EditPlayerProfileScreen = ({ navigation, route }) => {
-	const { auth } = useAuth();
+	const { auth, setAuth, persistSession, rememberMePreferred } = useAuth();
 	const playerId = route?.params?.playerId;
 	const initialDescription = route?.params?.description ?? '';
+	const initialAvatarUrl = route?.params?.avatarUrl ?? null;
 
 	const [description, setDescription] = useState(initialDescription);
+	const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+	const [picked, setPicked] = useState(null);
+	const [removeAvatar, setRemoveAvatar] = useState(false);
 	const [errorMsg, setErrorMsg] = useState('');
 	const [loading, setLoading] = useState(false);
+
+	const previewUrl = removeAvatar ? null : (picked?.uri || avatarUrl);
 
 	const parseErrorMessage = (data, extras = {}) => userFacingErrorMessage({
 		data,
 		...extras,
 		fallback: extras.fallback || 'Nie udało się zapisać profilu',
 	});
+
+	const pickImage = async () => {
+		if (loading) return;
+		const result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ['images'],
+			allowsEditing: true,
+			aspect: [1, 1],
+			quality: 0.85,
+		});
+		if (result.canceled) return;
+		const asset = result.assets?.[0];
+		if (!asset?.uri) return;
+		setPicked({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' });
+		setRemoveAvatar(false);
+		setErrorMsg('');
+	};
+
+	const clearImage = () => {
+		setPicked(null);
+		setRemoveAvatar(true);
+	};
 
 	const handleSubmit = async () => {
 		if (loading) return;
@@ -49,6 +78,30 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 		setLoading(true);
 
 		try {
+			let nextAvatarUrl = removeAvatar ? null : avatarUrl;
+
+			if (picked) {
+				const uploaded = await uploadPlayerAvatar(playerId, auth.accessToken, picked);
+				if (!uploaded.ok) {
+					setErrorMsg(parseErrorMessage(uploaded.data, {
+						status: uploaded.status,
+						fallback: 'Nie udało się zapisać zdjęcia',
+					}));
+					return;
+				}
+				nextAvatarUrl = uploaded.data?.avatarUrl ?? null;
+			} else if (removeAvatar && avatarUrl) {
+				const removed = await deletePlayerAvatar(playerId, auth.accessToken);
+				if (!removed.ok) {
+					setErrorMsg(parseErrorMessage(removed.data, {
+						status: removed.status,
+						fallback: 'Nie udało się usunąć zdjęcia',
+					}));
+					return;
+				}
+				nextAvatarUrl = null;
+			}
+
 			const { ok, data, status, error } = await updatePlayerProfile(
 				playerId,
 				auth.accessToken,
@@ -58,6 +111,12 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 			if (!ok) {
 				setErrorMsg(parseErrorMessage(data, { error, status }));
 				return;
+			}
+
+			if (auth?.playerId != null && String(auth.playerId) === String(playerId)) {
+				const nextAuth = { ...auth, avatarUrl: nextAvatarUrl };
+				setAuth(nextAuth);
+				await persistSession(nextAuth, rememberMePreferred);
 			}
 
 			navigation.goBack();
@@ -82,8 +141,35 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 				keyboardShouldPersistTaps="handled"
 			>
 				<View style={styles.form}>
-					<Text style={styles.hint}>Krótki opis widoczny na Twoim profilu.</Text>
+					<Text style={styles.hint}>Krótki opis i zdjęcie widoczne na Twoim profilu.</Text>
 					{errorMsg ? <Text style={styles.errorMessage}>{errorMsg}</Text> : null}
+					<View style={styles.avatarBlock}>
+						<PlayerAvatar
+							name={auth?.playerName}
+							avatarUrl={previewUrl}
+							size={72}
+							rounded={16}
+						/>
+						<View style={styles.avatarActions}>
+							<Pressable
+								style={styles.secondaryButton}
+								onPress={pickImage}
+								disabled={loading}
+							>
+								<Text style={styles.secondaryButtonText}>Wybierz zdjęcie</Text>
+							</Pressable>
+							{previewUrl ? (
+								<Pressable
+									style={styles.secondaryButton}
+									onPress={clearImage}
+									disabled={loading}
+								>
+									<Text style={styles.secondaryButtonText}>Usuń zdjęcie</Text>
+								</Pressable>
+							) : null}
+						</View>
+						<Text style={styles.avatarHint}>JPEG, PNG lub WebP, do 2 MB. Systemowy kadr przytnie zdjęcie do kwadratu.</Text>
+					</View>
 					<Text style={styles.fieldLabel}>Opis</Text>
 					<TextInput
 						style={styles.input}
@@ -146,6 +232,36 @@ const styles = StyleSheet.create({
 		lineHeight: 18,
 		color: colors.textMuted,
 		marginBottom: 18,
+	},
+	avatarBlock: {
+		alignItems: 'center',
+		gap: 12,
+		marginBottom: 20,
+	},
+	avatarActions: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		justifyContent: 'center',
+		gap: 8,
+	},
+	secondaryButton: {
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+	},
+	secondaryButtonText: {
+		color: colors.text,
+		fontSize: 13,
+		fontWeight: '700',
+	},
+	avatarHint: {
+		fontSize: 12,
+		lineHeight: 16,
+		color: colors.textMuted,
+		textAlign: 'center',
 	},
 	fieldLabel: {
 		marginBottom: 8,

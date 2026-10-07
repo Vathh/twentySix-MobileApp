@@ -42,12 +42,16 @@ function dataWithUserMessage(data, status) {
 /**
  * @returns {Promise<{ ok: boolean, status: number, data: object, error?: unknown }>}
  */
-export async function apiRequest(url, { method = 'GET', accessToken, body, json = false } = {}) {
+export async function apiRequest(url, { method = 'GET', accessToken, body, json = false, formData = null } = {}) {
 	try {
 		const res = await fetch(url, {
 			method,
-			headers: authHeaders(accessToken, { json }),
-			...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+			headers: authHeaders(accessToken, { json: json && !formData }),
+			...(formData
+				? { body: formData }
+				: body !== undefined
+					? { body: JSON.stringify(body) }
+					: {}),
 		});
 		const data = await parseJsonSafe(res);
 		notifyIfUnauthorized(res.status, {

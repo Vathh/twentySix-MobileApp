@@ -1,4 +1,4 @@
-import { getPlayerCareerUrl, getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
+import { getPlayerAvatarUrl, getPlayerCareerUrl, getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
 import { apiRequest } from './apiClient';
 import { CONNECTION_ERROR_MESSAGE, userFacingErrorMessage } from './userFacingError';
 
@@ -94,6 +94,55 @@ export async function updatePlayerProfile(playerId, accessToken, { description }
 			accessToken,
 			json: true,
 			body: { description },
+		});
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			data: { message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error) },
+		};
+	}
+}
+
+/**
+ * @param {{ uri: string, mimeType?: string|null }} file
+ */
+export async function uploadPlayerAvatar(playerId, accessToken, file) {
+	if (!playerId || !accessToken || !file?.uri) {
+		return { ok: false, status: 0, data: { message: 'Brak danych logowania.' } };
+	}
+
+	const formData = new FormData();
+	formData.append('avatar', {
+		uri: file.uri,
+		name: 'avatar.jpg',
+		type: file.mimeType || 'image/jpeg',
+	});
+
+	try {
+		return await apiRequest(getPlayerAvatarUrl(playerId), {
+			method: 'POST',
+			accessToken,
+			formData,
+		});
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			data: { message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error) },
+		};
+	}
+}
+
+export async function deletePlayerAvatar(playerId, accessToken) {
+	if (!playerId || !accessToken) {
+		return { ok: false, status: 0, data: { message: 'Brak danych logowania.' } };
+	}
+
+	try {
+		return await apiRequest(getPlayerAvatarUrl(playerId), {
+			method: 'DELETE',
+			accessToken,
 		});
 	} catch (error) {
 		return {

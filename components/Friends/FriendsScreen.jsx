@@ -23,22 +23,14 @@ import {
 } from '../../helpers/friendsApi';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
+import PlayerAvatar from '../Common/PlayerAvatar';
 
 const TAB_LIST = 'list';
 const TAB_ADD = 'add';
 
-function initialsFromName(name) {
-	const trimmed = String(name || '').trim();
-	if (!trimmed) return '?';
-	const parts = trimmed.split(/\s+/).filter(Boolean);
-	if (parts.length >= 2) {
-		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-	}
-	return trimmed.slice(0, 2).toUpperCase();
-}
-
 function PersonRow({
 	name,
+	avatarUrl,
 	subtitle,
 	onPress,
 	trailing,
@@ -58,9 +50,7 @@ function PersonRow({
 				pressed && onPress ? styles.personRowPressed : null,
 			]}
 		>
-			<View style={styles.avatar}>
-				<Text style={styles.avatarText}>{initialsFromName(name)}</Text>
-			</View>
+			<PlayerAvatar name={name} avatarUrl={avatarUrl} size={36} rounded={18} />
 			<View style={[styles.personBody, !last && styles.personBodyDivider]}>
 				<Text style={styles.personName} numberOfLines={1}>
 					{name}
@@ -298,6 +288,7 @@ const FriendsScreen = ({ navigation }) => {
 										<PersonRow
 											key={String(key)}
 											name={name}
+											avatarUrl={f.avatarUrl}
 											first={index === 0}
 											last={index === friends.length - 1}
 											onPress={
@@ -341,6 +332,7 @@ const FriendsScreen = ({ navigation }) => {
 											<PersonRow
 												key={inv.id}
 												name={receiverName}
+												avatarUrl={inv.receiver?.avatarUrl}
 												subtitle="Czeka na akceptację"
 												first={index === 0}
 												last={index === sentInvitations.length - 1}
@@ -435,6 +427,7 @@ const FriendsScreen = ({ navigation }) => {
 										<PersonRow
 											key={String(user.id)}
 											name={name}
+											avatarUrl={user.avatarUrl}
 											subtitle={already ? 'Już na liście' : pending ? 'Zaproszenie wysłane' : null}
 											first={index === 0}
 											last={index === searchResults.length - 1}
@@ -569,20 +562,6 @@ const styles = StyleSheet.create({
 	},
 	personRowPressed: {
 		backgroundColor: colors.bgElevatedHover,
-	},
-	avatar: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.accentMuted,
-	},
-	avatarText: {
-		fontSize: 12,
-		fontWeight: '700',
-		color: colors.accent,
-		letterSpacing: 0.3,
 	},
 	personBody: {
 		flex: 1,
