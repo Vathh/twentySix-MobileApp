@@ -222,7 +222,10 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 						) : null}
 
 						{activeTab === TAB_BADGES ? (
-							<ProfileBadges checkoutItems={profile?.checkoutItems} />
+							<ProfileBadges
+								checkoutItems={profile?.checkoutItems}
+								highVisitItems={profile?.highVisitItems}
+							/>
 						) : null}
 					</View>
 				</View>

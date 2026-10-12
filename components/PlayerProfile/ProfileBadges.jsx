@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
 	ActivityIndicator,
+	Image,
 	Modal,
 	Pressable,
 	StyleSheet,
@@ -9,6 +10,7 @@ import {
 	useWindowDimensions,
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
+import { highVisitImage } from '../../helpers/highVisitBadges';
 import { checkoutAtPoint } from '../../helpers/checkoutWheelHit';
 import {
 	loadCheckoutWheelXml,
@@ -18,8 +20,9 @@ import { sanitizeSvgXml } from '../../helpers/headerLogo';
 import { gameTypeLabel } from '../../helpers/profileMetrics';
 import { colors } from '../../theme/colors';
 
-const ProfileBadges = ({ checkoutItems }) => {
+const ProfileBadges = ({ checkoutItems, highVisitItems }) => {
 	const items = Array.isArray(checkoutItems) ? checkoutItems : [];
+	const visits = Array.isArray(highVisitItems) ? highVisitItems : [];
 	const unlocked = items.filter((item) => (item.timesEarned ?? 0) > 0).length;
 	const total = items.length;
 	const { width: windowWidth } = useWindowDimensions();
@@ -27,6 +30,7 @@ const ProfileBadges = ({ checkoutItems }) => {
 	const [wheelXml, setWheelXml] = useState('');
 	const [wheelError, setWheelError] = useState(false);
 	const [selected, setSelected] = useState(null);
+	const [selectedVisit, setSelectedVisit] = useState(null);
 
 	const byKey = useMemo(() => {
 		const map = {};
@@ -68,6 +72,10 @@ const ProfileBadges = ({ checkoutItems }) => {
 
 	return (
 		<View style={styles.wrap}>
+			{visits.length > 0 ? (
+				<HighVisitRow items={visits} onSelect={setSelectedVisit} />
+			) : null}
+
 			<View style={styles.head}>
 				<Text style={styles.sectionLabel}>Checkouty 100+</Text>
 				<Text style={styles.count}>
@@ -102,9 +110,111 @@ const ProfileBadges = ({ checkoutItems }) => {
 			)}
 
 			<CheckoutDetailSheet item={selected} onClose={() => setSelected(null)} />
+			<HighVisitDetailSheet item={selectedVisit} onClose={() => setSelectedVisit(null)} />
 		</View>
 	);
 };
+
+function HighVisitRow({ items, onSelect }) {
+	return (
+		<View style={styles.visitBlock}>
+			<Text style={[styles.sectionLabel, styles.visitHeading]}>Mocny punkciarz</Text>
+			<View style={styles.visitRow}>
+				{items.map((item) => {
+					const times = Number(item.timesEarned) || 0;
+					const locked = times < 1;
+					const source = highVisitImage(item.key, item.levelName);
+					return (
+						<Pressable
+							key={item.key}
+							onPress={() => onSelect(item)}
+							style={styles.visitCard}
+							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
+						>
+							<View style={styles.visitImageFrame}>
+								{source ? (
+									<Image
+										source={source}
+										style={[styles.visitImage, locked && styles.visitImageLocked]}
+										resizeMode="contain"
+									/>
+								) : null}
+							</View>
+							<View style={styles.levelRow}>
+								<Text style={styles.levelTitle} numberOfLines={1}>Poziom {item.levelNumber ?? 0}</Text>
+								<Text style={styles.progressLabel} numberOfLines={1}>{item.progressLabel}</Text>
+							</View>
+							<View
+								style={styles.progressTrack}
+								accessibilityRole="progressbar"
+								accessibilityValue={{ min: 0, max: 100, now: Number(item.progressPercent) || 0 }}
+							>
+								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
+							</View>
+						</Pressable>
+					);
+				})}
+			</View>
+		</View>
+	);
+}
+
+function HighVisitDetailSheet({ item, onClose }) {
+	if (!item) return null;
+	const times = Number(item.timesEarned) || 0;
+	const game = item.lastGame;
+	const source = highVisitImage(item.key, item.levelName);
+	const lastDate = game?.dateFormatted
+		|| (item.lastEarnedAt ? new Date(item.lastEarnedAt).toLocaleDateString('pl-PL') : null);
+
+	return (
+		<Modal
+			visible
+			transparent
+			animationType="fade"
+			presentationStyle="overFullScreen"
+			statusBarTranslucent
+			onRequestClose={onClose}
+		>
+			<View style={styles.backdrop}>
+				<Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+				<View style={styles.sheet} accessibilityRole="alert">
+					{source ? (
+						<Image source={source} style={styles.sheetImage} resizeMode="contain" />
+					) : null}
+					<Text style={styles.sheetTitle}>{item.label}</Text>
+					<Text style={styles.sheetCount}>
+						{times > 0 ? `${item.levelLabel} · ${timesLabel(times)}` : 'Jeszcze nie rzucone'}
+					</Text>
+					<View style={styles.sheetProgress}>
+						<View style={styles.levelRow}>
+							<Text style={styles.levelTitle}>Poziom {item.levelNumber ?? 0}</Text>
+							<Text style={styles.progressLabel}>{item.progressLabel}</Text>
+						</View>
+						<View style={styles.progressTrack}>
+							<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
+						</View>
+					</View>
+					{times > 0 && game ? (
+						<>
+							<Text style={styles.sheetMeta}>
+								Ostatnio: {[gameTypeLabel(game.type), game.opponents, lastDate].filter(Boolean).join(' · ')}
+							</Text>
+							{game.tournamentName ? (
+								<Text style={styles.sheetEvent}>{game.tournamentName}</Text>
+							) : null}
+						</>
+					) : times > 0 && lastDate ? (
+						<Text style={styles.sheetMeta}>Ostatnio: {lastDate}</Text>
+					) : null}
+					<Pressable style={styles.sheetBtn} onPress={onClose}>
+						<Text style={styles.sheetBtnText}>Zamknij</Text>
+					</Pressable>
+				</View>
+			</View>
+		</Modal>
+	);
+}
 
 function timesLabel(n) {
 	return n === 1 ? '1 raz' : `${n} razy`;
@@ -188,6 +298,82 @@ function BadgeGrid({ items, onSelect }) {
 const styles = StyleSheet.create({
 	wrap: {
 		paddingBottom: 24,
+	},
+	visitBlock: {
+		marginBottom: 28,
+	},
+	visitRow: {
+		flexDirection: 'row',
+		gap: 8,
+	},
+	visitCard: {
+		flex: 1,
+		alignItems: 'center',
+		backgroundColor: colors.bgElevated,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.border,
+		paddingHorizontal: 4,
+		paddingVertical: 10,
+	},
+	visitImageFrame: {
+		width: '100%',
+		aspectRatio: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	visitImage: {
+		width: '100%',
+		height: '100%',
+	},
+	visitImageLocked: {
+		opacity: 0.4,
+	},
+	visitHeading: {
+		marginBottom: 14,
+	},
+	levelRow: {
+		alignSelf: 'stretch',
+		marginTop: 8,
+		flexDirection: 'row',
+		alignItems: 'baseline',
+		justifyContent: 'space-between',
+		gap: 4,
+	},
+	levelTitle: {
+		flexShrink: 1,
+		fontSize: 12,
+		fontWeight: '600',
+		color: colors.textSecondary,
+	},
+	progressTrack: {
+		marginTop: 4,
+		height: 6,
+		width: '100%',
+		borderRadius: 999,
+		backgroundColor: colors.border,
+		overflow: 'hidden',
+	},
+	progressFill: {
+		height: '100%',
+		borderRadius: 999,
+		backgroundColor: colors.accent,
+	},
+	progressLabel: {
+		flexShrink: 0,
+		fontSize: 12,
+		fontWeight: '700',
+		color: colors.textMuted,
+	},
+	sheetProgress: {
+		marginTop: 12,
+		alignSelf: 'stretch',
+	},
+	sheetImage: {
+		width: 140,
+		height: 140,
+		alignSelf: 'center',
+		marginBottom: 8,
 	},
 	head: {
 		flexDirection: 'row',
