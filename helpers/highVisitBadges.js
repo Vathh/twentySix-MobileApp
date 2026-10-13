@@ -28,3 +28,18 @@ export function highVisitImage(key, levelName) {
 	const tier = levelName && track[levelName] ? levelName : 'iron';
 	return track[tier];
 }
+
+/** Pozycja rysunku w kwadratowej ramce. Bez danych — cały plik, jak object-contain. */
+export function badgeArtworkStyle(artwork) {
+	if (artwork?.width == null || artwork?.height == null) {
+		return { width: '100%', height: '100%' };
+	}
+
+	return {
+		position: 'absolute',
+		width: `${Number(artwork.width)}%`,
+		height: `${Number(artwork.height)}%`,
+		left: `${Number(artwork.left) || 0}%`,
+		top: `${Number(artwork.top) || 0}%`,
+	};
+}

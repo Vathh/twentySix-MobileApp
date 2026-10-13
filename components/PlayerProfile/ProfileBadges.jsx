@@ -10,7 +10,8 @@ import {
 	useWindowDimensions,
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { highVisitImage } from '../../helpers/highVisitBadges';
+import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
+import { qfImage } from '../../helpers/qfBadges';
 import { checkoutAtPoint } from '../../helpers/checkoutWheelHit';
 import {
 	loadCheckoutWheelXml,
@@ -20,9 +21,10 @@ import { sanitizeSvgXml } from '../../helpers/headerLogo';
 import { gameTypeLabel } from '../../helpers/profileMetrics';
 import { colors } from '../../theme/colors';
 
-const ProfileBadges = ({ checkoutItems, highVisitItems }) => {
+const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems }) => {
 	const items = Array.isArray(checkoutItems) ? checkoutItems : [];
 	const visits = Array.isArray(highVisitItems) ? highVisitItems : [];
+	const qf = (Array.isArray(qfItems) ? qfItems : []).filter((item) => (Number(item.timesEarned) || 0) > 0);
 	const unlocked = items.filter((item) => (item.timesEarned ?? 0) > 0).length;
 	const total = items.length;
 	const { width: windowWidth } = useWindowDimensions();
@@ -74,6 +76,10 @@ const ProfileBadges = ({ checkoutItems, highVisitItems }) => {
 		<View style={styles.wrap}>
 			{visits.length > 0 ? (
 				<HighVisitRow items={visits} onSelect={setSelectedVisit} />
+			) : null}
+
+			{qf.length > 0 ? (
+				<QfRow items={qf} onSelect={setSelectedVisit} />
 			) : null}
 
 			<View style={styles.head}>
@@ -135,8 +141,50 @@ function HighVisitRow({ items, onSelect }) {
 								{source ? (
 									<Image
 										source={source}
-										style={[styles.visitImage, locked && styles.visitImageLocked]}
-										resizeMode="contain"
+										style={[badgeArtworkStyle(item.artwork), locked && styles.visitImageLocked]}
+										resizeMode="stretch"
+									/>
+								) : null}
+							</View>
+							<View style={styles.levelRow}>
+								<Text style={styles.levelTitle} numberOfLines={1}>Poziom {item.levelNumber ?? 0}</Text>
+								<Text style={styles.progressLabel} numberOfLines={1}>{item.progressLabel}</Text>
+							</View>
+							<View
+								style={styles.progressTrack}
+								accessibilityRole="progressbar"
+								accessibilityValue={{ min: 0, max: 100, now: Number(item.progressPercent) || 0 }}
+							>
+								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
+							</View>
+						</Pressable>
+					);
+				})}
+			</View>
+		</View>
+	);
+}
+
+function QfRow({ items, onSelect }) {
+	return (
+		<View style={styles.visitBlock}>
+			<Text style={[styles.sectionLabel, styles.visitHeading]}>Szybkie legi</Text>
+			<View style={styles.qfRow}>
+				{items.map((item) => {
+					const source = qfImage(item.key, item.levelName);
+					return (
+						<Pressable
+							key={item.key}
+							onPress={() => onSelect({ ...item, imageSource: source })}
+							style={styles.qfCard}
+							accessibilityLabel={`${item.label}, ${item.levelLabel}`}
+						>
+							<View style={styles.visitImageFrame}>
+								{source ? (
+									<Image
+										source={source}
+										style={badgeArtworkStyle(item.artwork)}
+										resizeMode="stretch"
 									/>
 								) : null}
 							</View>
@@ -163,7 +211,7 @@ function HighVisitDetailSheet({ item, onClose }) {
 	if (!item) return null;
 	const times = Number(item.timesEarned) || 0;
 	const game = item.lastGame;
-	const source = highVisitImage(item.key, item.levelName);
+	const source = item.imageSource || highVisitImage(item.key, item.levelName);
 	const lastDate = game?.dateFormatted
 		|| (item.lastEarnedAt ? new Date(item.lastEarnedAt).toLocaleDateString('pl-PL') : null);
 
@@ -180,7 +228,13 @@ function HighVisitDetailSheet({ item, onClose }) {
 				<Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 				<View style={styles.sheet} accessibilityRole="alert">
 					{source ? (
-						<Image source={source} style={styles.sheetImage} resizeMode="contain" />
+						<View style={styles.sheetImageFrame}>
+							<Image
+								source={source}
+								style={badgeArtworkStyle(item.artwork)}
+								resizeMode="stretch"
+							/>
+						</View>
 					) : null}
 					<Text style={styles.sheetTitle}>{item.label}</Text>
 					<Text style={styles.sheetCount}>
@@ -306,6 +360,21 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		gap: 8,
 	},
+	qfRow: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 8,
+	},
+	qfCard: {
+		width: '30%',
+		alignItems: 'center',
+		backgroundColor: colors.bgElevated,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.border,
+		paddingHorizontal: 4,
+		paddingVertical: 10,
+	},
 	visitCard: {
 		flex: 1,
 		alignItems: 'center',
@@ -319,12 +388,7 @@ const styles = StyleSheet.create({
 	visitImageFrame: {
 		width: '100%',
 		aspectRatio: 1,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	visitImage: {
-		width: '100%',
-		height: '100%',
+		overflow: 'hidden',
 	},
 	visitImageLocked: {
 		opacity: 0.4,
@@ -369,11 +433,12 @@ const styles = StyleSheet.create({
 		marginTop: 12,
 		alignSelf: 'stretch',
 	},
-	sheetImage: {
+	sheetImageFrame: {
 		width: 140,
 		height: 140,
 		alignSelf: 'center',
 		marginBottom: 8,
+		overflow: 'hidden',
 	},
 	head: {
 		flexDirection: 'row',

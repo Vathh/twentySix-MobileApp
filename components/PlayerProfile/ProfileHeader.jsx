@@ -1,7 +1,9 @@
 import React from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { initialsFromName } from '../../helpers/initialsFromName';
+import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
+import { qfImage } from '../../helpers/qfBadges';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
@@ -9,6 +11,34 @@ import PlayerAvatar from '../Common/PlayerAvatar';
 
 const formatFastestQf = (darts) => (darts != null ? `${darts} lotek` : '–');
 const formatHighestHf = (score) => (score != null ? String(score) : '–');
+
+function earnedShowcaseBadges(highVisitItems) {
+	return (Array.isArray(highVisitItems) ? highVisitItems : [])
+		.filter((item) => (Number(item.timesEarned) || 0) > 0)
+		.map((item) => ({
+			key: String(item.key),
+			source: highVisitImage(item.key, item.levelName),
+			artwork: item.artwork,
+			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
+			sort: Number(item.key) || 0,
+		}))
+		.filter((item) => item.source)
+		.sort((a, b) => b.sort - a.sort);
+}
+
+function earnedQfBadges(qfItems) {
+	return (Array.isArray(qfItems) ? qfItems : [])
+		.filter((item) => (Number(item.timesEarned) || 0) > 0)
+		.map((item) => ({
+			key: `qf-${item.key}`,
+			source: qfImage(item.key, item.levelName),
+			artwork: item.artwork,
+			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
+			sort: Number(item.key) || 0,
+		}))
+		.filter((item) => item.source)
+		.sort((a, b) => a.sort - b.sort);
+}
 
 const ProfileHeader = ({
 	name,
@@ -21,10 +51,17 @@ const ProfileHeader = ({
 	fastestQf,
 	highestHf,
 	avatarUrl,
+	highVisitItems,
+	qfItems,
+	onBadgesPress,
 	onEditPress,
 	children,
 }) => {
 	const mono = initials || initialsFromName(name);
+	const showcaseBadges = [
+		...earnedShowcaseBadges(highVisitItems),
+		...earnedQfBadges(qfItems),
+	];
 
 	return (
 		<View style={[styles.hero, cardToneStyle(colors.accent)]}>
@@ -72,6 +109,31 @@ const ProfileHeader = ({
 						<Text style={styles.editBtnText}>Edytuj</Text>
 					</Pressable>
 				) : null}
+			</View>
+
+			<View style={styles.badges} accessibilityLabel="Odznaczenia">
+				<Text style={styles.badgesLabel}>Odznaczenia</Text>
+				{showcaseBadges.length === 0 ? (
+					<Text style={styles.badgesEmpty}>Jeszcze brak odznaczeń.</Text>
+				) : (
+					<View style={styles.badgeRow}>
+						{showcaseBadges.map((badge) => (
+							<Pressable
+								key={badge.key}
+								accessibilityRole="button"
+								accessibilityLabel={badge.title}
+								onPress={onBadgesPress}
+								style={({ pressed }) => [styles.badgeHit, pressed && styles.badgeHitPressed]}
+							>
+								<Image
+									source={badge.source}
+									style={badgeArtworkStyle(badge.artwork)}
+									resizeMode="stretch"
+								/>
+							</Pressable>
+						))}
+					</View>
+				)}
 			</View>
 
 			{children}
@@ -199,6 +261,37 @@ const styles = StyleSheet.create({
 		color: colors.accent,
 		fontWeight: '600',
 		fontSize: 13,
+	},
+	badges: {
+		gap: 8,
+		paddingTop: 12,
+		borderTopWidth: StyleSheet.hairlineWidth,
+		borderTopColor: colors.border,
+	},
+	badgesLabel: {
+		fontSize: 10,
+		fontWeight: '700',
+		letterSpacing: 0.8,
+		textTransform: 'uppercase',
+		color: colors.textDim,
+	},
+	badgesEmpty: {
+		fontSize: 12,
+		color: colors.textMuted,
+	},
+	badgeRow: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 6,
+	},
+	badgeHit: {
+		width: 76,
+		height: 76,
+		overflow: 'hidden',
+	},
+	badgeHitPressed: {
+		opacity: 0.8,
+		transform: [{ translateY: -2 }],
 	},
 	bio: {
 		fontSize: 14,

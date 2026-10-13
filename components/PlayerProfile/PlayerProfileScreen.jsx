@@ -159,6 +159,9 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							isSelf={!!friendship?.isSelf}
 							relationLabel={relationLabel(friendship)}
 							liveGames={profile?.liveGames}
+							highVisitItems={profile?.highVisitItems}
+							qfItems={profile?.qfItems}
+							onBadgesPress={() => setActiveTab(TAB_BADGES)}
 							onEditPress={() =>
 								navigation.navigate('EditPlayerProfile', {
 									playerId,
@@ -225,6 +228,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							<ProfileBadges
 								checkoutItems={profile?.checkoutItems}
 								highVisitItems={profile?.highVisitItems}
+								qfItems={profile?.qfItems}
 							/>
 						) : null}
 					</View>
