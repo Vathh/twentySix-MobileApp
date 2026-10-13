@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
+import { finishImage } from '../../helpers/finishBadges';
 import { qfImage } from '../../helpers/qfBadges';
 import { checkoutAtPoint } from '../../helpers/checkoutWheelHit';
 import {
@@ -21,10 +22,11 @@ import { sanitizeSvgXml } from '../../helpers/headerLogo';
 import { gameTypeLabel } from '../../helpers/profileMetrics';
 import { colors } from '../../theme/colors';
 
-const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems }) => {
+const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) => {
 	const items = Array.isArray(checkoutItems) ? checkoutItems : [];
 	const visits = Array.isArray(highVisitItems) ? highVisitItems : [];
 	const qf = (Array.isArray(qfItems) ? qfItems : []).filter((item) => (Number(item.timesEarned) || 0) > 0);
+	const finishes = Array.isArray(finishItems) ? finishItems : [];
 	const unlocked = items.filter((item) => (item.timesEarned ?? 0) > 0).length;
 	const total = items.length;
 	const { width: windowWidth } = useWindowDimensions();
@@ -80,6 +82,10 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems }) => {
 
 			{qf.length > 0 ? (
 				<QfRow items={qf} onSelect={setSelectedVisit} />
+			) : null}
+
+			{finishes.length > 0 ? (
+				<FinishRow items={finishes} onSelect={setSelectedVisit} />
 			) : null}
 
 			<View style={styles.head}>
@@ -168,7 +174,7 @@ function HighVisitRow({ items, onSelect }) {
 function QfRow({ items, onSelect }) {
 	return (
 		<View style={styles.visitBlock}>
-			<Text style={[styles.sectionLabel, styles.visitHeading]}>Szybkie legi</Text>
+			<Text style={[styles.sectionLabel, styles.visitHeading]}>Szybka akcja</Text>
 			<View style={styles.qfRow}>
 				{items.map((item) => {
 					const source = qfImage(item.key, item.levelName);
@@ -184,6 +190,49 @@ function QfRow({ items, onSelect }) {
 									<Image
 										source={source}
 										style={badgeArtworkStyle(item.artwork)}
+										resizeMode="stretch"
+									/>
+								) : null}
+							</View>
+							<View style={styles.levelRow}>
+								<Text style={styles.levelTitle} numberOfLines={1}>Poziom {item.levelNumber ?? 0}</Text>
+								<Text style={styles.progressLabel} numberOfLines={1}>{item.progressLabel}</Text>
+							</View>
+							<View
+								style={styles.progressTrack}
+								accessibilityRole="progressbar"
+								accessibilityValue={{ min: 0, max: 100, now: Number(item.progressPercent) || 0 }}
+							>
+								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
+							</View>
+						</Pressable>
+					);
+				})}
+			</View>
+		</View>
+	);
+}
+
+function FinishRow({ items, onSelect }) {
+	return (
+		<View style={styles.visitBlock}>
+			<Text style={[styles.sectionLabel, styles.visitHeading]}>Inne</Text>
+			<View style={styles.qfRow}>
+				{items.map((item) => {
+					const locked = item.levelName === 'locked' || !item.levelName;
+					const source = finishImage(item.key, item.levelName);
+					return (
+						<Pressable
+							key={item.key}
+							onPress={() => onSelect({ ...item, imageSource: source })}
+							style={styles.qfCard}
+							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
+						>
+							<View style={styles.visitImageFrame}>
+								{source ? (
+									<Image
+										source={source}
+										style={[badgeArtworkStyle(item.artwork), locked && styles.visitImageLocked]}
 										resizeMode="stretch"
 									/>
 								) : null}

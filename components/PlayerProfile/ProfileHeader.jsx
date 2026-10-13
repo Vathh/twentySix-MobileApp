@@ -3,6 +3,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons';
 import { initialsFromName } from '../../helpers/initialsFromName';
 import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
+import { finishImage } from '../../helpers/finishBadges';
 import { qfImage } from '../../helpers/qfBadges';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
@@ -24,6 +25,20 @@ function earnedShowcaseBadges(highVisitItems) {
 		}))
 		.filter((item) => item.source)
 		.sort((a, b) => b.sort - a.sort);
+}
+
+function earnedFinishBadges(finishItems) {
+	return (Array.isArray(finishItems) ? finishItems : [])
+		.filter((item) => item.levelName && item.levelName !== 'locked')
+		.map((item) => ({
+			key: `finish-${item.key}`,
+			source: finishImage(item.key, item.levelName),
+			artwork: item.artwork,
+			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
+			sort: Number(item.key) || 0,
+		}))
+		.filter((item) => item.source)
+		.sort((a, b) => a.sort - b.sort);
 }
 
 function earnedQfBadges(qfItems) {
@@ -53,6 +68,7 @@ const ProfileHeader = ({
 	avatarUrl,
 	highVisitItems,
 	qfItems,
+	finishItems,
 	onBadgesPress,
 	onEditPress,
 	children,
@@ -61,6 +77,7 @@ const ProfileHeader = ({
 	const showcaseBadges = [
 		...earnedShowcaseBadges(highVisitItems),
 		...earnedQfBadges(qfItems),
+		...earnedFinishBadges(finishItems),
 	];
 
 	return (

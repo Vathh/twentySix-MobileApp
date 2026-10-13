@@ -161,6 +161,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							liveGames={profile?.liveGames}
 							highVisitItems={profile?.highVisitItems}
 							qfItems={profile?.qfItems}
+							finishItems={profile?.finishItems}
 							onBadgesPress={() => setActiveTab(TAB_BADGES)}
 							onEditPress={() =>
 								navigation.navigate('EditPlayerProfile', {
@@ -229,6 +230,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								checkoutItems={profile?.checkoutItems}
 								highVisitItems={profile?.highVisitItems}
 								qfItems={profile?.qfItems}
+								finishItems={profile?.finishItems}
 							/>
 						) : null}
 					</View>
