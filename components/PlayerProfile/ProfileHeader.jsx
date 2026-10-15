@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { initialsFromName } from '../../helpers/initialsFromName';
 import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
 import { finishImage } from '../../helpers/finishBadges';
+import { careerImage } from '../../helpers/careerBadges';
 import { qfImage } from '../../helpers/qfBadges';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
@@ -17,7 +18,7 @@ function earnedShowcaseBadges(highVisitItems) {
 	return (Array.isArray(highVisitItems) ? highVisitItems : [])
 		.filter((item) => (Number(item.timesEarned) || 0) > 0)
 		.map((item) => ({
-			key: String(item.key),
+			key: `visit-${item.key}`,
 			source: highVisitImage(item.key, item.levelName),
 			artwork: item.artwork,
 			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
@@ -36,6 +37,21 @@ function earnedFinishBadges(finishItems) {
 			artwork: item.artwork,
 			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
 			sort: Number(item.key) || 0,
+		}))
+		.filter((item) => item.source)
+		.sort((a, b) => a.sort - b.sort);
+}
+
+function earnedCareerBadges(careerItems) {
+	const order = { podium: 0, win_streak: 1, appearances: 2, titles: 3 };
+	return (Array.isArray(careerItems) ? careerItems : [])
+		.filter((item) => item.levelName && item.levelName !== 'locked')
+		.map((item) => ({
+			key: `career-${item.key}`,
+			source: careerImage(item.key, item.levelName),
+			artwork: item.artwork,
+			title: [item.label, item.levelLabel].filter(Boolean).join(' — '),
+			sort: order[item.key] ?? 9,
 		}))
 		.filter((item) => item.source)
 		.sort((a, b) => a.sort - b.sort);
@@ -69,6 +85,7 @@ const ProfileHeader = ({
 	highVisitItems,
 	qfItems,
 	finishItems,
+	careerItems,
 	onBadgesPress,
 	onEditPress,
 	children,
@@ -78,6 +95,7 @@ const ProfileHeader = ({
 		...earnedShowcaseBadges(highVisitItems),
 		...earnedQfBadges(qfItems),
 		...earnedFinishBadges(finishItems),
+		...earnedCareerBadges(careerItems),
 	];
 
 	return (
@@ -139,7 +157,7 @@ const ProfileHeader = ({
 								key={badge.key}
 								accessibilityRole="button"
 								accessibilityLabel={badge.title}
-								onPress={onBadgesPress}
+								onPress={() => onBadgesPress?.(badge.key)}
 								style={({ pressed }) => [styles.badgeHit, pressed && styles.badgeHitPressed]}
 							>
 								<Image

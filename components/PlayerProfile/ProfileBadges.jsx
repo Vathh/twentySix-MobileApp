@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	ActivityIndicator,
 	Image,
@@ -12,6 +12,7 @@ import {
 import { SvgXml } from 'react-native-svg';
 import { badgeArtworkStyle, highVisitImage } from '../../helpers/highVisitBadges';
 import { finishImage } from '../../helpers/finishBadges';
+import { careerImage } from '../../helpers/careerBadges';
 import { qfImage } from '../../helpers/qfBadges';
 import { checkoutAtPoint } from '../../helpers/checkoutWheelHit';
 import {
@@ -22,11 +23,69 @@ import { sanitizeSvgXml } from '../../helpers/headerLogo';
 import { gameTypeLabel } from '../../helpers/profileMetrics';
 import { colors } from '../../theme/colors';
 
-const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) => {
+const BadgeHelpContext = React.createContext({
+	helpId: null,
+	setHelpId: () => {},
+});
+
+const BadgeFocusContext = React.createContext({
+	anchor: null,
+	nonce: 0,
+	contentRef: null,
+	scrollRef: null,
+});
+
+function BadgeAnchor({ anchor, style, onPress, accessibilityLabel, children }) {
+	const ref = useRef(null);
+	const { anchor: focusAnchor, nonce, contentRef, scrollRef } = useContext(BadgeFocusContext);
+
+	useEffect(() => {
+		if (!anchor || focusAnchor !== anchor || !nonce) return undefined;
+		const timer = setTimeout(() => {
+			const node = ref.current;
+			const content = contentRef?.current;
+			const scroll = scrollRef?.current;
+			if (!node || !content || !scroll) return;
+			node.measureLayout(
+				content,
+				(_x, y) => {
+					scroll.scrollTo({ y: Math.max(0, y - 64), animated: true });
+				},
+				() => {},
+			);
+		}, 80);
+		return () => clearTimeout(timer);
+	}, [anchor, focusAnchor, nonce, contentRef, scrollRef]);
+
+	return (
+		<Pressable
+			ref={ref}
+			collapsable={false}
+			style={style}
+			onPress={onPress}
+			accessibilityLabel={accessibilityLabel}
+		>
+			{children}
+		</Pressable>
+	);
+}
+
+const ProfileBadges = ({
+	checkoutItems,
+	highVisitItems,
+	qfItems,
+	finishItems,
+	careerItems,
+	focusAnchor = null,
+	focusNonce = 0,
+	contentRef = null,
+	scrollRef = null,
+}) => {
 	const items = Array.isArray(checkoutItems) ? checkoutItems : [];
 	const visits = Array.isArray(highVisitItems) ? highVisitItems : [];
 	const qf = (Array.isArray(qfItems) ? qfItems : []).filter((item) => (Number(item.timesEarned) || 0) > 0);
 	const finishes = Array.isArray(finishItems) ? finishItems : [];
+	const career = Array.isArray(careerItems) ? careerItems : [];
 	const unlocked = items.filter((item) => (item.timesEarned ?? 0) > 0).length;
 	const total = items.length;
 	const { width: windowWidth } = useWindowDimensions();
@@ -35,6 +94,7 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) 
 	const [wheelError, setWheelError] = useState(false);
 	const [selected, setSelected] = useState(null);
 	const [selectedVisit, setSelectedVisit] = useState(null);
+	const [helpId, setHelpId] = useState(null);
 
 	const byKey = useMemo(() => {
 		const map = {};
@@ -75,7 +135,10 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) 
 	};
 
 	return (
+		<BadgeFocusContext.Provider value={{ anchor: focusAnchor, nonce: focusNonce, contentRef, scrollRef }}>
+		<BadgeHelpContext.Provider value={{ helpId, setHelpId }}>
 		<View style={styles.wrap}>
+			<Text style={styles.scopeNote}>Liczą się mecze 501 w lidze i turnieju.</Text>
 			{visits.length > 0 ? (
 				<HighVisitRow items={visits} onSelect={setSelectedVisit} />
 			) : null}
@@ -88,6 +151,10 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) 
 				<FinishRow items={finishes} onSelect={setSelectedVisit} />
 			) : null}
 
+			{career.length > 0 ? (
+				<CareerRow items={career} onSelect={setSelectedVisit} />
+			) : null}
+
 			<View style={styles.head}>
 				<Text style={styles.sectionLabel}>Checkouty 100+</Text>
 				<Text style={styles.count}>
@@ -95,7 +162,6 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) 
 				</Text>
 			</View>
 			<Text style={styles.hint}>
-				Finish 100–170 w meczach 501 (liga i turniej). Im więcej trafień, tym jaśniejszy klin.
 				Dotknij klina, żeby zobaczyć liczbę i ostatni mecz.
 			</Text>
 
@@ -124,10 +190,73 @@ const ProfileBadges = ({ checkoutItems, highVisitItems, qfItems, finishItems }) 
 			<CheckoutDetailSheet item={selected} onClose={() => setSelected(null)} />
 			<HighVisitDetailSheet item={selectedVisit} onClose={() => setSelectedVisit(null)} />
 		</View>
+		</BadgeHelpContext.Provider>
+		</BadgeFocusContext.Provider>
 	);
 };
 
+function BadgeHelp({ id, text }) {
+	const { helpId, setHelpId } = useContext(BadgeHelpContext);
+	const bubbleRef = useRef(null);
+	const boxRef = useRef(null);
+	const open = helpId === id;
+	if (!text) return null;
+
+	const toggle = () => setHelpId(open ? null : id);
+	const pressHitsBubble = (event) => {
+		const box = boxRef.current;
+		if (!box) return false;
+		const { pageX, pageY } = event.nativeEvent;
+		return pageX >= box.x && pageX <= box.x + box.width && pageY >= box.y && pageY <= box.y + box.height;
+	};
+
+	return (
+		<View style={styles.helpWrap} pointerEvents="box-none">
+			<Pressable
+				onPress={toggle}
+				style={styles.helpBtn}
+				hitSlop={8}
+				accessibilityRole="button"
+				accessibilityLabel="Co oznacza ta odznaka"
+			>
+				<Text style={styles.helpMark}>?</Text>
+			</Pressable>
+			{open ? (
+				<>
+					<Modal
+						transparent
+						visible
+						animationType="none"
+						onRequestClose={() => setHelpId(null)}
+						statusBarTranslucent
+					>
+						<Pressable
+							style={styles.helpDismiss}
+							onPress={(event) => {
+								if (pressHitsBubble(event)) return;
+								setHelpId(null);
+							}}
+						/>
+					</Modal>
+					<View
+						ref={bubbleRef}
+						onLayout={() => {
+							bubbleRef.current?.measureInWindow((x, y, width, height) => {
+								boxRef.current = { x, y, width, height };
+							});
+						}}
+						style={[styles.helpBubble, styles.helpBubbleInCard]}
+					>
+						<Text style={styles.helpText}>{text}</Text>
+					</View>
+				</>
+			) : null}
+		</View>
+	);
+}
+
 function HighVisitRow({ items, onSelect }) {
+	const { helpId } = useContext(BadgeHelpContext);
 	return (
 		<View style={styles.visitBlock}>
 			<Text style={[styles.sectionLabel, styles.visitHeading]}>Mocny punkciarz</Text>
@@ -136,13 +265,17 @@ function HighVisitRow({ items, onSelect }) {
 					const times = Number(item.timesEarned) || 0;
 					const locked = times < 1;
 					const source = highVisitImage(item.key, item.levelName);
+					const id = `visit:${item.key}`;
+					const open = helpId === id;
 					return (
-						<Pressable
+						<BadgeAnchor
 							key={item.key}
+							anchor={`visit-${item.key}`}
 							onPress={() => onSelect(item)}
-							style={styles.visitCard}
+							style={[styles.visitCard, open && styles.cardRaised]}
 							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
 						>
+							<BadgeHelp id={id} text={item.description} />
 							<View style={styles.visitImageFrame}>
 								{source ? (
 									<Image
@@ -163,7 +296,7 @@ function HighVisitRow({ items, onSelect }) {
 							>
 								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
 							</View>
-						</Pressable>
+						</BadgeAnchor>
 					);
 				})}
 			</View>
@@ -172,19 +305,24 @@ function HighVisitRow({ items, onSelect }) {
 }
 
 function QfRow({ items, onSelect }) {
+	const { helpId } = useContext(BadgeHelpContext);
 	return (
 		<View style={styles.visitBlock}>
 			<Text style={[styles.sectionLabel, styles.visitHeading]}>Szybka akcja</Text>
 			<View style={styles.qfRow}>
 				{items.map((item) => {
 					const source = qfImage(item.key, item.levelName);
+					const id = `qf:${item.key}`;
+					const open = helpId === id;
 					return (
-						<Pressable
+						<BadgeAnchor
 							key={item.key}
+							anchor={`qf-${item.key}`}
 							onPress={() => onSelect({ ...item, imageSource: source })}
-							style={styles.qfCard}
+							style={[styles.qfCard, open && styles.cardRaised]}
 							accessibilityLabel={`${item.label}, ${item.levelLabel}`}
 						>
+							<BadgeHelp id={id} text={item.description} />
 							<View style={styles.visitImageFrame}>
 								{source ? (
 									<Image
@@ -205,7 +343,7 @@ function QfRow({ items, onSelect }) {
 							>
 								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
 							</View>
-						</Pressable>
+						</BadgeAnchor>
 					);
 				})}
 			</View>
@@ -214,6 +352,7 @@ function QfRow({ items, onSelect }) {
 }
 
 function FinishRow({ items, onSelect }) {
+	const { helpId } = useContext(BadgeHelpContext);
 	return (
 		<View style={styles.visitBlock}>
 			<Text style={[styles.sectionLabel, styles.visitHeading]}>Inne</Text>
@@ -221,13 +360,17 @@ function FinishRow({ items, onSelect }) {
 				{items.map((item) => {
 					const locked = item.levelName === 'locked' || !item.levelName;
 					const source = finishImage(item.key, item.levelName);
+					const id = `finish:${item.key}`;
+					const open = helpId === id;
 					return (
-						<Pressable
+						<BadgeAnchor
 							key={item.key}
+							anchor={`finish-${item.key}`}
 							onPress={() => onSelect({ ...item, imageSource: source })}
-							style={styles.qfCard}
+							style={[styles.qfCard, open && styles.cardRaised]}
 							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
 						>
+							<BadgeHelp id={id} text={item.description} />
 							<View style={styles.visitImageFrame}>
 								{source ? (
 									<Image
@@ -248,7 +391,56 @@ function FinishRow({ items, onSelect }) {
 							>
 								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
 							</View>
-						</Pressable>
+						</BadgeAnchor>
+					);
+				})}
+			</View>
+		</View>
+	);
+}
+
+function CareerRow({ items, onSelect }) {
+	const { helpId } = useContext(BadgeHelpContext);
+	return (
+		<View style={styles.visitBlock}>
+			<Text style={[styles.sectionLabel, styles.visitHeading]}>Kariera</Text>
+			<View style={styles.qfRow}>
+				{items.map((item) => {
+					const locked = item.levelName === 'locked' || !item.levelName;
+					const source = careerImage(item.key, item.levelName);
+					const id = `career:${item.key}`;
+					const open = helpId === id;
+					return (
+						<BadgeAnchor
+							key={item.key}
+							anchor={`career-${item.key}`}
+							onPress={() => onSelect({ ...item, imageSource: source })}
+							style={[styles.careerCard, open && styles.cardRaised]}
+							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
+						>
+							<BadgeHelp id={id} text={item.description} />
+							<View style={styles.visitImageFrame}>
+								{source ? (
+									<Image
+										source={source}
+										style={[badgeArtworkStyle(item.artwork), locked && styles.visitImageLocked]}
+										resizeMode="stretch"
+									/>
+								) : null}
+							</View>
+							<Text style={styles.careerName} numberOfLines={2}>{item.label}</Text>
+							<View style={styles.levelRow}>
+								<Text style={styles.levelTitle} numberOfLines={1}>Poziom {item.levelNumber ?? 0}</Text>
+								<Text style={styles.progressLabel} numberOfLines={1}>{item.progressLabel}</Text>
+							</View>
+							<View
+								style={styles.progressTrack}
+								accessibilityRole="progressbar"
+								accessibilityValue={{ min: 0, max: 100, now: Number(item.progressPercent) || 0 }}
+							>
+								<View style={[styles.progressFill, { width: `${Number(item.progressPercent) || 0}%` }]} />
+							</View>
+						</BadgeAnchor>
 					);
 				})}
 			</View>
@@ -368,6 +560,7 @@ function CheckoutDetailSheet({ item, onClose }) {
 }
 
 function BadgeGrid({ items, onSelect }) {
+	const { helpId } = useContext(BadgeHelpContext);
 	if (items.length === 0) {
 		return (
 			<View style={styles.empty}>
@@ -381,12 +574,15 @@ function BadgeGrid({ items, onSelect }) {
 			{items.map((item) => {
 				const times = Number(item.timesEarned) || 0;
 				const on = times > 0;
+				const id = `checkout:${item.key}`;
+				const open = helpId === id;
 				return (
 					<Pressable
 						key={item.key}
 						onPress={() => onSelect?.(item.key)}
-						style={[styles.tile, on && styles.tileOn]}
+						style={[styles.tile, on && styles.tileOn, open && styles.cardRaised]}
 					>
+						<BadgeHelp id={id} text={item.description} />
 						<Text style={[styles.key, on && styles.keyOn]}>{item.key}</Text>
 						<Text style={[styles.times, on && styles.timesOn]}>
 							{on ? `×${times}` : '—'}
@@ -402,6 +598,15 @@ const styles = StyleSheet.create({
 	wrap: {
 		paddingBottom: 24,
 	},
+	scopeNote: {
+		fontSize: 13,
+		lineHeight: 18,
+		color: colors.textMuted,
+		marginBottom: 16,
+	},
+	helpDismiss: {
+		flex: 1,
+	},
 	visitBlock: {
 		marginBottom: 28,
 	},
@@ -414,6 +619,54 @@ const styles = StyleSheet.create({
 		flexWrap: 'wrap',
 		gap: 8,
 	},
+	cardRaised: {
+		zIndex: 20,
+	},
+	helpWrap: {
+		position: 'absolute',
+		top: 0,
+		right: 0,
+		left: 0,
+		zIndex: 3,
+		alignItems: 'flex-end',
+		paddingTop: 4,
+		paddingRight: 4,
+	},
+	helpBtn: {
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bg,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	helpMark: {
+		color: colors.textMuted,
+		fontSize: 12,
+		fontWeight: '700',
+		lineHeight: 14,
+	},
+	helpBubble: {
+		position: 'absolute',
+		top: 28,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
+		borderRadius: 8,
+		paddingHorizontal: 8,
+		paddingVertical: 6,
+	},
+	helpBubbleInCard: {
+		left: 6,
+		right: 6,
+	},
+	helpText: {
+		color: colors.textSecondary,
+		fontSize: 12,
+		lineHeight: 16,
+	},
 	qfCard: {
 		width: '30%',
 		alignItems: 'center',
@@ -423,6 +676,24 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		paddingHorizontal: 4,
 		paddingVertical: 10,
+	},
+	careerCard: {
+		width: '47%',
+		alignItems: 'center',
+		backgroundColor: colors.bgElevated,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.border,
+		paddingHorizontal: 8,
+		paddingVertical: 10,
+	},
+	careerName: {
+		marginTop: 8,
+		fontSize: 13,
+		fontWeight: '700',
+		color: colors.text,
+		textAlign: 'center',
+		minHeight: 34,
 	},
 	visitCard: {
 		flex: 1,

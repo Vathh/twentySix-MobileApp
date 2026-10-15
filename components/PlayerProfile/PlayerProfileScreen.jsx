@@ -68,9 +68,22 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
 	const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
+	const [badgeFocus, setBadgeFocus] = useState({ anchor: null, nonce: 0 });
 	const [tabsPinned, setTabsPinned] = useState(false);
 	const tabsOffsetRef = useRef(0);
 	const tabsPinnedRef = useRef(false);
+	const scrollRef = useRef(null);
+	const contentRef = useRef(null);
+
+	const openBadge = (anchor) => {
+		setActiveTab(TAB_BADGES);
+		setBadgeFocus((current) => ({ anchor, nonce: current.nonce + 1 }));
+	};
+
+	const changeTab = (tab) => {
+		setActiveTab(tab);
+		setBadgeFocus({ anchor: null, nonce: 0 });
+	};
 
 	const onScroll = useCallback((event) => {
 		const next = event.nativeEvent.contentOffset.y >= tabsOffsetRef.current;
@@ -138,6 +151,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 	return (
 		<View style={styles.container}>
 			<ScrollView
+				ref={scrollRef}
 				style={styles.scroll}
 				contentContainerStyle={styles.content}
 				scrollEventThrottle={16}
@@ -146,6 +160,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
 				}
 			>
+				<View ref={contentRef} collapsable={false}>
 				<View style={styles.heroBlock}>
 					<View style={styles.form}>
 						<ProfileHeader
@@ -162,7 +177,8 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							highVisitItems={profile?.highVisitItems}
 							qfItems={profile?.qfItems}
 							finishItems={profile?.finishItems}
-							onBadgesPress={() => setActiveTab(TAB_BADGES)}
+							careerItems={profile?.careerItems}
+							onBadgesPress={openBadge}
 							onEditPress={() =>
 								navigation.navigate('EditPlayerProfile', {
 									playerId,
@@ -188,7 +204,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 					}}
 				>
 					<View style={styles.form}>
-						<ProfileTabBar activeTab={activeTab} onChange={setActiveTab} />
+						<ProfileTabBar activeTab={activeTab} onChange={changeTab} />
 					</View>
 				</View>
 
@@ -231,16 +247,22 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								highVisitItems={profile?.highVisitItems}
 								qfItems={profile?.qfItems}
 								finishItems={profile?.finishItems}
+								careerItems={profile?.careerItems}
+								focusAnchor={badgeFocus.anchor}
+								focusNonce={badgeFocus.nonce}
+								contentRef={contentRef}
+								scrollRef={scrollRef}
 							/>
 						) : null}
 					</View>
+				</View>
 				</View>
 			</ScrollView>
 
 			{tabsPinned ? (
 				<View style={styles.tabsOverlay}>
 					<View style={styles.form}>
-						<ProfileTabBar activeTab={activeTab} onChange={setActiveTab} />
+						<ProfileTabBar activeTab={activeTab} onChange={changeTab} />
 					</View>
 				</View>
 			) : null}
