@@ -18,6 +18,7 @@ import {
 	undoLastVisit,
 	undoSingleDart,
 } from '../../helpers/reducers/playerResultActions';
+import { adoptStartingScore } from '../../helpers/reducers/playersBoardReducer';
 import { achievementsReducer } from '../../helpers/reducers/achievementsReducer';
 import { initialAchievementsState } from '../../helpers/reducers/achievementActions';
 import Counter from './Counter';
@@ -184,6 +185,33 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	const [playerStates, playerDispatches] = usePlayersBoard(N, startingScore);
 	const playerStatesRef = useRef(playerStates);
 	playerStatesRef.current = playerStates;
+	const playerDispatchesRef = useRef(playerDispatches);
+	playerDispatchesRef.current = playerDispatches;
+
+	const applyStartingScoreToBoard = useCallback((nextStartingScore) => {
+		const next = Number(nextStartingScore);
+		if (!Number.isFinite(next) || next <= 0) {
+			return;
+		}
+		const board = playerStatesRef.current ?? [];
+		const previous = board[0]?.startingScore ?? 501;
+		const freshStillOffStart = board.some((player) => {
+			const untouched =
+				(player?.dartsThrown ?? 0) === 0
+				&& (player?.totalDartsThrown ?? 0) === 0
+				&& (player?.legsWon ?? 0) === 0
+				&& (player?.setsWon ?? 0) === 0
+				&& (player?.currentLegScores?.length ?? 0) === 0;
+			return untouched && Number(player?.score) !== next;
+		});
+		if (previous === next && !freshStillOffStart) {
+			return;
+		}
+		const from = freshStillOffStart && previous === next
+			? Number(board[0]?.score)
+			: previous;
+		playerDispatchesRef.current[0]?.(adoptStartingScore(next, from));
+	}, []);
 
 	const [achievementsState, achievementsDispatch] = useReducer(
 		achievementsReducer,
@@ -268,7 +296,9 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 				?? state?.session?.matchFormat
 				?? null;
 			if (formatFromState) {
-				setSyncedMatchFormat(normalizeMatchFormat(formatFromState));
+				const nextFormat = normalizeMatchFormat(formatFromState);
+				setSyncedMatchFormat(nextFormat);
+				applyStartingScoreToBoard(nextFormat.startingScore);
 			}
 			const hasProgress = scoringStateHasProgress(state);
 			if (hasProgress) {
@@ -291,7 +321,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 			setIsModalVisible(true);
 			setOpenerCheckPending(false);
 		},
-		[isH2hOnline],
+		[applyStartingScoreToBoard, isH2hOnline],
 	);
 
 	useEffect(() => {
@@ -303,10 +333,13 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 	}, [askOpenerOnMount, isH2hOnline, reloadKey]);
 
 	const handleSyncedMatchFormat = useCallback((format) => {
-		if (format) {
-			setSyncedMatchFormat(normalizeMatchFormat(format));
+		if (!format) {
+			return;
 		}
-	}, []);
+		const nextFormat = normalizeMatchFormat(format);
+		setSyncedMatchFormat(nextFormat);
+		applyStartingScoreToBoard(nextFormat.startingScore);
+	}, [applyStartingScoreToBoard]);
 
 	const matchDoubleAccRef = useRef([]);
 

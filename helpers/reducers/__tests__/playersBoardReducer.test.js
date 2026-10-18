@@ -1,5 +1,6 @@
 import { updateStats } from '../playerResultActions.js';
 import {
+	adoptStartingScore,
 	createInitialPlayersBoard,
 	playersBoardReducer,
 	resetPlayersBoard,
@@ -58,9 +59,31 @@ function testResetReplacesBoard() {
 	);
 }
 
+function testAdoptStartingScoreOnFreshBoard() {
+	const start = createInitialPlayersBoard(2, 501);
+	const next = playersBoardReducer(start, adoptStartingScore(101, 501));
+	assert(
+		next.every((p) => p.score === 101 && p.startingScore === 101),
+		'fresh 501 board adopts 101',
+	);
+}
+
+function testAdoptStartingScoreKeepsScoredPlayer() {
+	const scored = playersBoardReducer(createInitialPlayersBoard(2, 501), {
+		...updateStats(60),
+		playerIndex: 0,
+	});
+	const next = playersBoardReducer(scored, adoptStartingScore(101, 501));
+	assert(next[0].score === 441, 'scored player keeps remaining');
+	assert(next[0].startingScore === 101, 'scored player still learns the real start');
+	assert(next[1].score === 101 && next[1].startingScore === 101, 'idle player adopts 101');
+}
+
 export function runPlayersBoardReducerTests() {
 	testInitLengthAndScore();
 	testDispatchHitsOnlyTargetPlayer();
 	testUnknownPlayerIndexIsNoop();
 	testResetReplacesBoard();
+	testAdoptStartingScoreOnFreshBoard();
+	testAdoptStartingScoreKeepsScoredPlayer();
 }

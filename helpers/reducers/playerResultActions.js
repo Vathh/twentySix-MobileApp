@@ -15,6 +15,7 @@ export const UNDO_LAST_VISIT = 'UNDO_LAST_VISIT';
 
 export const syncFromServer = ({
   score,
+  startingScore,
   legsWon,
   legsWonInSet,
   setsWon,
@@ -30,6 +31,7 @@ export const syncFromServer = ({
 }) => ({
   type: SYNC_FROM_SERVER,
   score,
+  startingScore,
   legsWon,
   legsWonInSet,
   setsWon,

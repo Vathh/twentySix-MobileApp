@@ -35,6 +35,9 @@ export const playerResultReducer = (state, action) => {
       return {
         ...state,
         score: action.score,
+        startingScore: action.startingScore != null
+          ? Number(action.startingScore)
+          : state.startingScore,
         legsWon: nextLegsWon,
         legsWonInSet: nextLegsWonInSet,
         setsWon: nextSetsWon,

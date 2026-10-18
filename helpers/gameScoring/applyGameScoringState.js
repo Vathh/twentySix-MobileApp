@@ -8,9 +8,14 @@ import {
 } from './normalizeScoringState.js';
 import { isSingleSetFormat } from '../matchFormat/matchFormat.js';
 import { pid } from './pid.js';
-import { isVisitComplete } from './visitUtils.js';
+import { isVisitComplete, startingScoreFromScoringState } from './visitUtils.js';
 
-function buildH2hPlayerSync(sp, openLegVisits) {
+function displayedRemaining(remaining, startingScore) {
+	const score = Number(remaining);
+	return Number.isFinite(score) ? score : startingScore;
+}
+
+function buildH2hPlayerSync(sp, openLegVisits, startingScore) {
 	const spId = pid(sp.playerId);
 	const myVisits = (openLegVisits || []).filter(
 		(v) => pid(v.playerId) === spId,
@@ -25,7 +30,8 @@ function buildH2hPlayerSync(sp, openLegVisits) {
 	const noLegActivity = completedVisits.length === 0 && !partialVisit;
 
 	return {
-		score: sp.remaining ?? 501,
+		score: displayedRemaining(sp.remaining, startingScore),
+		startingScore,
 		legsWon: sp.legsWon ?? 0,
 		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
 		setsWon: sp.setsWon ?? 0,
@@ -45,7 +51,7 @@ function buildH2hPlayerSync(sp, openLegVisits) {
 	};
 }
 
-function buildFfaPlayerSync(sp, visits) {
+function buildFfaPlayerSync(sp, visits, startingScore) {
 	const spId = pid(sp.playerId);
 	const playerVisits = visits.filter(
 		(v) => pid(v.playerId) === spId && !v.bust,
@@ -59,7 +65,8 @@ function buildFfaPlayerSync(sp, visits) {
 	);
 
 	return {
-		score: sp.remaining ?? 501,
+		score: displayedRemaining(sp.remaining, startingScore),
+		startingScore,
 		legsWon: sp.legsWon ?? 0,
 		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
 		setsWon: sp.setsWon ?? 0,
@@ -118,6 +125,7 @@ function syncPlayersH2h(state, ctx) {
 	const matchFinished = state.meta?.status === 'finished';
 	const matchFormat = state.meta?.matchFormat ?? null;
 	const singleSet = !matchFormat || isSingleSetFormat(matchFormat);
+	const startingScore = startingScoreFromScoringState(state, 501);
 
 	state.players.forEach((sp) => {
 		const spId = pid(sp.playerId);
@@ -128,7 +136,7 @@ function syncPlayersH2h(state, ctx) {
 			return;
 		}
 
-		const snap = buildH2hPlayerSync(sp, openLegVisits);
+		const snap = buildH2hPlayerSync(sp, openLegVisits, startingScore);
 		const prev = lastPlayerSnapRef?.current?.[spId];
 		let legByLegScores = snap.legByLegScores ?? prev?.legByLegScores ?? [];
 		let legsAverages = snap.legsAverages ?? prev?.legsAverages ?? [];
@@ -188,6 +196,7 @@ function syncPlayersH2h(state, ctx) {
 function syncPlayersFfa(state, ctx) {
 	const { players, N, dispatches } = ctx;
 	const visits = state.visits ?? [];
+	const startingScore = startingScoreFromScoringState(state, 501);
 
 	state.players.forEach((sp) => {
 		const spId = pid(sp.playerId);
@@ -198,7 +207,7 @@ function syncPlayersFfa(state, ctx) {
 			return;
 		}
 
-		dispatches[idx](syncFromServer(buildFfaPlayerSync(sp, visits)));
+		dispatches[idx](syncFromServer(buildFfaPlayerSync(sp, visits, startingScore)));
 	});
 }
 

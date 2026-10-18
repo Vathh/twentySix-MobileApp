@@ -70,6 +70,23 @@ function testSyncFromServerKeepsLastVisitMidLeg() {
 	);
 	assert(next.lastVisitDartLabels.join(' ') === 'T20 19 D16', 'mid-leg sync keeps last visit');
 	assert(next.currentLegScores[0] === 60, 'mid-leg sync keeps visit scores');
+	assert(next.startingScore === 501, 'sync without startingScore keeps the previous start');
+}
+
+function testSyncFromServerUpdatesStartingScore() {
+	const start = createInitialPlayerResultState(501);
+	const next = playerResultReducer(
+		start,
+		syncFromServer({
+			score: 101,
+			startingScore: 101,
+			legsWon: 0,
+			legsWonInSet: 0,
+			setsWon: 0,
+		}),
+	);
+	assert(next.score === 101, 'sync sets remaining');
+	assert(next.startingScore === 101, 'sync replaces the default 501 start');
 }
 
 export function runPlayerResultReducerTests() {
@@ -77,4 +94,5 @@ export function runPlayerResultReducerTests() {
 	testLegLoseClearsLastVisitMemory();
 	testSyncFromServerClearsLastVisitOnNewLeg();
 	testSyncFromServerKeepsLastVisitMidLeg();
+	testSyncFromServerUpdatesStartingScore();
 }

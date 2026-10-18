@@ -46,5 +46,9 @@ export {
 	createFfaTransport,
 	createTournamentTransport,
 } from './transports/index.js';
-export { isVisitComplete, remainingFromPlayerVisits } from './visitUtils.js';
+export {
+	isVisitComplete,
+	remainingFromPlayerVisits,
+	startingScoreFromScoringState,
+} from './visitUtils.js';
 export { buildH2hLegVisitRows } from './buildH2hLegVisitRows.js';

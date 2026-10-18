@@ -361,6 +361,53 @@ function testApplyH2h() {
 	assert(!closed, 'game not closed');
 }
 
+function testApplyH2hUsesMatchStartingScore() {
+	const dispatches = [[], []];
+	const state = {
+		format: 'h2h',
+		revision: 0,
+		meta: {
+			kind: 'tournament_group',
+			startingScore: 101,
+			matchFormat: {
+				startingScore: 101,
+				legsToWinSet: 1,
+				setsToWinMatch: 1,
+				gameType: 'x01',
+			},
+			status: 'in_progress',
+		},
+		turn: { currentPlayerIndex: 0, legOpenerIndex: 0, legNumber: 0 },
+		currentLeg: null,
+		visits: [],
+		players: [
+			{ playerId: 1, name: 'A', remaining: 101, legsWon: 0 },
+			{ playerId: 2, name: 'B', remaining: 101, legsWon: 0 },
+		],
+		game: {
+			kind: 'group',
+			startingScore: 101,
+			matchFormat: { startingScore: 101 },
+		},
+	};
+	applyGameScoringState(state, {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: [
+			(action) => dispatches[0].push(action),
+			(action) => dispatches[1].push(action),
+		],
+		currentPlayerIndexRef: { current: 0 },
+		setCurrentPlayerIndex: () => {},
+		setGameClosed: () => {},
+		lastStateKeyRef: { current: '' },
+		lastPlayerSnapRef: { current: {} },
+	});
+	assert(dispatches[0][0]?.score === 101, '101 game syncs remaining 101');
+	assert(dispatches[0][0]?.startingScore === 101, '101 game syncs starting score');
+	assert(dispatches[1][0]?.startingScore === 101, 'opponent also starts at 101');
+}
+
 function emptyH2hStartState() {
 	return {
 		game: {
@@ -874,6 +921,7 @@ const tests = [
 	['apply h2h loser leg archive', testApplyH2hArchivesLoserLegScoresOnNewLeg],
 	['checkout leg average archive', testCheckoutLegAverageIncludesClosingVisit],
 	['apply h2h', testApplyH2h],
+	['apply h2h 101 start', testApplyH2hUsesMatchStartingScore],
 	['undo all visits restores opener', testUndoAllVisitsRestoresMatchOpener],
 	['empty start lock uses opener', testEmptyStartLockUsesOpenerNotCurrentThrower],
 	['empty start keeps right opener', testEmptyStartLockKeepsChosenRightOpener],

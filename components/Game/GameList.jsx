@@ -222,6 +222,7 @@ const GameList = ({ navigation }) => {
         roundLabel: game.roundLabel,
         player1: game.player1,
         player2: game.player2,
+        matchFormat: game.matchFormat ?? null,
       },
     });
   };

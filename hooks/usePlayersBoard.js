@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react';
 import {
+	adoptStartingScore,
 	createInitialPlayersBoard,
 	playersBoardReducer,
 	resetPlayersBoard,
@@ -19,12 +20,20 @@ export function usePlayersBoard(playerCount, startingScore = 501) {
 	);
 
 	const playerCountRef = useRef(n);
+	const appliedStartRef = useRef(startingScore);
 	useEffect(() => {
-		if (playerCountRef.current === n) {
+		if (playerCountRef.current !== n) {
+			playerCountRef.current = n;
+			appliedStartRef.current = startingScore;
+			dispatchBoard(resetPlayersBoard(n, startingScore));
 			return;
 		}
-		playerCountRef.current = n;
-		dispatchBoard(resetPlayersBoard(n, startingScore));
+		if (appliedStartRef.current === startingScore) {
+			return;
+		}
+		const previous = appliedStartRef.current;
+		appliedStartRef.current = startingScore;
+		dispatchBoard(adoptStartingScore(startingScore, previous));
 	}, [n, startingScore]);
 
 	const playerDispatches = useMemo(

@@ -8,6 +8,7 @@ import {
 	isNormalizedScoringState,
 	normalizeScoringState,
 	remainingFromPlayerVisits,
+	startingScoreFromScoringState,
 } from '../helpers/gameScoring/index.js';
 import { consumeFfaAbortPayload, consumeH2hCancelledPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
 import { announceRemoteVisit } from '../helpers/gameScoring/announceRemoteVisit.js';
@@ -758,13 +759,16 @@ export function useGameScoring({
 	);
 
 	const remainingBeforeForPlayer = useCallback((playerIndex, playerId, override) => {
-		const liveStates = scoringSyncRef.current.playerStates;
-		const startingScore = liveStates[playerIndex]?.startingScore ?? 501;
+		const live = scoringSyncRef.current.playerStates?.[playerIndex];
+		const startingScore = startingScoreFromScoringState(
+			lastRawStateRef.current,
+			live?.startingScore ?? 501,
+		);
 		const visits = lastSyncStateRef.current?.visits;
 		if (Array.isArray(visits)) {
 			return remainingFromPlayerVisits(visits, playerId, startingScore);
 		}
-		return override ?? liveStates[playerIndex]?.score ?? startingScore;
+		return override ?? live?.score ?? startingScore;
 	}, []);
 
 	const submitVisit = useCallback(
@@ -798,6 +802,13 @@ export function useGameScoring({
 				let legId = null;
 				let payload = null;
 				try {
+					if (transport.requiresLegId) {
+						legId = await ensureLegStarted();
+						if (!legId) {
+							throw new Error('Brak otwartego lega');
+						}
+					}
+
 					const remainingBefore = remainingBeforeForPlayer(
 						playerIndex,
 						player.playerId,
@@ -820,13 +831,6 @@ export function useGameScoring({
 					if (Array.isArray(darts) && darts.length > 0) {
 						payload.darts = darts;
 					};
-
-					if (transport.requiresLegId) {
-						legId = await ensureLegStarted();
-						if (!legId) {
-							throw new Error('Brak otwartego lega');
-						}
-					}
 
 					if (transport.queueCommands && transport.getOutboxKey?.()) {
 						const key = transport.getOutboxKey();
@@ -958,10 +962,11 @@ export function useGameScoring({
 						if (!legId) {
 							throw new Error('Brak otwartego lega');
 						}
-						const remainingBefore =
-							visitOpts.remainingBefore ??
-							playerStates[playerIndex]?.score ??
-							501;
+						const remainingBefore = remainingBeforeForPlayer(
+							playerIndex,
+							player.playerId,
+							visitOpts.remainingBefore ?? null,
+						);
 						visitPayload = {
 							playerId: player.playerId,
 							score: visitScore,
@@ -1143,9 +1148,9 @@ export function useGameScoring({
 			runSerialized,
 			enabled,
 			players,
-			playerStates,
 			ensureLegStarted,
 			buildCloseLegPlayers,
+			remainingBeforeForPlayer,
 			applyStateSafe,
 			applyStateInternal,
 			setGameClosed,

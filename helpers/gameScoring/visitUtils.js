@@ -1,5 +1,30 @@
 import { pid } from './pid.js';
 
+/**
+ * Punkt startowy z odpowiedzi scoringu (surowa albo znormalizowana).
+ * Brak formatu zostawia `fallback` — zwykle lokalne 501, zanim przyjdzie stan meczu.
+ */
+export function startingScoreFromScoringState(state, fallback = 501) {
+	if (!state || typeof state !== 'object') {
+		return fallback;
+	}
+	const candidates = [
+		state.meta?.matchFormat?.startingScore,
+		state.meta?.startingScore,
+		state.game?.matchFormat?.startingScore,
+		state.game?.startingScore,
+		state.session?.matchFormat?.startingScore,
+		state.session?.startingScore,
+	];
+	for (const value of candidates) {
+		const score = Number(value);
+		if (Number.isFinite(score) && score > 0) {
+			return score;
+		}
+	}
+	return fallback;
+}
+
 export const isVisitComplete = (visit) =>
 	visit?.bust ||
 	visit?.closedLeg ||
