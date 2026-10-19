@@ -37,6 +37,8 @@ function buildH2hPlayerSync(sp, openLegVisits, startingScore) {
 		setsWon: sp.setsWon ?? 0,
 		matchAverage:
 			sp.gameAverage != null ? Number(sp.gameAverage).toFixed(2) : undefined,
+		matchFirstNineAverage:
+			sp.matchFirstNineAverage != null ? Number(sp.matchFirstNineAverage) : null,
 		currentLegAverage: noLegActivity
 			? '0.00'
 			: sp.legAverage != null
@@ -71,6 +73,8 @@ function buildFfaPlayerSync(sp, visits, startingScore) {
 		legsWonInSet: sp.legsWonInSet ?? sp.legsWon ?? 0,
 		setsWon: sp.setsWon ?? 0,
 		matchAverage: sp.gameAverage ?? null,
+		matchFirstNineAverage:
+			sp.matchFirstNineAverage != null ? Number(sp.matchFirstNineAverage) : null,
 		currentLegAverage: sp.legAverage ?? null,
 		currentLegScores: partialVisit ? undefined : currentLegScores,
 		dartsThrown: partialVisit ? undefined : dartsThrown,

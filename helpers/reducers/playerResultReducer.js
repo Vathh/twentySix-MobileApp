@@ -43,6 +43,10 @@ export const playerResultReducer = (state, action) => {
         setsWon: nextSetsWon,
         matchAverage:
           action.matchAverage != null ? action.matchAverage : state.matchAverage,
+        matchFirstNineAverage:
+          action.matchFirstNineAverage !== undefined
+            ? action.matchFirstNineAverage
+            : state.matchFirstNineAverage,
         currentLegAverage:
           action.currentLegAverage != null
             ? action.currentLegAverage

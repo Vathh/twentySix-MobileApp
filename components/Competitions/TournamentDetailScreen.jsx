@@ -19,6 +19,7 @@ import PlayoffBracket from './PlayoffBracket';
 import TournamentAchievements from './TournamentAchievements';
 import { colors } from '../../theme/colors';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
+import { useTournamentCatalogLive } from '../../hooks/useTournamentCatalogLive';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 
 const TAB_LABELS = {
@@ -74,6 +75,17 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 			void load();
 		}, [load]),
 	);
+
+	const liveStatus = data?.tournament?.status === 'group' || data?.tournament?.status === 'playoff';
+	useTournamentCatalogLive({
+		tournamentId,
+		enabled: liveStatus,
+		accessToken: auth?.accessToken,
+		setData,
+		onReload: () => {
+			void load({ soft: true });
+		},
+	});
 
 	const tabs = useMemo(
 		() =>
@@ -182,6 +194,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 								activeKey={activeTab}
 								onChange={setActiveTab}
 							/>
+							{liveStatus ? <Text style={styles.liveNote}>Na żywo</Text> : null}
 
 							{activeTab === 'results' ? (
 								<CompetitionTable
@@ -268,6 +281,15 @@ const styles = StyleSheet.create({
 	error: { color: colors.dangerText, marginBottom: 16, fontSize: 14 },
 	empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
 	groupBlock: { marginBottom: 20 },
+	liveNote: {
+		marginTop: -4,
+		marginBottom: 12,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.4,
+		textTransform: 'uppercase',
+		color: colors.accent,
+	},
 	sectionTitle: {
 		marginBottom: 10,
 		fontSize: 15,

@@ -80,7 +80,9 @@ const liveOther = matrixCellForPair(
 	{ playableUnfinished: true },
 );
 assert(liveOther.playable === false, 'in progress on another device is not playable');
-assert(liveOther.text === '1', 'in progress keeps sequence');
+assert(liveOther.text === '0 - 0', 'in progress shows the leg score');
+assert(liveOther.live === true, 'in progress is marked live');
+assert(liveOther.sequence == null, 'in progress hides the sequence badge');
 
 const liveFree = matrixCellForPair(
 	{ ...open, status: 'in_progress', sequence: 1 },

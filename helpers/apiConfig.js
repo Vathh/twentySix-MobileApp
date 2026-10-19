@@ -435,6 +435,10 @@ export const getSeasonStandingsUrl = (seasonId, page = 1) =>
 	API_BASE_URL + '/seasons/' + seasonId + '/standings?page=' + page;
 export const getTournamentUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId;
+export const getTournamentGroupsLiveUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/groups-live';
+export const getTournamentPlayoffLiveUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/playoff-live';
 
 export const PUSH_TOKENS_API_URL = API_BASE_URL + '/push-tokens';
 

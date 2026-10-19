@@ -72,7 +72,7 @@ import {
 } from '../../helpers/gameScoring/doubleOutStats';
 import { playCheckoutWinSound, playClick, playGameOn, playVisitScore } from '../../helpers/gameSounds';
 import { buildFfaPresenceBannerMessages } from '../../helpers/ffaPresenceMessages';
-import { normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
+import { formatMatchLabel, normalizeMatchFormat } from '../../helpers/matchFormat/matchFormat';
 import {
 	isDartLimitApplicable,
 	isDartLimitReached,
@@ -1410,6 +1410,10 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 					<Text style={styles.navigationBtnText}>Ustawienia</Text>
 				</Pressable>
 			</View>
+
+			{matchFormat ? (
+				<Text style={styles.matchFormatLabel}>{formatMatchLabel(matchFormat)}</Text>
+			) : null}
 
 			{syncPending && (
 				<View style={styles.presenceBanner}>

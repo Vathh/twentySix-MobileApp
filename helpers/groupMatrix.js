@@ -39,16 +39,17 @@ export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = fals
 			text: scoreForRow(game, rowPlayerId),
 			average: averageLabel(game, rowPlayerId),
 			sequence: null,
+			live: false,
 			playable: false,
 			game,
 		};
 	}
 	if (game.status === 'in_progress') {
-		const sequence = game.sequence != null ? game.sequence : null;
 		return {
-			text: sequence != null ? String(sequence) : '…',
-			average: null,
-			sequence,
+			text: scoreForRow(game, rowPlayerId),
+			average: averageLabel(game, rowPlayerId),
+			sequence: null,
+			live: true,
 			playable: playableUnfinished && game.lockedByOther !== true,
 			game,
 		};

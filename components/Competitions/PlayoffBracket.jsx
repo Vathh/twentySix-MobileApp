@@ -720,7 +720,8 @@ const styles = StyleSheet.create({
 		marginBottom: 0,
 	},
 	cardLive: {
-		borderColor: colors.success,
+		borderColor: colors.accent,
+		backgroundColor: colors.accentSoft,
 	},
 	cardHighlight: {
 		borderColor: colors.accent,

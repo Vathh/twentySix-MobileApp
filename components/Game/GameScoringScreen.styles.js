@@ -38,6 +38,13 @@ export const gameScoringScreenStyles = StyleSheet.create({
 		fontSize: 18,
 		color: colors.textMuted,
 	},
+	matchFormatLabel: {
+		textAlign: 'center',
+		color: colors.textMuted,
+		fontSize: 13,
+		paddingTop: 4,
+		paddingBottom: 6,
+	},
 	counterHost: {
 		flex: 1,
 		minHeight: 0,

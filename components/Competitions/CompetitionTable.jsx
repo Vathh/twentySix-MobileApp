@@ -157,6 +157,7 @@ const CompetitionTable = ({
 								!isPlayer && raw && typeof raw === 'object' && raw.sequence != null
 									? raw.sequence
 									: null;
+							const live = !isPlayer && raw && typeof raw === 'object' && raw.live === true;
 							const cellWidth = columnBox(col, colIndex, col.key === padKey);
 
 							if (sequence != null) {
@@ -208,38 +209,49 @@ const CompetitionTable = ({
 								return (
 									<Pressable
 										key={col.key}
-										style={[cellWidth, styles.playableCell]}
+										style={[cellWidth, styles.playableCell, live && styles.liveCell]}
 										onPress={() => onGameCellPress(playableGame)}
 										disabled={lockingGameId != null}
 									>
 										{isLocking ? (
 											<ActivityIndicator size="small" color={colors.accent} />
 										) : (
-											<Text
-												style={[styles.playableCellText, alignStyle(col.align)]}
-												numberOfLines={1}
-											>
-												{text}
-											</Text>
+											<View style={styles.liveScoreStack}>
+												<View style={styles.liveScoreLine}>
+													{live ? <View style={styles.liveDot} /> : null}
+													<Text
+														style={[styles.playableCellText, alignStyle(col.align)]}
+														numberOfLines={1}
+													>
+														{text}
+													</Text>
+												</View>
+												{live && secondary ? (
+													<Text style={styles.average}>{secondary}</Text>
+												) : null}
+											</View>
 										)}
 									</Pressable>
 								);
 							}
 
 							return (
-								<View key={col.key} style={cellWidth}>
-									<CellLines
-										text={text}
-										secondary={secondary}
-										textStyle={[
-											styles.cell,
-											alignStyle(col.align),
-											isPlayer && styles.playerCellMuted,
-										]}
-										align={alignStyle(col.align)}
-										lines={isPlayer ? playerLines : 1}
-										fill={Boolean(col.fitContent)}
-									/>
+								<View key={col.key} style={[cellWidth, live && styles.liveCell]}>
+									<View style={styles.liveScoreLine}>
+										{live ? <View style={styles.liveDot} /> : null}
+										<CellLines
+											text={text}
+											secondary={secondary}
+											textStyle={[
+												styles.cell,
+												alignStyle(col.align),
+												isPlayer && styles.playerCellMuted,
+											]}
+											align={alignStyle(col.align)}
+											lines={isPlayer ? playerLines : 1}
+											fill={Boolean(col.fitContent)}
+										/>
+									</View>
 								</View>
 							);
 							})}
@@ -463,6 +475,24 @@ const styles = StyleSheet.create({
 	playableCell: {
 		justifyContent: 'center',
 		minHeight: 36,
+	},
+	liveCell: {
+		backgroundColor: colors.accentSoft,
+	},
+	liveScoreStack: {
+		alignItems: 'center',
+	},
+	liveScoreLine: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 4,
+	},
+	liveDot: {
+		width: 7,
+		height: 7,
+		borderRadius: 4,
+		backgroundColor: colors.accent,
 	},
 	sequenceCell: {
 		alignItems: 'center',

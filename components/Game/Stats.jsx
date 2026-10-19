@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import StatsRow from './StatsRow';
 import StatsTitleRow from './StatsTitleRow';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
+import { resolveMatchFirstNine } from '../../helpers/gameScoring/matchFirstNine';
 import { colors } from '../../theme/colors';
 
 const StatsSingleRow = ({ title, value }) => {
@@ -60,6 +61,10 @@ const PlayerStatsDetail = ({ playerState }) => {
     <View style={styles.playerDetail}>
       <StatsTitleRow title="Średnia (3 lotki)" />
       <StatsSingleRow title="Cała gra" value={formatAverage(s?.matchAverage)} />
+      <StatsSingleRow
+        title="Pierwsze 9 lotek"
+        value={hasAverage(resolveMatchFirstNine(s)) ? formatAverage(resolveMatchFirstNine(s)) : '-'}
+      />
       <StatsSingleRow
         title="Najlepszy leg"
         value={hasAverage(bestLegAverage) ? formatAverage(bestLegAverage) : '-'}
@@ -140,6 +145,11 @@ const Stats = ({ players, playerStates }) => {
         <StatsTitleRow title="Średnia (3 lotki)" />
 
         <StatsRow title="Cała gra" player1Value={formatAverage(s0?.matchAverage)} player2Value={formatAverage(s1?.matchAverage)} />
+        <StatsRow
+          title="Pierwsze 9 lotek"
+          player1Value={hasAverage(resolveMatchFirstNine(s0)) ? formatAverage(resolveMatchFirstNine(s0)) : '-'}
+          player2Value={hasAverage(resolveMatchFirstNine(s1)) ? formatAverage(resolveMatchFirstNine(s1)) : '-'}
+        />
         <StatsRow
           title="Najlepszy leg"
           player1Value={hasAverage(player1BestLegAverage) ? formatAverage(player1BestLegAverage) : '-'}

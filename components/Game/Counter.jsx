@@ -86,9 +86,14 @@ const Counter = ({
 
   const renderH2hPlayerName = (index, label) => {
     const canPress = canPressOpponentName && index !== currentPlayerIndex;
+    const isThrower = index === currentPlayerIndex;
     const text = (
       <Text
-        style={[styles.playerText, canPress && styles.playerTextSwitchable]}
+        style={[
+          styles.playerText,
+          isThrower && styles.goldText,
+          canPress && styles.playerTextSwitchable,
+        ]}
         numberOfLines={1}
         adjustsFontSizeToFit={counterBoost > 1}
         minimumFontScale={0.65}
