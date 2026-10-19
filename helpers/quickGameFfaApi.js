@@ -17,6 +17,7 @@ import {
 	getQuickGameFfaCricket56UndoUrl,
 	QUICK_GAME_LOBBY_ACTIVE_MATCH_URL,
 } from './apiConfig';
+import { fetchWithTimeout } from './gameScoring/fetchWithTimeout.js';
 import { throwIfScoringResponseNotOk } from './gameScoring/scoringRequestError.js';
 
 export {
@@ -39,7 +40,7 @@ async function parseJson(res) {
 }
 
 async function ffaGet(url, accessToken, fallbackMessage) {
-	const res = await fetch(url, {
+	const res = await fetchWithTimeout(url, {
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
 			Accept: 'application/json',
@@ -51,7 +52,7 @@ async function ffaGet(url, accessToken, fallbackMessage) {
 }
 
 async function ffaPost(url, accessToken, fallbackMessage, payload = undefined) {
-	const res = await fetch(url, {
+	const res = await fetchWithTimeout(url, {
 		method: 'POST',
 		headers: {
 			Accept: 'application/json',

@@ -68,6 +68,12 @@ export function patchRawStateWithEntry(raw, entry) {
 	if (entry.op === 'undoVisit') {
 		return bumpSessionVersion(withUndo(raw));
 	}
+	if (entry.op === 'closeLeg' && raw.currentLeg) {
+		return bumpSessionVersion({
+			...raw,
+			currentLeg: null,
+		});
+	}
 	return raw;
 }
 

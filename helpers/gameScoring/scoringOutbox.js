@@ -91,6 +91,30 @@ export async function peekOutbox(key) {
 	return list[0] ?? null;
 }
 
+/**
+ * Po otwarciu lega dopisuje jego id do komend, które weszły do kolejki bez lega.
+ * Zatrzymuje się na kolejnym startLeg.
+ */
+export async function bindQueuedLegId(key, legId) {
+	const list = await loadOutbox(key);
+	let binding = true;
+	const next = list.map((entry) => {
+		if (!binding) {
+			return entry;
+		}
+		if (entry.op === 'startLeg') {
+			binding = false;
+			return entry;
+		}
+		if (entry.legId == null) {
+			return { ...entry, legId };
+		}
+		return entry;
+	});
+	await saveOutbox(key, next);
+	return next;
+}
+
 /** Usuwa pierwszy wpis (po udanym flushu). */
 export async function dequeueOutbox(key) {
 	const list = await loadOutbox(key);

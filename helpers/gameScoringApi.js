@@ -5,6 +5,7 @@ import {
 	getGameScoringUndoUrl,
 	getGameScoringVisitUrl,
 } from './apiConfig';
+import { fetchWithTimeout } from './gameScoring/fetchWithTimeout.js';
 import { throwIfScoringResponseNotOk } from './gameScoring/scoringRequestError.js';
 
 const jsonHeaders = (accessToken) => ({
@@ -23,7 +24,7 @@ async function parseJsonResponse(res) {
 }
 
 export async function fetchGameScoringState(baseUrl, accessToken) {
-	const res = await fetch(getGameScoringStateUrl(baseUrl), {
+	const res = await fetchWithTimeout(getGameScoringStateUrl(baseUrl), {
 		headers: jsonHeaders(accessToken),
 	});
 	const { data, text } = await parseJsonResponse(res);
@@ -42,7 +43,7 @@ export async function startGameLeg(
 	player1DoubleTracked,
 	player2DoubleTracked,
 ) {
-	const res = await fetch(getGameScoringStartLegUrl(baseUrl), {
+	const res = await fetchWithTimeout(getGameScoringStartLegUrl(baseUrl), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify({ player1DoubleTracked, player2DoubleTracked }),
@@ -58,7 +59,7 @@ export async function startGameLeg(
 }
 
 export async function recordGameVisit(baseUrl, legId, accessToken, payload) {
-	const res = await fetch(getGameScoringVisitUrl(baseUrl, legId), {
+	const res = await fetchWithTimeout(getGameScoringVisitUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify(payload),
@@ -74,7 +75,7 @@ export async function recordGameVisit(baseUrl, legId, accessToken, payload) {
 }
 
 export async function undoGameVisit(baseUrl, legId, accessToken) {
-	const res = await fetch(getGameScoringUndoUrl(baseUrl, legId), {
+	const res = await fetchWithTimeout(getGameScoringUndoUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 	});
@@ -89,7 +90,7 @@ export async function undoGameVisit(baseUrl, legId, accessToken) {
 }
 
 export async function closeGameLeg(baseUrl, legId, accessToken, payload) {
-	const res = await fetch(getGameScoringCloseLegUrl(baseUrl, legId), {
+	const res = await fetchWithTimeout(getGameScoringCloseLegUrl(baseUrl, legId), {
 		method: 'POST',
 		headers: jsonHeaders(accessToken),
 		body: JSON.stringify(payload),

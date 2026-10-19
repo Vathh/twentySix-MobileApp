@@ -13,11 +13,17 @@ import {
 import { consumeFfaAbortPayload, consumeH2hCancelledPayload } from '../helpers/gameScoring/ffaClosedStatus.js';
 import { announceRemoteVisit } from '../helpers/gameScoring/announceRemoteVisit.js';
 import {
+	bindQueuedLegId,
 	clearOutbox,
 	dequeueOutbox,
 	enqueueOutbox,
 	loadOutbox,
 } from '../helpers/gameScoring/scoringOutbox.js';
+import {
+	commandAlreadyApplied,
+	isLegAlreadyOpenMessage,
+	rejectionNotice,
+} from '../helpers/gameScoring/scoringQueueAck.js';
 import {
 	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
@@ -34,6 +40,8 @@ import {
 import { useGameScoringRealtime } from './useGameScoringRealtime';
 
 const BACKUP_POLL_MS = 2500;
+const FLUSH_RETRY_MS = 3000;
+const FLUSH_RETRY_MAX_MS = 8000;
 
 function isMatchFinishedState(state) {
 	return (
@@ -85,6 +93,9 @@ export function useGameScoring({
 	const abortedRef = useRef(false);
 	const wsHealthyRef = useRef(false);
 	const flushInFlightRef = useRef(false);
+	const flushAgainRef = useRef(false);
+	const retryDelayRef = useRef(FLUSH_RETRY_MS);
+	const retryTimerRef = useRef(null);
 	const [wsHealthy, setWsHealthy] = useState(false);
 	const [ffaPresence, setFfaPresence] = useState(null);
 	const [syncPending, setSyncPending] = useState(false);
@@ -301,6 +312,25 @@ export function useGameScoring({
 		[applyStateSafe, applyStateInternal, setGameClosed],
 	);
 
+	const clearFlushRetry = useCallback(() => {
+		if (retryTimerRef.current) {
+			clearTimeout(retryTimerRef.current);
+			retryTimerRef.current = null;
+		}
+	}, []);
+
+	const scheduleFlushRetry = useCallback(() => {
+		if (retryTimerRef.current) {
+			return;
+		}
+		const delay = retryDelayRef.current;
+		retryTimerRef.current = setTimeout(() => {
+			retryTimerRef.current = null;
+			retryDelayRef.current = FLUSH_RETRY_MAX_MS;
+			void flushOutboxRef.current?.();
+		}, delay);
+	}, []);
+
 	const flushOutbox = useCallback(async () => {
 		const syncTransport = scoringSyncRef.current.transport;
 		const key = syncTransport?.getOutboxKey?.() ?? null;
@@ -308,126 +338,206 @@ export function useGameScoring({
 			return null;
 		}
 		if (flushInFlightRef.current) {
-			await new Promise((resolve) => setTimeout(resolve, 40));
-			return flushOutbox();
+			flushAgainRef.current = true;
+			return null;
 		}
+
+		const applyAcked = (state, tail) => {
+			if (!state) {
+				return;
+			}
+			applyStateSafeRef.current(replayOutboxOnRawState(state, tail), 'submit');
+		};
+
+		const stopForTerminal = async (snapshot, { finished = false, stolen = false, cancelled = false } = {}) => {
+			await clearOutbox(key);
+			setSyncPending(false);
+			clearFlushRetry();
+			if (stolen) {
+				onLeaseLostRef.current?.();
+			}
+			if (cancelled && !abortedRef.current) {
+				abortedRef.current = true;
+				setGameClosed(true);
+				onAbortedRef.current?.();
+			}
+			if (finished && snapshot) {
+				markMatchFinishedFromState(snapshot);
+			}
+		};
+
+		const recoverRejected = async (entry, error) => {
+			let snapshot = null;
+			try {
+				snapshot = await syncTransport.fetchState?.();
+			} catch (fetchErr) {
+				if (isLeaseStolenScoringError(fetchErr)) {
+					await stopForTerminal(null, { stolen: true });
+					return { continue: false, state: null };
+				}
+				if (isGameCancelledScoringError(fetchErr)) {
+					await stopForTerminal(null, { cancelled: true });
+					return { continue: false, state: null };
+				}
+			}
+			if (snapshot && handleAbortIfNeeded(snapshot)) {
+				await stopForTerminal(snapshot);
+				return { continue: false, state: snapshot };
+			}
+			if (snapshot && isMatchFinishedState(snapshot)) {
+				await stopForTerminal(snapshot, { finished: true });
+				return { continue: false, state: snapshot };
+			}
+			if (
+				snapshot
+				&& commandAlreadyApplied(entry, snapshot, {
+					legAlreadyOpen: isLegAlreadyOpenMessage(error),
+				})
+			) {
+				if (entry.op === 'startLeg' && snapshot.currentLeg?.id) {
+					currentLegIdRef.current = snapshot.currentLeg.id;
+					await dequeueOutbox(key);
+					await bindQueuedLegId(key, snapshot.currentLeg.id);
+				} else {
+					await dequeueOutbox(key);
+				}
+				const tail = await loadOutbox(key);
+				applyAcked(snapshot, tail);
+				return { continue: true, state: snapshot };
+			}
+			const pending = await loadOutbox(key);
+			const droppedTail = Math.max(0, pending.length - 1);
+			await clearOutbox(key);
+			setSyncPending(false);
+			clearFlushRetry();
+			if (snapshot) {
+				applyStateSafeRef.current(snapshot, 'submit');
+			}
+			Alert.alert('Rozjazd wyniku', rejectionNotice(droppedTail));
+			return { continue: false, state: snapshot };
+		};
+
+		const sendQueued = async () => {
+			let lastState = null;
+			let remaining = await loadOutbox(key);
+			while (remaining.length > 0) {
+				let entry = remaining[0];
+				try {
+					if (
+						syncTransport.requiresLegId
+						&& entry.legId == null
+						&& entry.op !== 'startLeg'
+					) {
+						if (currentLegIdRef.current) {
+							entry = { ...entry, legId: currentLegIdRef.current };
+						} else {
+							setSyncPending(true);
+							return { retryable: true, state: lastState };
+						}
+					}
+					if (entry.op === 'recordVisit') {
+						lastState = await syncTransport.recordVisit(
+							entry.legId ?? null,
+							entry.payload,
+						);
+					} else if (entry.op === 'closeLeg' && syncTransport.closeLeg) {
+						lastState = await syncTransport.closeLeg(
+							entry.legId,
+							entry.payload,
+						);
+					} else if (entry.op === 'undoVisit' && syncTransport.undoVisit) {
+						lastState = await syncTransport.undoVisit(entry.legId ?? null);
+					} else if (entry.op === 'startLeg' && syncTransport.startLeg) {
+						lastState = await syncTransport.startLeg({
+							tracked: Boolean(entry.payload?.tracked),
+						});
+					} else {
+						remaining = await dequeueOutbox(key);
+						continue;
+					}
+
+					if (entry.op === 'startLeg' && !lastState?.currentLeg?.id) {
+						setSyncPending(true);
+						return { retryable: true, state: lastState };
+					}
+
+					remaining = await dequeueOutbox(key);
+					if (entry.op === 'startLeg') {
+						currentLegIdRef.current = lastState.currentLeg.id;
+						remaining = await bindQueuedLegId(key, lastState.currentLeg.id);
+					}
+
+					if (isMatchFinishedState(lastState)) {
+						await stopForTerminal(lastState, { finished: true });
+						return { retryable: false, state: lastState };
+					}
+
+					applyAcked(lastState, remaining);
+					const legClosed =
+						lastState?.currentLeg == null ||
+						lastState?.currentLeg?.open === false;
+					if (legClosed && syncTransport.format === 'h2h') {
+						currentLegIdRef.current = null;
+					}
+				} catch (e) {
+					if (isLeaseStolenScoringError(e)) {
+						await stopForTerminal(null, { stolen: true });
+						return { retryable: false, state: null };
+					}
+					if (isGameCancelledScoringError(e)) {
+						await stopForTerminal(null, { cancelled: true });
+						return { retryable: false, state: null };
+					}
+					if (isRetryableScoringError(e)) {
+						setSyncPending(true);
+						return { retryable: true, state: lastState };
+					}
+					if (e?.status === 422) {
+						const recovered = await recoverRejected(entry, e);
+						if (recovered.continue) {
+							remaining = await loadOutbox(key);
+							lastState = recovered.state ?? lastState;
+							continue;
+						}
+						return { retryable: false, state: recovered.state ?? null };
+					}
+					console.warn('flushOutbox', e);
+					return { retryable: false, state: lastState };
+				}
+			}
+			setSyncPending(false);
+			retryDelayRef.current = FLUSH_RETRY_MS;
+			clearFlushRetry();
+			return { retryable: false, state: lastState };
+		};
 
 		flushInFlightRef.current = true;
 		pendingWritesRef.current += 1;
 		let lastState = null;
 		try {
-			const queuedBefore = await loadOutbox(key);
-			if (syncTransport.fetchState) {
-				try {
-					const snapshot = await syncTransport.fetchState();
-					lastState = snapshot;
-					if (handleAbortIfNeeded(snapshot)) {
-						await clearOutbox(key);
-						setSyncPending(false);
-						return snapshot;
-					}
-					if (isMatchFinishedState(snapshot)) {
-						await clearOutbox(key);
-						setSyncPending(false);
-						markMatchFinishedFromState(snapshot);
-						return snapshot;
-					}
-					if (queuedBefore.length === 0) {
-						applyStateSafeRef.current(snapshot, 'external');
-					}
-				} catch (fetchErr) {
-					if (isGameCancelledScoringError(fetchErr) || isLeaseStolenScoringError(fetchErr)) {
-						throw fetchErr;
-					}
+			do {
+				flushAgainRef.current = false;
+				const pass = await sendQueued();
+				lastState = pass.state ?? lastState;
+				if (pass.retryable) {
+					scheduleFlushRetry();
+					break;
 				}
-			}
-
-			let remaining = await loadOutbox(key);
-			while (remaining.length > 0) {
-				const entry = remaining[0];
-				if (entry.op === 'recordVisit') {
-					lastState = await syncTransport.recordVisit(
-						entry.legId ?? null,
-						entry.payload,
-					);
-				} else if (entry.op === 'closeLeg' && syncTransport.closeLeg) {
-					lastState = await syncTransport.closeLeg(
-						entry.legId,
-						entry.payload,
-					);
-				} else if (entry.op === 'undoVisit' && syncTransport.undoVisit) {
-					lastState = await syncTransport.undoVisit(entry.legId ?? null);
-				} else {
-					remaining = await dequeueOutbox(key);
-					continue;
-				}
-
-				applyStateSafeRef.current(lastState, 'submit');
-				remaining = await dequeueOutbox(key);
-
-				if (isMatchFinishedState(lastState)) {
-					await clearOutbox(key);
-					setSyncPending(false);
-					markMatchFinishedFromState(lastState);
-					return lastState;
-				}
-
-				const legClosed =
-					lastState?.currentLeg == null ||
-					lastState?.currentLeg?.open === false;
-				if (legClosed && syncTransport.format === 'h2h') {
-					currentLegIdRef.current = null;
-				}
-			}
-
-			setSyncPending(false);
+			} while (flushAgainRef.current);
 			return lastState;
-		} catch (e) {
-			if (isLeaseStolenScoringError(e)) {
-				await clearOutbox(key);
-				setSyncPending(false);
-				onLeaseLostRef.current?.();
-				return null;
-			}
-			if (isGameCancelledScoringError(e)) {
-				if (!abortedRef.current) {
-					abortedRef.current = true;
-					setGameClosed(true);
-					onAbortedRef.current?.();
-				}
-				await clearOutbox(key);
-				setSyncPending(false);
-				return null;
-			}
-			if (isRetryableScoringError(e)) {
-				setSyncPending(true);
-				return null;
-			}
-			if (e?.status === 422) {
-				await clearOutbox(key);
-				setSyncPending(false);
-				try {
-					const snapshot = await syncTransport.fetchState?.();
-					if (snapshot) {
-						applyStateSafeRef.current(snapshot, 'submit');
-					}
-				} catch {
-					// brak sieci — tablica zostaje przy ostatnim potwierdzonym stanie
-				}
-				Alert.alert(
-					'Rozjazd wyniku',
-					'Serwer odrzucił wizytę. Tablica pokazuje zapisany stan meczu.',
-				);
-				return null;
-			}
-			console.warn('flushOutbox', e);
-			return null;
 		} finally {
 			pendingWritesRef.current -= 1;
 			flushInFlightRef.current = false;
 			await refreshSyncPending();
 		}
-	}, [markMatchFinishedFromState, refreshSyncPending, handleAbortIfNeeded, setGameClosed]);
+	}, [
+		markMatchFinishedFromState,
+		refreshSyncPending,
+		handleAbortIfNeeded,
+		setGameClosed,
+		clearFlushRetry,
+		scheduleFlushRetry,
+	]);
 
 	const flushOutboxRef = useRef(flushOutbox);
 	flushOutboxRef.current = flushOutbox;
@@ -474,16 +584,18 @@ export function useGameScoring({
 	const replayQueuedRef = useRef(replayQueuedLocally);
 	replayQueuedRef.current = replayQueuedLocally;
 
-	const notePendingQueue = useCallback(async (key) => {
-		const pending = await loadOutbox(key);
-		if (pending.length > 0) {
-			setSyncPending(true);
-			Alert.alert(
-				'Brak połączenia',
-				'Zapiszę na serwerze, gdy wróci internet.',
-			);
+	const queueMissingLeg = useCallback(async (key) => {
+		if (currentLegIdRef.current) {
+			return currentLegIdRef.current;
 		}
-		return pending.length > 0;
+		const pending = await loadOutbox(key);
+		if (!pending.some((entry) => entry.op === 'startLeg')) {
+			await enqueueOutbox(key, {
+				op: 'startLeg',
+				payload: { tracked: !!scoringSyncRef.current.isPerDartMode },
+			});
+		}
+		return null;
 	}, []);
 
 	const rawStateForQueue = useCallback((legId) => {
@@ -665,8 +777,9 @@ export function useGameScoring({
 		return () => {
 			unsubNet();
 			sub.remove();
+			clearFlushRetry();
 		};
-	}, [enabled, outboxKey, refreshSyncPending]);
+	}, [enabled, outboxKey, refreshSyncPending, clearFlushRetry]);
 
 	const onResubscribed = useCallback(() => {
 		void (async () => {
@@ -723,23 +836,6 @@ export function useGameScoring({
 		},
 		[players, N, isPerDartMode],
 	);
-
-	const continueLegAfterQueue = useCallback(async (state) => {
-		const syncTransport = scoringSyncRef.current.transport;
-		if (!state || syncTransport?.format !== 'h2h' || isMatchFinishedState(state)) {
-			return;
-		}
-		const legClosed = state.currentLeg == null || state.currentLeg?.open === false;
-		if (!legClosed) {
-			return;
-		}
-		currentLegIdRef.current = null;
-		try {
-			await ensureLegStarted();
-		} catch {
-			// Kolejny leg wystartuje przy następnej wizycie.
-		}
-	}, [ensureLegStarted]);
 
 	const enqueueRetryable = useCallback(
 		async (entry, userMessage) => {
@@ -801,8 +897,13 @@ export function useGameScoring({
 					clientVisitId ?? transport.newClientVisitId();
 				let legId = null;
 				let payload = null;
+				const queueKey = transport.queueCommands
+					? transport.getOutboxKey?.() ?? null
+					: null;
 				try {
-					if (transport.requiresLegId) {
+					if (queueKey && transport.requiresLegId) {
+						legId = await queueMissingLeg(queueKey);
+					} else if (transport.requiresLegId) {
 						legId = await ensureLegStarted();
 						if (!legId) {
 							throw new Error('Brak otwartego lega');
@@ -832,21 +933,17 @@ export function useGameScoring({
 						payload.darts = darts;
 					};
 
-					if (transport.queueCommands && transport.getOutboxKey?.()) {
-						const key = transport.getOutboxKey();
+					if (queueKey) {
 						const entry = {
 							op: 'recordVisit',
 							legId,
 							payload,
 							clientVisitId: resolvedClientVisitId,
 						};
-						await enqueueOutbox(key, entry);
+						await enqueueOutbox(queueKey, entry);
 						applyQueuedEntries([entry]);
-						setSyncPending(true);
-						const queuedState = await flushOutboxRef.current();
-						await notePendingQueue(key);
-						await continueLegAfterQueue(queuedState);
-						return queuedState;
+						void flushOutboxRef.current();
+						return lastRawStateRef.current;
 					}
 
 					const record = async (visitPayload) => {
@@ -919,8 +1016,7 @@ export function useGameScoring({
 			remainingBeforeForPlayer,
 			resyncFromServer,
 			applyQueuedEntries,
-			notePendingQueue,
-			continueLegAfterQueue,
+			queueMissingLeg,
 		],
 	);
 
@@ -942,8 +1038,16 @@ export function useGameScoring({
 					let legId = visitOpts.legId ?? null;
 					let visitPayload = null;
 					let closePayload = null;
+					const queueKey = transport.queueCommands
+						? transport.getOutboxKey?.() ?? null
+						: null;
 					try {
-						if (legId != null && transport.fetchState) {
+						if (queueKey) {
+							legId = visitOpts.legId ?? currentLegIdRef.current;
+							if (!legId) {
+								legId = await queueMissingLeg(queueKey);
+							}
+						} else if (legId != null && transport.fetchState) {
 							const snapshot = await transport.fetchState();
 							if (isMatchFinishedState(snapshot)) {
 								markMatchFinishedFromState(snapshot);
@@ -955,11 +1059,11 @@ export function useGameScoring({
 								return snapshot;
 							}
 							currentLegIdRef.current = legId;
-						} else {
+						} else if (!queueKey) {
 							legId = await ensureLegStarted();
 						}
 
-						if (!legId) {
+						if (!queueKey && !legId) {
 							throw new Error('Brak otwartego lega');
 						}
 						const remainingBefore = remainingBeforeForPlayer(
@@ -988,8 +1092,7 @@ export function useGameScoring({
 							),
 						};
 
-						if (transport.queueCommands && transport.getOutboxKey?.()) {
-							const key = transport.getOutboxKey();
+						if (queueKey) {
 							const visitEntry = {
 								op: 'recordVisit',
 								legId,
@@ -1001,14 +1104,11 @@ export function useGameScoring({
 								legId,
 								payload: closePayload,
 							};
-							await enqueueOutbox(key, visitEntry);
-							await enqueueOutbox(key, closeEntry);
-							applyQueuedEntries([visitEntry]);
-							setSyncPending(true);
-							const queuedState = await flushOutboxRef.current();
-							await notePendingQueue(key);
-							await continueLegAfterQueue(queuedState);
-							return queuedState;
+							await enqueueOutbox(queueKey, visitEntry);
+							await enqueueOutbox(queueKey, closeEntry);
+							applyQueuedEntries([visitEntry, closeEntry]);
+							void flushOutboxRef.current();
+							return lastRawStateRef.current;
 						}
 
 						await transport.recordVisit(legId, visitPayload);
@@ -1158,8 +1258,7 @@ export function useGameScoring({
 			markMatchFinishedFromState,
 			submitVisit,
 			applyQueuedEntries,
-			notePendingQueue,
-			continueLegAfterQueue,
+			queueMissingLeg,
 		],
 	);
 
@@ -1177,11 +1276,18 @@ export function useGameScoring({
 				pendingWritesRef.current += 1;
 				let closePayload = null;
 				let legId = null;
+				const queueKey = transport.queueCommands
+					? transport.getOutboxKey?.() ?? null
+					: null;
 				try {
 					if (transport.requiresLegId) {
-						legId = currentLegIdRef.current ?? (await ensureLegStarted());
-						if (!legId) {
-							throw new Error('Brak otwartego lega');
+						if (queueKey) {
+							legId = currentLegIdRef.current ?? (await queueMissingLeg(queueKey));
+						} else {
+							legId = currentLegIdRef.current ?? (await ensureLegStarted());
+							if (!legId) {
+								throw new Error('Brak otwartego lega');
+							}
 						}
 						closePayload = {
 							winnerId: player.playerId,
@@ -1192,19 +1298,16 @@ export function useGameScoring({
 						closePayload = { winnerPlayerId: player.playerId };
 					}
 
-					if (transport.queueCommands && transport.getOutboxKey?.()) {
-						const key = transport.getOutboxKey();
+					if (queueKey) {
 						const entry = {
 							op: 'closeLeg',
 							legId,
 							payload: closePayload,
 						};
-						await enqueueOutbox(key, entry);
-						setSyncPending(true);
-						const queuedState = await flushOutboxRef.current();
-						await notePendingQueue(key);
-						await continueLegAfterQueue(queuedState);
-						return queuedState;
+						await enqueueOutbox(queueKey, entry);
+						applyQueuedEntries([entry]);
+						void flushOutboxRef.current();
+						return lastRawStateRef.current;
 					}
 
 					const state = await transport.closeLeg(legId, closePayload);
@@ -1278,8 +1381,8 @@ export function useGameScoring({
 			applyStateSafe,
 			applyStateInternal,
 			setGameClosed,
-			notePendingQueue,
-			continueLegAfterQueue,
+			queueMissingLeg,
+			applyQueuedEntries,
 		],
 	);
 
@@ -1315,10 +1418,11 @@ export function useGameScoring({
 							if (!needsClosedLegConfirm) {
 								applyQueuedEntries([entry]);
 							}
-							setSyncPending(true);
-							const queuedState = await flushOutboxRef.current();
-							await notePendingQueue(key);
-							return queuedState;
+							if (needsClosedLegConfirm) {
+								return await flushOutboxRef.current();
+							}
+							void flushOutboxRef.current();
+							return lastRawStateRef.current;
 						}
 						const state = await transport.undoVisit(legId);
 						applyStateSafe(state, 'submit');
@@ -1350,7 +1454,7 @@ export function useGameScoring({
 				}
 				return performUndo();
 			}),
-		[runSerialized, enabled, transport, applyStateSafe, confirm, resyncFromServer, applyQueuedEntries, notePendingQueue],
+		[runSerialized, enabled, transport, applyStateSafe, confirm, resyncFromServer, applyQueuedEntries],
 	);
 
 	return {
