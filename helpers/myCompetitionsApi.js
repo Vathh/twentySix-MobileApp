@@ -1,4 +1,4 @@
-import { ME_COMPETITIONS_URL } from './apiConfig';
+import { getOrganizationLeaveUrl, ME_COMPETITIONS_URL } from './apiConfig';
 import { apiRequest } from './apiClient';
 import { SESSION_EXPIRED_MESSAGE } from './sessionExpired';
 
@@ -36,6 +36,32 @@ export async function fetchMyCompetitions(accessToken) {
 				organizations: Array.isArray(data?.organizations) ? data.organizations : [],
 			},
 		};
+	} catch {
+		return { ok: false, status: 0, message: 'Błąd połączenia.' };
+	}
+}
+
+export async function leaveOrganization(organizationId, accessToken) {
+	if (!accessToken) {
+		return { ok: false, status: 0, message: 'Brak autoryzacji.' };
+	}
+
+	try {
+		const { ok, status, data } = await apiRequest(getOrganizationLeaveUrl(organizationId), {
+			method: 'POST',
+			accessToken,
+			json: true,
+			body: {},
+		});
+		if (!ok) {
+			return {
+				ok: false,
+				status,
+				message: data?.message || 'Nie udało się wypisać z organizacji.',
+			};
+		}
+
+		return { ok: true, message: data?.message || 'Wypisano ze składu organizacji.' };
 	} catch {
 		return { ok: false, status: 0, message: 'Błąd połączenia.' };
 	}

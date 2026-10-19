@@ -18,13 +18,11 @@ import {
 	actOnFriendInvitation,
 	actOnLeagueMembershipInvitation,
 	actOnOrganizationInvitation,
-	actOnSeasonInvitation,
 	actOnTournamentInvitation,
 	fetchFriendInvitationsReceived,
 	fetchLeagueMembershipInvitationsReceived,
 	fetchOrganizationInvitationsReceived,
 	fetchQuickGameLobbyInvitations,
-	fetchSeasonInvitationsReceived,
 	fetchTournamentInvitationsReceived,
 	joinQuickGameLobby,
 	rejectQuickGameLobbyInvitation,
@@ -45,13 +43,11 @@ function resolveInitialTab(route) {
 }
 
 function membershipKindLabel(kind) {
-	if (kind === 'season') return 'Sezon';
 	if (kind === 'league') return 'Liga';
 	return 'Organizacja';
 }
 
 function membershipIcon(kind) {
-	if (kind === 'season') return 'calendar-outline';
 	if (kind === 'league') return 'layers-outline';
 	return 'business-outline';
 }
@@ -195,7 +191,6 @@ const InvitationsScreen = ({ navigation, route }) => {
 			const [
 				tournamentRes,
 				organizationRes,
-				seasonRes,
 				leagueMembershipRes,
 				lobbyRes,
 				leagueRes,
@@ -203,7 +198,6 @@ const InvitationsScreen = ({ navigation, route }) => {
 			] = await Promise.all([
 				fetchTournamentInvitationsReceived(auth.accessToken),
 				fetchOrganizationInvitationsReceived(auth.accessToken),
-				fetchSeasonInvitationsReceived(auth.accessToken),
 				fetchLeagueMembershipInvitationsReceived(auth.accessToken),
 				fetchQuickGameLobbyInvitations(auth.accessToken),
 				fetchLeagueGameInvitations(auth.accessToken),
@@ -216,13 +210,11 @@ const InvitationsScreen = ({ navigation, route }) => {
 
 			setTournamentInvitations(tournamentRes.ok ? (tournamentRes.data?.invitations ?? []) : []);
 			const organizationInvites = organizationRes.ok ? (organizationRes.data?.invitations ?? []) : [];
-			const seasonInvites = seasonRes.ok ? (seasonRes.data?.invitations ?? []) : [];
 			const leagueMembershipInvites = leagueMembershipRes.ok
 				? (leagueMembershipRes.data?.invitations ?? [])
 				: [];
 			setMembershipInvitations([
 				...organizationInvites.map((inv) => ({ ...inv, membershipKind: 'organization' })),
-				...seasonInvites.map((inv) => ({ ...inv, membershipKind: 'season' })),
 				...leagueMembershipInvites.map((inv) => ({ ...inv, membershipKind: 'league' })),
 			]);
 			const quickInvites = lobbyRes.ok ? (lobbyRes.data?.invitations ?? []) : [];
@@ -297,11 +289,9 @@ const InvitationsScreen = ({ navigation, route }) => {
 		setActionId(`${action}-${invitation.membershipKind}-${invitation.id}`);
 
 		try {
-			const act = invitation.membershipKind === 'season'
-				? actOnSeasonInvitation
-				: invitation.membershipKind === 'league'
-					? actOnLeagueMembershipInvitation
-					: actOnOrganizationInvitation;
+			const act = invitation.membershipKind === 'league'
+				? actOnLeagueMembershipInvitation
+				: actOnOrganizationInvitation;
 			const { ok, data } = await act(invitation.id, action, auth.accessToken);
 
 			if (ok) {
@@ -510,7 +500,7 @@ const InvitationsScreen = ({ navigation, route }) => {
 	};
 
 	const renderMembershipRow = (inv, index, total) => {
-		const title = inv.seasonName ?? inv.leagueName ?? inv.organizationName;
+		const title = inv.leagueName ?? inv.organizationName;
 		const actionKey = (action) => `${action}-${inv.membershipKind}-${inv.id}`;
 
 		return (

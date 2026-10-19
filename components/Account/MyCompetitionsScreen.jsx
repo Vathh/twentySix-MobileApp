@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+	Alert,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -10,7 +11,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
-import { fetchMyCompetitions } from '../../helpers/myCompetitionsApi';
+import { fetchMyCompetitions, leaveOrganization } from '../../helpers/myCompetitionsApi';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import ScreenLoading from '../Common/ScreenLoading';
@@ -37,7 +38,7 @@ function formatLeagueMeta(item) {
 	return parts.join(' · ');
 }
 
-const Section = ({ title, emptyText, items, onPress, subtitle, icon }) => (
+const Section = ({ title, emptyText, items, onPress, onLeave, subtitle, icon }) => (
 	<View style={styles.section}>
 		<Text style={styles.sectionLabel}>{title}</Text>
 		{items.length === 0 ? (
@@ -75,6 +76,15 @@ const Section = ({ title, emptyText, items, onPress, subtitle, icon }) => (
 										{subtitle(item)}
 									</Text>
 								) : null}
+								{onLeave && item.role !== 'admin' ? (
+									<Pressable
+										accessibilityRole="button"
+										hitSlop={8}
+										onPress={() => onLeave(item)}
+									>
+										<Text style={styles.leave}>Wypisz się</Text>
+									</Pressable>
+								) : null}
 							</View>
 							<Ionicons name="chevron-forward" size={scaleSize(16)} color={colors.textDim} />
 						</Pressable>
@@ -94,6 +104,7 @@ const MyCompetitionsScreen = ({ navigation }) => {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const [leavingId, setLeavingId] = useState(null);
 
 	const load = useCallback(
 		async ({ soft } = {}) => {
@@ -126,6 +137,35 @@ const MyCompetitionsScreen = ({ navigation }) => {
 		},
 		[auth?.accessToken],
 	);
+
+	const confirmLeave = (item) => {
+		if (leavingId) {
+			return;
+		}
+		Alert.alert(
+			'Wypisać się?',
+			`Wypisać się ze składu organizacji ${item.name}?`,
+			[
+				{ text: 'Anuluj', style: 'cancel' },
+				{
+					text: 'Wypisz się',
+					style: 'destructive',
+					onPress: () => {
+						void (async () => {
+							setLeavingId(item.id);
+							const result = await leaveOrganization(item.id, auth?.accessToken);
+							setLeavingId(null);
+							if (!result.ok) {
+								Alert.alert('Błąd', result.message);
+								return;
+							}
+							await load({ soft: true });
+						})();
+					},
+				},
+			],
+		);
+	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -181,6 +221,7 @@ const MyCompetitionsScreen = ({ navigation }) => {
 					items={organizations}
 					subtitle={(item) => item.description || 'Organizacja'}
 					onPress={(item) => navigation.navigate('OrganizationDetail', { id: item.id })}
+					onLeave={confirmLeave}
 				/>
 			</View>
 		</ScrollView>
@@ -282,6 +323,12 @@ const styles = StyleSheet.create({
 		marginTop: 2,
 		color: colors.textMuted,
 		fontSize: 12,
+	},
+	leave: {
+		marginTop: 6,
+		color: colors.dangerText,
+		fontSize: 12,
+		fontWeight: '600',
 	},
 	role: {
 		fontSize: 11,

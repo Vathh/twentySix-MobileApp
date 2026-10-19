@@ -393,14 +393,6 @@ export const getOrganizationInvitationAcceptUrl = (invitationId) =>
 export const getOrganizationInvitationRejectUrl = (invitationId) =>
 	API_BASE_URL + ORGANIZATION_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
 
-const SEASON_INVITATIONS_PREFIX = '/seasons/invitations';
-export const SEASON_INVITATIONS_RECEIVED_URL =
-	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/received';
-export const getSeasonInvitationAcceptUrl = (invitationId) =>
-	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/' + invitationId + '/accept';
-export const getSeasonInvitationRejectUrl = (invitationId) =>
-	API_BASE_URL + SEASON_INVITATIONS_PREFIX + '/' + invitationId + '/reject';
-
 const LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX = '/leagues/invitations';
 export const LEAGUE_MEMBERSHIP_INVITATIONS_RECEIVED_URL =
 	API_BASE_URL + LEAGUE_MEMBERSHIP_INVITATIONS_PREFIX + '/received';
@@ -443,4 +435,6 @@ export const getTournamentPlayoffLiveUrl = (tournamentId) =>
 export const PUSH_TOKENS_API_URL = API_BASE_URL + '/push-tokens';
 
 export const ME_COMPETITIONS_URL = API_BASE_URL + '/me/competitions';
+export const getOrganizationLeaveUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/leave';
 export const TRAINING_GAMES_API_URL = API_BASE_URL + '/training/games';
