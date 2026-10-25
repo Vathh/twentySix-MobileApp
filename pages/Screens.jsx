@@ -30,6 +30,7 @@ import FriendsScreen from '../components/Friends/FriendsScreen';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import PlayerProfileScreen from '../components/PlayerProfile/PlayerProfileScreen';
 import EditPlayerProfileScreen from '../components/PlayerProfile/EditPlayerProfileScreen';
+import GameDetailScreen from '../components/Game/GameDetailScreen';
 import AccountScreen from '../components/Account/AccountScreen';
 import MyCompetitionsScreen from '../components/Account/MyCompetitionsScreen';
 import ChangePasswordScreen from '../components/Account/ChangePasswordScreen';
@@ -98,6 +99,13 @@ function GrajStack() {
 			/>
 			<Stack.Screen name="TournamentCode" component={TournamentCode} />
 			<Stack.Screen name="JoinTournament" component={JoinTournamentScreen} />
+			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen
+				name="EditPlayerProfile"
+				component={EditPlayerProfileScreen}
+				options={{ title: 'Edycja profilu' }}
+			/>
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -121,6 +129,7 @@ function RozgrywkiStack() {
 				component={EditPlayerProfileScreen}
 				options={{ title: 'Edycja profilu' }}
 			/>
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -135,6 +144,22 @@ function ZnajomiStack() {
 				component={EditPlayerProfileScreen}
 				options={{ title: 'Edycja profilu' }}
 			/>
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
+		</Stack.Navigator>
+	);
+}
+
+function ZaproszeniaStack() {
+	return (
+		<Stack.Navigator screenOptions={stackScreenOptions}>
+			<Stack.Screen name="ZaproszeniaHome" component={InvitationsScreen} />
+			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen
+				name="EditPlayerProfile"
+				component={EditPlayerProfileScreen}
+				options={{ title: 'Edycja profilu' }}
+			/>
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -160,6 +185,7 @@ function KontoStack() {
 				component={EditPlayerProfileScreen}
 				options={{ title: 'Edycja profilu' }}
 			/>
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen
 				name="ChangePassword"
 				component={ChangePasswordScreen}
@@ -180,7 +206,7 @@ function HiddenHomeStack() {
 const GrajTab = withAnimatedTabScene(GrajStack, { skipInitial: true, tabName: 'Graj' });
 const RozgrywkiTab = withAnimatedTabScene(RozgrywkiStack, { tabName: 'Rozgrywki' });
 const ZnajomiTab = withAnimatedTabScene(ZnajomiStack, { tabName: 'Znajomi' });
-const ZaproszeniaTab = withAnimatedTabScene(InvitationsScreen, { tabName: 'Zaproszenia' });
+const ZaproszeniaTab = withAnimatedTabScene(ZaproszeniaStack, { tabName: 'Zaproszenia' });
 const KontoTab = withAnimatedTabScene(KontoStack, { tabName: 'Konto' });
 
 /** Dolny pasek: Graj / Rozgrywki / Znajomi / Zaproszenia / Konto (+ ukryty Home). */
@@ -251,10 +277,6 @@ function UserMainTabsNavigator() {
 				name="Zaproszenia"
 				component={ZaproszeniaTab}
 				options={{
-					...headerOptions,
-					headerShown: true,
-					headerTitle: (props) => <HeaderTitle {...props} />,
-					headerRight: () => <AccountMenuButton />,
 					tabBarLabel: 'Zaproszenia',
 					tabBarIcon: tabIcon('mail-outline'),
 				}}

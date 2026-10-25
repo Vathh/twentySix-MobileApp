@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
 	formatScore,
 	gameTypeLabel,
@@ -10,13 +10,17 @@ import {
 import { typePillStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 
-const ProfileGameHistoryItem = ({ item, first, last }) => {
+const ProfileGameHistoryItem = ({ item, first, last, onPress }) => {
 	const won = item?.result === 'wygrana';
 	const pill = typePillStyle(item?.type);
-
-	return (
-		<View style={[styles.row, first && styles.rowFirst, last && styles.rowLast]}>
-			<View style={[styles.body, !last && styles.bodyDivider]}>
+	const rowStyle = [
+		styles.row,
+		first && styles.rowFirst,
+		last && styles.rowLast,
+		!last && styles.rowDivider,
+	];
+	const body = (
+			<View style={styles.body}>
 				<View style={styles.top}>
 					<View>
 						<Text style={styles.date}>{historyDate(item?.date_formatted)}</Text>
@@ -45,7 +49,21 @@ const ProfileGameHistoryItem = ({ item, first, last }) => {
 					</Text>
 				) : null}
 			</View>
-		</View>
+	);
+
+	if (!onPress) {
+		return <View style={rowStyle}>{body}</View>;
+	}
+
+	return (
+		<Pressable
+			style={({ pressed }) => [...rowStyle, pressed && styles.rowPressed]}
+			onPress={onPress}
+			accessibilityRole="button"
+			accessibilityLabel={`Szczegóły meczu: ${item?.opponents || ''}`}
+		>
+			{body}
+		</Pressable>
 	);
 };
 
@@ -62,12 +80,15 @@ const styles = StyleSheet.create({
 		borderBottomLeftRadius: 10,
 		borderBottomRightRadius: 10,
 	},
+	rowDivider: {
+		borderBottomWidth: 1,
+		borderBottomColor: colors.borderStrong,
+	},
+	rowPressed: {
+		backgroundColor: colors.bgElevatedHover,
+	},
 	body: {
 		paddingVertical: 12,
-	},
-	bodyDivider: {
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
 	},
 	top: {
 		flexDirection: 'row',

@@ -42,7 +42,10 @@ function ProfileTabBar({ activeTab, onChange }) {
 						style={[styles.segmentItem, on && styles.segmentItemActive]}
 						onPress={() => onChange(tab.key)}
 					>
-						<Text style={[styles.segmentText, on && styles.segmentTextActive]}>
+						<Text
+							style={[styles.segmentText, on && styles.segmentTextActive]}
+							numberOfLines={2}
+						>
 							{tab.label}
 						</Text>
 					</Pressable>
@@ -342,6 +345,7 @@ const styles = StyleSheet.create({
 	},
 	segment: {
 		flexDirection: 'row',
+		alignItems: 'stretch',
 		backgroundColor: colors.bgElevated,
 		borderRadius: 10,
 		padding: 3,
@@ -352,16 +356,24 @@ const styles = StyleSheet.create({
 	segmentItem: {
 		flex: 1,
 		alignItems: 'center',
-		paddingVertical: 8,
+		justifyContent: 'center',
+		minHeight: 44,
+		paddingHorizontal: 2,
+		paddingVertical: 6,
 		borderRadius: 8,
 	},
 	segmentItemActive: {
 		backgroundColor: colors.accentMuted,
 	},
 	segmentText: {
+		width: '100%',
 		fontSize: 11,
+		lineHeight: 13,
 		fontWeight: '600',
 		color: colors.textMuted,
+		textAlign: 'center',
+		textAlignVertical: 'center',
+		includeFontPadding: false,
 	},
 	segmentTextActive: {
 		color: colors.accent,

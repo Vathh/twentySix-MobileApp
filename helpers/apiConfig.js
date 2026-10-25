@@ -361,6 +361,9 @@ export const FRIENDS_INVITATIONS_SENT_URL =
 	FRIENDS_API_URL + '/invitations/sent';
 export const USERS_SEARCH_URL = API_BASE_URL + '/users/search';
 
+export const getGameDetailUrl = (type, gameId) =>
+	API_BASE_URL + '/games/' + type + '/' + gameId;
+
 export const getPlayerProfileUrl = (playerId) =>
 	API_BASE_URL + '/players/' + playerId;
 export const getPlayerAvatarUrl = (playerId) =>

@@ -30,6 +30,8 @@ import { scaleSize } from '../../theme/uiScale';
 
 /** Czas animacji SVG (~2.5s) + krótki zapas przed wlotem do headera. */
 const INTRO_DURATION_MS = 2900;
+/** Koniec wlotu celuje tyle dp wyżej niż zmierzony slot — bez tego 26 ląduje za nisko i przeskakuje. */
+const FLY_TARGET_Y_NUDGE = 6;
 const FLY_MS = 720;
 const HEADER_WAIT_MS = 1200;
 const BG_FADE_MS = 520;
@@ -134,7 +136,7 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 			const write = (originX = 0, originY = 0) => {
 				// Ujemny origin z measureInWindow (edge-to-edge) zjeżdżał cel w dół.
 				slotX.value = logotypRect.x - Math.max(0, originX);
-				slotY.value = logotypRect.y - Math.max(0, originY);
+				slotY.value = logotypRect.y - Math.max(0, originY) - scaleSize(FLY_TARGET_Y_NUDGE);
 				slotW.value = logotypRect.width;
 				slotH.value = logotypRect.height;
 			};

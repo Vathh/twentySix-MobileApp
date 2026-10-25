@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import ProfileGameHistoryItem from './ProfileGameHistoryItem';
 import { fetchPlayerGames } from '../../helpers/playerProfileApi';
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 
+const OPENABLE_TYPES = new Set(['quick', 'group', 'playoff', 'league']);
+
 const ProfileGameHistory = ({ playerId, accessToken, initialItems, initialHasMore }) => {
+	const navigation = useNavigation();
 	const [items, setItems] = useState(Array.isArray(initialItems) ? initialItems : []);
 	const [hasMore, setHasMore] = useState(Boolean(initialHasMore));
 	const [page, setPage] = useState(1);
@@ -39,14 +43,26 @@ const ProfileGameHistory = ({ playerId, accessToken, initialItems, initialHasMor
 				</View>
 			) : (
 				<View style={[styles.group, cardToneStyle(colors.accent)]}>
-					{items.map((item, index) => (
-						<ProfileGameHistoryItem
-							key={`${item?.type || 'g'}-${item?.id || index}-${item?.date || index}`}
-							item={item}
-							first={index === 0}
-							last={index === items.length - 1}
-						/>
-					))}
+					{items.map((item, index) => {
+						const canOpen = Boolean(item?.id) && OPENABLE_TYPES.has(item?.type);
+						return (
+							<ProfileGameHistoryItem
+								key={`${item?.type || 'g'}-${item?.id || index}-${item?.date || index}`}
+								item={item}
+								first={index === 0}
+								last={index === items.length - 1}
+								onPress={
+									canOpen
+										? () =>
+												navigation.navigate('GameDetail', {
+													type: item.type,
+													gameId: item.id,
+												})
+										: undefined
+								}
+							/>
+						);
+					})}
 				</View>
 			)}
 			{error ? <Text style={styles.error}>{error}</Text> : null}
