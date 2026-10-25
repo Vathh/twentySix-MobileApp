@@ -1,3 +1,5 @@
+import { getCurrentAccessToken } from './authTokenHolder.js';
+
 export const SESSION_EXPIRED_MESSAGE = 'Sesja wygasła. Zaloguj się ponownie.';
 
 let onUnauthorized = null;
@@ -20,6 +22,8 @@ export function isSessionAuthExemptUrl(url) {
 		path.includes('/account/login')
 		|| path.includes('/account/session/refresh')
 		|| path.includes('/account/logout')
+		|| path.includes('/account/forgot-password')
+		|| path.includes('/account/reset-password')
 		|| path.includes('/register')
 		|| path.includes('/email/verification-notification')
 		|| /\/api\/login(?:\?|$)/.test(path)
@@ -50,8 +54,17 @@ export function notifySessionExpired({ url, hasAccessToken = true } = {}) {
 	}
 }
 
+/**
+ * 401 ze starego tokenu (refresh zdążył wydać nowy) nie wylogowuje.
+ * Brak accessToken w options zostawia dotychczasowe zachowanie.
+ */
 export function notifyIfUnauthorized(status, options = {}) {
 	if (Number(status) !== 401) {
+		return;
+	}
+	const requestToken = options.accessToken;
+	const currentToken = getCurrentAccessToken();
+	if (requestToken && currentToken && requestToken !== currentToken) {
 		return;
 	}
 	notifySessionExpired(options);

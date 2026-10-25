@@ -13,6 +13,7 @@ import ScreenLoading from '../components/Common/ScreenLoading';
 import GameList from '../components/Game/GameList';
 import GameScoringScreen from '../components/Game/GameScoringScreen';
 import TournamentLogin from '../components/Tournament/TournamentLogin';
+import ForgotPasswordScreen from '../components/Account/ForgotPasswordScreen';
 import AccountRegister from '../components/Tournament/AccountRegister';
 import TournamentCode from '../components/Tournament/TournamentCode';
 import JoinTournamentScreen from '../components/Tournament/JoinTournamentScreen';
@@ -300,6 +301,11 @@ const Screens = () => {
 				<RootStack.Screen
 					name="AccountLogin"
 					component={TournamentLogin}
+					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
+				/>
+				<RootStack.Screen
+					name="ForgotPassword"
+					component={ForgotPasswordScreen}
 					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
 				/>
 				<RootStack.Screen

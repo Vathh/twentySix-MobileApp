@@ -16,7 +16,7 @@ const formatHighestHf = (score) => (score != null ? String(score) : '–');
 
 function earnedShowcaseBadges(highVisitItems) {
 	return (Array.isArray(highVisitItems) ? highVisitItems : [])
-		.filter((item) => (Number(item.timesEarned) || 0) > 0)
+		.filter((item) => item.levelName && item.levelName !== 'locked')
 		.map((item) => ({
 			key: `visit-${item.key}`,
 			source: highVisitImage(item.key, item.levelName),

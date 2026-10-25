@@ -106,6 +106,12 @@ const TournamentLogin = () => {
 				</Pressable>
 				<Pressable
 					style={styles.linkButton}
+					onPress={() => navigation.navigate('ForgotPassword')}
+				>
+					<Text style={styles.linkText}>Nie pamiętam hasła</Text>
+				</Pressable>
+				<Pressable
+					style={styles.linkButton}
 					onPress={() => navigation.navigate('AccountRegister')}
 				>
 					<Text style={styles.linkText}>Nie masz konta? Zarejestruj się</Text>

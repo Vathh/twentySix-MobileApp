@@ -34,6 +34,50 @@ export const AuthProvider = ({ children }) => {
 	const [rememberMePreferred, setRememberMePreferred] = useState(true);
 	const authRef = useRef(auth);
 	authRef.current = auth;
+	const refreshInFlightRef = useRef(null);
+
+	const refreshRememberedSession = useCallback(async (token) => {
+		if (!token) {
+			return null;
+		}
+		if (refreshInFlightRef.current) {
+			return refreshInFlightRef.current;
+		}
+
+		const job = (async () => {
+			const result = await refreshAuthSession(token);
+			return { token, ...result };
+		})();
+		refreshInFlightRef.current = job;
+		try {
+			return await job;
+		} finally {
+			if (refreshInFlightRef.current === job) {
+				refreshInFlightRef.current = null;
+			}
+		}
+	}, []);
+
+	const applyRememberedRefresh = useCallback(async (token, shouldApply = () => true) => {
+		const result = await refreshRememberedSession(token);
+		if (!result || !shouldApply()) {
+			return result;
+		}
+		if ((authRef.current?.accessToken ?? null) !== result.token) {
+			return result;
+		}
+		if (result.ok) {
+			const next = mapLoginResponseToAuth(result.data);
+			setCurrentAccessToken(next.accessToken);
+			setAuth(next);
+			await saveStoredSession(buildStoredSession(next, true));
+		} else if (result.status === 401 || result.status === 403) {
+			await clearStoredSession();
+			setCurrentAccessToken(null);
+			setAuth({});
+		}
+		return result;
+	}, [refreshRememberedSession]);
 
 	const applyAuthFromApi = useCallback((data) => {
 		const next = mapLoginResponseToAuth(data);
@@ -114,20 +158,9 @@ export const AuthProvider = ({ children }) => {
 			setCurrentAccessToken(restored.accessToken);
 			setAuth(restored);
 
-			const { ok, data, status } = await refreshAuthSession(stored.accessToken);
+			await applyRememberedRefresh(stored.accessToken, () => !cancelled);
 			if (cancelled) {
 				return;
-			}
-
-			if (ok) {
-				const next = mapLoginResponseToAuth(data);
-				setCurrentAccessToken(next.accessToken);
-				setAuth(next);
-				await saveStoredSession(buildStoredSession(next, true));
-			} else if (status === 401 || status === 403) {
-				await clearStoredSession();
-				setCurrentAccessToken(null);
-				setAuth({});
 			}
 
 			setAuthLoading(false);
@@ -136,7 +169,7 @@ export const AuthProvider = ({ children }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [applyRememberedRefresh]);
 
 	useEffect(() => {
 		const subscription = AppState.addEventListener('change', (nextState) => {
@@ -159,22 +192,12 @@ export const AuthProvider = ({ children }) => {
 					return;
 				}
 
-				const { ok, data, status } = await refreshAuthSession(token);
-				if (ok) {
-					const next = mapLoginResponseToAuth(data);
-					setCurrentAccessToken(next.accessToken);
-					setAuth(next);
-					await saveStoredSession(buildStoredSession(next, true));
-				} else if (status === 401 || status === 403) {
-					await clearStoredSession();
-					setCurrentAccessToken(null);
-					setAuth({});
-				}
+				await applyRememberedRefresh(token);
 			})();
 		});
 
 		return () => subscription.remove();
-	}, []);
+	}, [applyRememberedRefresh]);
 
 	return (
 		<AuthContext.Provider

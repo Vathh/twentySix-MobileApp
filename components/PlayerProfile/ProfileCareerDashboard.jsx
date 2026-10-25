@@ -12,56 +12,70 @@ import {
 import { cardToneStyle } from '../../helpers/profileTones';
 import { colors } from '../../theme/colors';
 
-function Sparkline({ points }) {
-	const values = (points ?? []).map((p) => p?.value).filter((v) => v != null);
-	const [size, setSize] = useState({ width: 0, height: 72 });
-	if (values.length < 2) return null;
-	const shown = values.slice(-20);
-	const min = Math.min(...shown);
-	const max = Math.max(...shown);
+function Sparkline({ points, formatValue, stroke }) {
+	const series = (points ?? []).filter((point) => point?.value != null).slice(-20);
+	const [size, setSize] = useState({ width: 0, height: 96 });
+	if (series.length < 2) return null;
+	const values = series.map((point) => Number(point.value));
+	const min = Math.min(...values);
+	const max = Math.max(...values);
 	const span = max - min || 1;
 	const padX = 6;
 	const padY = 8;
 	const { width: w, height: h } = size;
 	const innerW = Math.max(1, w - padX * 2);
 	const innerH = Math.max(1, h - padY * 2);
-	const dots = shown.map((value, index) => ({
-		x: padX + (index / (shown.length - 1)) * innerW,
-		y: padY + innerH - ((Number(value) - min) / span) * innerH,
+	const dots = values.map((value, index) => ({
+		x: padX + (index / (values.length - 1)) * innerW,
+		y: padY + innerH - ((value - min) / span) * innerH,
 	}));
 	const polyline = dots.map((dot) => `${dot.x},${dot.y}`).join(' ');
+	const format = formatValue ?? ((value) => String(value));
+	const color = stroke || colors.accent;
 
 	return (
-		<View
-			style={styles.spark}
-			onLayout={(event) => {
-				const { width, height } = event.nativeEvent.layout;
-				if (width !== size.width || height !== size.height) {
-					setSize({ width, height });
-				}
-			}}
-		>
-			{w > 0 ? (
-				<Svg width={w} height={h}>
-					<Polyline
-						points={polyline}
-						fill="none"
-						stroke={colors.accent}
-						strokeWidth={2}
-						strokeLinejoin="round"
-						strokeLinecap="round"
-					/>
-					{dots.map((dot, index) => (
-						<Circle
-							key={`${index}-${shown[index]}`}
-							cx={dot.x}
-							cy={dot.y}
-							r={2.5}
-							fill={colors.accent}
-						/>
-					))}
-				</Svg>
-			) : null}
+		<View>
+			<View style={styles.chartRow}>
+				<View style={styles.yAxis}>
+					<Text style={styles.axisText}>{format(max)}</Text>
+					<Text style={styles.axisText}>{format(min)}</Text>
+				</View>
+				<View
+					style={styles.spark}
+					onLayout={(event) => {
+						const { width, height } = event.nativeEvent.layout;
+						if (width !== size.width || height !== size.height) {
+							setSize({ width, height });
+						}
+					}}
+				>
+					{w > 0 ? (
+						<Svg width={w} height={h}>
+							<Polyline
+								points={polyline}
+								fill="none"
+								stroke={color}
+								strokeWidth={2}
+								strokeLinejoin="round"
+								strokeLinecap="round"
+							/>
+							{dots.map((dot, index) => (
+								<Circle
+									key={`${index}-${values[index]}`}
+									cx={dot.x}
+									cy={dot.y}
+									r={2.5}
+									fill={color}
+								/>
+							))}
+						</Svg>
+					) : null}
+				</View>
+			</View>
+			<View style={styles.xAxis}>
+				<Text style={styles.axisText}>{series[0]?.t || ''}</Text>
+				<Text style={styles.axisText}>{series[series.length - 1]?.t || ''}</Text>
+			</View>
 		</View>
 	);
 }
@@ -127,7 +141,9 @@ const ProfileCareerDashboard = ({
 	const avgDelta = formatDelta(hero.x01AverageDelta);
 	const doubleDelta = formatDelta(hero.doublePctDelta);
 	const sparkPoints = career?.series?.x01_average;
+	const doublePoints = career?.series?.double_pct;
 	const hasSpark = (sparkPoints ?? []).filter((point) => point?.value != null).length >= 2;
+	const hasDoubleSpark = (doublePoints ?? []).filter((point) => point?.value != null).length >= 2;
 
 	return (
 		<View style={styles.wrap}>
@@ -186,7 +202,17 @@ const ProfileCareerDashboard = ({
 			{hasSpark ? (
 				<View style={[styles.chartCard, cardToneStyle(colors.accent)]}>
 					<Text style={styles.kicker}>Trend średniej X01</Text>
-					<Sparkline points={sparkPoints} />
+					<Sparkline points={sparkPoints} formatValue={(value) => formatAverage(value)} />
+				</View>
+			) : null}
+			{hasDoubleSpark ? (
+				<View style={[styles.chartCard, cardToneStyle(colors.success)]}>
+					<Text style={styles.kicker}>Trend double %</Text>
+					<Sparkline
+						points={doublePoints}
+						formatValue={(value) => `${Math.round(Number(value))}%`}
+						stroke={colors.success}
+					/>
 				</View>
 			) : null}
 
@@ -284,9 +310,29 @@ const styles = StyleSheet.create({
 	deltaUp: {
 		color: colors.successBright,
 	},
-	spark: {
-		height: 72,
+	chartRow: {
+		flexDirection: 'row',
+		alignItems: 'stretch',
+		gap: 6,
+	},
+	yAxis: {
+		width: 42,
+		justifyContent: 'space-between',
+		paddingVertical: 4,
+	},
+	xAxis: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginLeft: 48,
 		marginTop: 4,
+	},
+	axisText: {
+		fontSize: 10,
+		color: colors.textMuted,
+	},
+	spark: {
+		flex: 1,
+		height: 96,
 	},
 	chartCard: {
 		backgroundColor: colors.bgElevated,

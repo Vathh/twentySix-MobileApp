@@ -10,6 +10,7 @@ import { runPerDartUndoTests } from './perDartUndo.test.js';
 import { runFfaScoringSyncTests } from './ffaScoringSync.test.js';
 import { runH2hCancelledPayloadTests } from './h2hCancelledPayload.test.js';
 import { runScoringQueueAckTests } from './scoringQueueAck.test.js';
+import { runUndoVisitTests } from './undoVisit.test.js';
 import { runCanSwitchH2hMatchOpenerTests } from './canSwitchH2hMatchOpener.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
@@ -30,6 +31,7 @@ import {
 	SESSION_EXPIRED_MESSAGE,
 	setOnUnauthorized,
 } from '../../sessionExpired.js';
+import { setCurrentAccessToken } from '../../authTokenHolder.js';
 import { isTabletRefereeSession } from '../../authSessionKind.js';
 import { applyGameScoringState } from '../applyGameScoringState.js';
 import {
@@ -898,6 +900,18 @@ function testSessionExpired401UnifiesLogout() {
 	assert(calls === 1, 'parallel 401 notifies once');
 
 	setOnUnauthorized(null);
+
+	calls = 0;
+	setOnUnauthorized(() => {
+		calls += 1;
+	});
+	setCurrentAccessToken('current-token');
+	notifyIfUnauthorized(401, { accessToken: 'stale-token' });
+	assert(calls === 0, 'stale token 401 does not logout');
+	notifyIfUnauthorized(401, { accessToken: 'current-token' });
+	assert(calls === 1, 'current token 401 logs out');
+	setCurrentAccessToken(null);
+	setOnUnauthorized(null);
 }
 
 function testTabletRefereeSessionKind() {
@@ -953,6 +967,7 @@ const tests = [
 	['ffa scoring sync', runFfaScoringSyncTests],
 	['h2h cancelled payload', runH2hCancelledPayloadTests],
 	['scoring queue ack', runScoringQueueAckTests],
+	['undo visit leg target', runUndoVisitTests],
 	['h2h switch opener', runCanSwitchH2hMatchOpenerTests],
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],

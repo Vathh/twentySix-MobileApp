@@ -2,6 +2,7 @@ import {
 	ACCOUNT_LOGIN_API_URL,
 	ACCOUNT_LOGOUT_API_URL,
 	ACCOUNT_CHANGE_PASSWORD_API_URL,
+	ACCOUNT_FORGOT_PASSWORD_API_URL,
 	ACCOUNT_SESSION_REFRESH_API_URL,
 	LOGIN_API_URL,
 	REGISTER_API_URL,
@@ -68,6 +69,14 @@ export async function registerAccount({ name, email, password }) {
 		method: 'POST',
 		json: true,
 		body: { name, email, password },
+	});
+}
+
+export async function requestPasswordReset(email) {
+	return apiRequest(ACCOUNT_FORGOT_PASSWORD_API_URL, {
+		method: 'POST',
+		json: true,
+		body: { email },
 	});
 }
 

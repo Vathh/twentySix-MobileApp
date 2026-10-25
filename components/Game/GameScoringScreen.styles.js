@@ -40,10 +40,11 @@ export const gameScoringScreenStyles = StyleSheet.create({
 	},
 	matchFormatLabel: {
 		textAlign: 'center',
-		color: colors.textMuted,
-		fontSize: 13,
-		paddingTop: 4,
-		paddingBottom: 6,
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '600',
+		paddingTop: 6,
+		paddingBottom: 8,
 	},
 	counterHost: {
 		flex: 1,

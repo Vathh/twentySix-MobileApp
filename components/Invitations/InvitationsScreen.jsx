@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
+import { getCurrentAccessToken } from '../../helpers/authTokenHolder';
 import ScreenLoading from '../Common/ScreenLoading';
 import PlayerAvatar from '../Common/PlayerAvatar';
 import {
@@ -183,10 +184,18 @@ const InvitationsScreen = ({ navigation, route }) => {
 	}, [route?.params?.tab]);
 
 	const fetchSeqRef = useRef(0);
+	const hasLoadedRef = useRef(false);
+	const accessTokenRef = useRef(auth?.accessToken);
+	accessTokenRef.current = auth?.accessToken;
+	const sessionGate = auth?.accessToken ? 'in' : 'out';
 
 	const fetchAll = useCallback(async () => {
-		if (!auth?.accessToken) return;
+		const token = accessTokenRef.current;
+		if (!token) return;
 		const seq = ++fetchSeqRef.current;
+		if (!hasLoadedRef.current) {
+			setLoading(true);
+		}
 		try {
 			const [
 				tournamentRes,
@@ -196,15 +205,19 @@ const InvitationsScreen = ({ navigation, route }) => {
 				leagueRes,
 				friendsRes,
 			] = await Promise.all([
-				fetchTournamentInvitationsReceived(auth.accessToken),
-				fetchOrganizationInvitationsReceived(auth.accessToken),
-				fetchLeagueMembershipInvitationsReceived(auth.accessToken),
-				fetchQuickGameLobbyInvitations(auth.accessToken),
-				fetchLeagueGameInvitations(auth.accessToken),
-				fetchFriendInvitationsReceived(auth.accessToken),
+				fetchTournamentInvitationsReceived(token),
+				fetchOrganizationInvitationsReceived(token),
+				fetchLeagueMembershipInvitationsReceived(token),
+				fetchQuickGameLobbyInvitations(token),
+				fetchLeagueGameInvitations(token),
+				fetchFriendInvitationsReceived(token),
 			]);
 
 			if (seq !== fetchSeqRef.current) {
+				return;
+			}
+			const currentToken = getCurrentAccessToken();
+			if (currentToken && token !== currentToken) {
 				return;
 			}
 
@@ -230,8 +243,13 @@ const InvitationsScreen = ({ navigation, route }) => {
 			}
 
 			setError('');
+			hasLoadedRef.current = true;
 		} catch (e) {
 			if (seq !== fetchSeqRef.current) {
+				return;
+			}
+			const currentToken = getCurrentAccessToken();
+			if (currentToken && token !== currentToken) {
 				return;
 			}
 			setTournamentInvitations([]);
@@ -246,18 +264,17 @@ const InvitationsScreen = ({ navigation, route }) => {
 			setLoading(false);
 			setRefreshing(false);
 		}
-	}, [auth?.accessToken]);
+	}, []);
 
 	useFocusEffect(
 		useCallback(() => {
-			if (!auth?.accessToken) return undefined;
+			if (!accessTokenRef.current) return undefined;
 			setError('');
-			setLoading(true);
 			void fetchAll();
 			return () => {
 				fetchSeqRef.current += 1;
 			};
-		}, [auth?.accessToken, fetchAll]),
+		}, [fetchAll, sessionGate]),
 	);
 
 	const onRefresh = () => {

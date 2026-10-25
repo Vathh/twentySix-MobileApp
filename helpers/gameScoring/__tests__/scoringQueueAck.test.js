@@ -56,4 +56,5 @@ export function runScoringQueueAckTests() {
 		{ op: 'closeLeg', legId: 1, payload: { winnerId: 1 } },
 	);
 	assert(closed.currentLeg == null, 'closeLeg czyści lokalny leg');
+	assert(closed.pendingClosedLegId === 1, 'closeLeg pamięta leg do cofnięcia');
 }

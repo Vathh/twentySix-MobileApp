@@ -83,7 +83,7 @@ const ProfileBadges = ({
 }) => {
 	const items = Array.isArray(checkoutItems) ? checkoutItems : [];
 	const visits = Array.isArray(highVisitItems) ? highVisitItems : [];
-	const qf = (Array.isArray(qfItems) ? qfItems : []).filter((item) => (Number(item.timesEarned) || 0) > 0);
+	const qf = Array.isArray(qfItems) ? qfItems : [];
 	const finishes = Array.isArray(finishItems) ? finishItems : [];
 	const career = Array.isArray(careerItems) ? careerItems : [];
 	const unlocked = items.filter((item) => (item.timesEarned ?? 0) > 0).length;
@@ -262,8 +262,7 @@ function HighVisitRow({ items, onSelect }) {
 			<Text style={[styles.sectionLabel, styles.visitHeading]}>Mocny punkciarz</Text>
 			<View style={styles.visitRow}>
 				{items.map((item) => {
-					const times = Number(item.timesEarned) || 0;
-					const locked = times < 1;
+					const locked = item.levelName === 'locked' || !item.levelName;
 					const source = highVisitImage(item.key, item.levelName);
 					const id = `visit:${item.key}`;
 					const open = helpId === id;
@@ -311,6 +310,7 @@ function QfRow({ items, onSelect }) {
 			<Text style={[styles.sectionLabel, styles.visitHeading]}>Szybka akcja</Text>
 			<View style={styles.qfRow}>
 				{items.map((item) => {
+					const locked = item.levelName === 'locked' || !item.levelName || (Number(item.timesEarned) || 0) < 1;
 					const source = qfImage(item.key, item.levelName);
 					const id = `qf:${item.key}`;
 					const open = helpId === id;
@@ -320,14 +320,14 @@ function QfRow({ items, onSelect }) {
 							anchor={`qf-${item.key}`}
 							onPress={() => onSelect({ ...item, imageSource: source })}
 							style={[styles.qfCard, open && styles.cardRaised]}
-							accessibilityLabel={`${item.label}, ${item.levelLabel}`}
+							accessibilityLabel={`${item.label}, ${locked ? 'zablokowane' : item.levelLabel}`}
 						>
 							<BadgeHelp id={id} text={item.description} />
 							<View style={styles.visitImageFrame}>
 								{source ? (
 									<Image
 										source={source}
-										style={badgeArtworkStyle(item.artwork)}
+										style={[badgeArtworkStyle(item.artwork), locked && styles.visitImageLocked]}
 										resizeMode="stretch"
 									/>
 								) : null}

@@ -413,7 +413,10 @@ export function useGameScoring({
 			if (snapshot) {
 				applyStateSafeRef.current(snapshot, 'submit');
 			}
-			Alert.alert('Rozjazd wyniku', rejectionNotice(droppedTail));
+			Alert.alert(
+				entry.op === 'undoVisit' ? 'Cofnięcie wizyty' : 'Rozjazd wyniku',
+				rejectionNotice(droppedTail, entry.op),
+			);
 			return { continue: false, state: snapshot };
 		};
 

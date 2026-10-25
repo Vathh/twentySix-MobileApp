@@ -22,7 +22,7 @@ export async function fetchCompetitionPage(buildUrl, accessToken, page = 1) {
 		});
 
 		if (!res.ok) {
-			notifyIfUnauthorized(res.status);
+			notifyIfUnauthorized(res.status, { accessToken });
 			return {
 				items: [],
 				hasMore: false,
@@ -64,7 +64,7 @@ export async function fetchCompetitionDetail(url, accessToken) {
 			return { data: null, error: 'Nie znaleziono.' };
 		}
 		if (!res.ok) {
-			notifyIfUnauthorized(res.status);
+			notifyIfUnauthorized(res.status, { accessToken });
 			return {
 				data: null,
 				error: res.status === 401 ? SESSION_EXPIRED_MESSAGE : 'Nie udało się pobrać szczegółów.',
@@ -95,7 +95,7 @@ export async function fetchSeasonStandingsPage(seasonId, accessToken, page = 1) 
 		});
 
 		if (!res.ok) {
-			notifyIfUnauthorized(res.status);
+			notifyIfUnauthorized(res.status, { accessToken });
 			return {
 				items: [],
 				hasMore: false,

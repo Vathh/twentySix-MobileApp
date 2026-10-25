@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
 	Pressable,
 	RefreshControl,
@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
+import { getCurrentAccessToken } from '../../helpers/authTokenHolder';
 import { fetchCompetitionPage } from '../../helpers/competitionsApi';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
@@ -46,10 +47,16 @@ const CompetitionList = ({
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const requestSeqRef = useRef(0);
+	const hasLoadedRef = useRef(false);
+	const accessTokenRef = useRef(auth?.accessToken);
+	accessTokenRef.current = auth?.accessToken;
+	const sessionGate = auth?.accessToken ? 'in' : 'out';
 
 	const loadPage = useCallback(
 		async (nextPage, { append, soft } = {}) => {
-			if (!auth?.accessToken) {
+			const token = accessTokenRef.current;
+			if (!token) {
 				setItems([]);
 				setHasMore(false);
 				setError('Brak autoryzacji.');
@@ -57,13 +64,25 @@ const CompetitionList = ({
 				return;
 			}
 
+			const seq = ++requestSeqRef.current;
 			if (append) {
 				setLoadingMore(true);
-			} else if (!soft) {
+			} else if (!soft && !hasLoadedRef.current) {
 				setLoading(true);
 			}
 
-			const result = await fetchCompetitionPage(buildUrl, auth.accessToken, nextPage);
+			const result = await fetchCompetitionPage(buildUrl, token, nextPage);
+
+			if (seq !== requestSeqRef.current) {
+				return;
+			}
+			const currentToken = getCurrentAccessToken();
+			if (currentToken && token !== currentToken) {
+				setLoading(false);
+				setLoadingMore(false);
+				setRefreshing(false);
+				return;
+			}
 
 			if (result.error) {
 				if (!append) {
@@ -76,20 +95,24 @@ const CompetitionList = ({
 				setItems((prev) => (append ? [...prev, ...result.items] : result.items));
 				setHasMore(result.hasMore);
 				setPage(nextPage);
+				hasLoadedRef.current = true;
 			}
 
 			setLoading(false);
 			setLoadingMore(false);
 			setRefreshing(false);
 		},
-		[auth?.accessToken, buildUrl],
+		[buildUrl],
 	);
 
 	useFocusEffect(
 		useCallback(() => {
-			setLoading(true);
-			void loadPage(1, { append: false });
-		}, [loadPage]),
+			if (!accessTokenRef.current) return undefined;
+			void loadPage(1, { append: false, soft: hasLoadedRef.current });
+			return () => {
+				requestSeqRef.current += 1;
+			};
+		}, [loadPage, sessionGate]),
 	);
 
 	const onRefresh = () => {

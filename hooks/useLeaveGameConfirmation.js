@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useConfirm } from '../context/ConfirmProvider';
 import { GAME_MODE } from '../helpers/gameScoring';
 import { releaseTournamentGame } from '../helpers/lockTournamentGame';
-import { clearOutbox } from '../helpers/gameScoring/scoringOutbox';
+import { clearOutbox, loadOutbox } from '../helpers/gameScoring/scoringOutbox';
 import { postFfaPresence } from '../helpers/quickGameFfaApi';
 
 /**
@@ -24,6 +24,7 @@ export function useLeaveGameConfirmation({
 	intentionalFfaLeaveRef,
 	onClosedLeave,
 	lobbyScoringMode = 'each_own',
+	flushOutbox,
 }) {
 	const confirm = useConfirm();
 
@@ -44,6 +45,10 @@ export function useLeaveGameConfirmation({
 
 				void (async () => {
 					const isTournament = mode === GAME_MODE.TOURNAMENT;
+					const outboxKey = isTournament && tournamentGame?.id
+						? `scoring-outbox:tournament:${tournamentGame.type === 'playoff' ? 'playoff' : 'group'}:${tournamentGame.id}`
+						: null;
+					const pendingCount = outboxKey ? (await loadOutbox(outboxKey)).length : 0;
 					const ok = await confirm({
 						title: isOneDeviceFfa
 							? 'Wyjdź z ekranu gry?'
@@ -52,9 +57,11 @@ export function useLeaveGameConfirmation({
 								: 'Opuścić mecz?',
 						message: isOneDeviceFfa
 							? 'Gra pozostanie aktywna. Możesz wrócić z ekranu szybkiej gry albo skasować ją tam.'
-							: isTournament
-								? 'Inne urządzenie będzie mogło kontynuować ten mecz od ostatniej wizyty.'
-								: 'Czy na pewno chcesz opuścić mecz?',
+							: isTournament && pendingCount > 0
+								? 'Są niewysłane wyniki. Przed wyjściem spróbujemy je zapisać. Jeśli zapis się nie uda, przepadną.'
+								: isTournament
+									? 'Inne urządzenie będzie mogło kontynuować ten mecz od ostatniej wizyty.'
+									: 'Czy na pewno chcesz opuścić mecz?',
 						cancelLabel: isOneDeviceFfa ? 'Zostań' : 'Kontynuuj mecz',
 						confirmLabel: isOneDeviceFfa ? 'Wyjdź' : isTournament ? 'Wyjdź' : 'Opuść mecz',
 					});
@@ -66,6 +73,13 @@ export function useLeaveGameConfirmation({
 						accessToken
 					) {
 						const kind = tournamentGame.type === 'playoff' ? 'playoff' : 'group';
+						if (pendingCount > 0 && flushOutbox) {
+							try {
+								await flushOutbox();
+							} catch {
+								// Niewysłane wpisy i tak zdejmujemy przed release.
+							}
+						}
 						await clearOutbox(
 							`scoring-outbox:tournament:${kind}:${tournamentGame.id}`,
 						);
@@ -98,6 +112,7 @@ export function useLeaveGameConfirmation({
 			gameClosed,
 			tournamentGame,
 			accessToken,
+			flushOutbox,
 			syncEnabled,
 			lobbyId,
 			intentionalFfaLeaveRef,

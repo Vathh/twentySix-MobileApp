@@ -108,6 +108,7 @@ const GameList = ({ navigation }) => {
   const playoffGames = useMemo(
     () =>
       games
+        .filter((game) => game.player1?.id && game.player2?.id)
         .slice()
         .sort(
           (a, b) =>

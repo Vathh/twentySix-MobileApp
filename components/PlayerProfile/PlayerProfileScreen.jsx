@@ -26,9 +26,9 @@ const TAB_BADGES = 'badges';
 
 const TABS = [
 	{ key: TAB_OVERVIEW, label: 'Przegląd' },
-	{ key: TAB_HISTORY, label: 'Historia' },
-	{ key: TAB_CAREER, label: 'Kariera' },
-	{ key: TAB_BADGES, label: '100+' },
+	{ key: TAB_HISTORY, label: 'Historia meczów' },
+	{ key: TAB_CAREER, label: 'Statystyki' },
+	{ key: TAB_BADGES, label: 'Odznaczenia' },
 ];
 
 function ProfileTabBar({ activeTab, onChange }) {
@@ -182,6 +182,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							onEditPress={() =>
 								navigation.navigate('EditPlayerProfile', {
 									playerId,
+									name: profile?.player?.name ?? '',
 									description: profile?.player?.description ?? '',
 									avatarUrl: profile?.player?.avatarUrl ?? null,
 								})

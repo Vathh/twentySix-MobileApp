@@ -18,13 +18,16 @@ import { colors } from '../../theme/colors';
 import PlayerAvatar from '../Common/PlayerAvatar';
 
 const MAX_DESCRIPTION = 1000;
+const MAX_NAME = 20;
 
 const EditPlayerProfileScreen = ({ navigation, route }) => {
 	const { auth, setAuth, persistSession, rememberMePreferred } = useAuth();
 	const playerId = route?.params?.playerId;
+	const initialName = route?.params?.name ?? auth?.playerName ?? '';
 	const initialDescription = route?.params?.description ?? '';
 	const initialAvatarUrl = route?.params?.avatarUrl ?? null;
 
+	const [name, setName] = useState(initialName);
 	const [description, setDescription] = useState(initialDescription);
 	const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
 	const [picked, setPicked] = useState(null);
@@ -70,6 +73,16 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 			return;
 		}
 
+		const trimmedName = name.trim();
+		if (!trimmedName) {
+			setErrorMsg('Podaj nazwę');
+			return;
+		}
+		if (trimmedName.length > MAX_NAME) {
+			setErrorMsg(`Nazwa może mieć maksymalnie ${MAX_NAME} znaków`);
+			return;
+		}
+
 		if (description.length > MAX_DESCRIPTION) {
 			setErrorMsg(`Opis może mieć maksymalnie ${MAX_DESCRIPTION} znaków`);
 			return;
@@ -105,7 +118,7 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 			const { ok, data, status, error } = await updatePlayerProfile(
 				playerId,
 				auth.accessToken,
-				{ description },
+				{ name: trimmedName, description },
 			);
 
 			if (!ok) {
@@ -114,7 +127,11 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 			}
 
 			if (auth?.playerId != null && String(auth.playerId) === String(playerId)) {
-				const nextAuth = { ...auth, avatarUrl: nextAvatarUrl };
+				const nextAuth = {
+					...auth,
+					avatarUrl: nextAvatarUrl,
+					playerName: data?.player?.name ?? trimmedName,
+				};
 				setAuth(nextAuth);
 				await persistSession(nextAuth, rememberMePreferred);
 			}
@@ -170,6 +187,21 @@ const EditPlayerProfileScreen = ({ navigation, route }) => {
 						</View>
 						<Text style={styles.avatarHint}>JPEG, PNG lub WebP, do 2 MB. Systemowy kadr przytnie zdjęcie do kwadratu.</Text>
 					</View>
+					<Text style={styles.fieldLabel}>Nazwa</Text>
+					<TextInput
+						style={styles.nameInput}
+						placeholder="Twój nick"
+						placeholderTextColor={colors.placeholder}
+						value={name}
+						onChangeText={setName}
+						maxLength={MAX_NAME}
+						autoCapitalize="none"
+						autoCorrect={false}
+						editable={!loading}
+					/>
+					<Text style={styles.counter}>
+						{name.trim().length}/{MAX_NAME}
+					</Text>
 					<Text style={styles.fieldLabel}>Opis</Text>
 					<TextInput
 						style={styles.input}
@@ -274,6 +306,18 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		color: colors.dangerText,
 		marginBottom: 14,
+	},
+	nameInput: {
+		minHeight: 48,
+		marginBottom: 8,
+		color: colors.text,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
+		borderRadius: 10,
+		paddingVertical: 12,
+		paddingHorizontal: 14,
+		fontSize: 15,
 	},
 	input: {
 		minHeight: 140,

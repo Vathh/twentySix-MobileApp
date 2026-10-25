@@ -1249,6 +1249,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		intentionalFfaLeaveRef,
 		onClosedLeave: logoutAfterTournamentIfNeeded,
 		lobbyScoringMode,
+		flushOutbox: gameScoring.flushOutbox,
 	});
 
 	useTournamentScoringLease({

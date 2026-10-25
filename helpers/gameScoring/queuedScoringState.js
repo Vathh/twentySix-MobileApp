@@ -72,6 +72,7 @@ export function patchRawStateWithEntry(raw, entry) {
 		return bumpSessionVersion({
 			...raw,
 			currentLeg: null,
+			pendingClosedLegId: raw.currentLeg.id,
 		});
 	}
 	return raw;

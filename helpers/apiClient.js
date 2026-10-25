@@ -57,6 +57,7 @@ export async function apiRequest(url, { method = 'GET', accessToken, body, json 
 		notifyIfUnauthorized(res.status, {
 			url,
 			hasAccessToken: Boolean(accessToken),
+			accessToken,
 		});
 		return {
 			ok: res.ok,
