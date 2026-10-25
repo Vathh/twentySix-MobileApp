@@ -81,6 +81,12 @@ function scoreText(game, which) {
 	return String(value);
 }
 
+function gameIdentity(game) {
+	if (game?.slot) return String(game.slot);
+	if (game?.id != null) return `id-${game.id}`;
+	return '';
+}
+
 function playerLabel(player) {
 	const name = player?.name;
 	if (!name || name === 'TBD') return 'TBD';
@@ -129,14 +135,18 @@ function groupForRound(round, allRounds) {
 
 		const groups = [];
 		for (const game of games) {
-			if (used.has(game.id)) continue;
+			const identity = gameIdentity(game);
+			if (identity !== '' && used.has(identity)) continue;
 			if (!game.nextSlot) {
-				used.add(game.id);
+				if (identity !== '') used.add(identity);
 				groups.push({ games: [game], nextGameId: null, nextRound: null });
 				continue;
 			}
 			const pair = buckets.get(game.nextSlot) ?? [game];
-			pair.forEach((item) => used.add(item.id));
+			pair.forEach((item) => {
+				const itemIdentity = gameIdentity(item);
+				if (itemIdentity !== '') used.add(itemIdentity);
+			});
 			groups.push({
 				games: pair,
 				nextGameId: game.nextGameId ?? null,
@@ -475,7 +485,7 @@ function RoundList({ round, allRounds, highlightId = null, onPlayerPress, onAdva
 
 	return groups.map((group, index) => (
 		<BracketGroup
-			key={group.games.map((g) => g.id).join('-') || `g-${index}`}
+			key={group.games.map((g) => gameIdentity(g)).join('-') || `g-${index}`}
 			group={group}
 			highlightId={highlightId}
 			onPlayerPress={onPlayerPress}
@@ -492,7 +502,7 @@ function BracketGroup({ group, highlightId, onPlayerPress, onAdvance }) {
 			<View style={styles.groupCards}>
 				{group.games.map((game) => (
 					<PlayoffMatchCard
-						key={game.id}
+						key={gameIdentity(game)}
 						game={game}
 						compact={showArrow}
 						highlighted={highlightId === game.id}

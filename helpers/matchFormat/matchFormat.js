@@ -200,6 +200,38 @@ function dartLimitSuffix(format) {
 	return format?.dartLimit != null ? ` · max ${format.dartLimit} lotek` : '';
 }
 
+/** Dystans nad tarczą sędziowania: bez punktu startowego, licznik i tak go pokazuje. */
+export function formatScoringDistanceLabel(format) {
+	const f = normalizeMatchFormat(format);
+	const suffix = dartLimitSuffix(f);
+	if (isCricketFormat(f)) {
+		return `Cricket · do ${f.legsToWinSet} legów`;
+	}
+	if (isBob27Format(f)) {
+		const mode = f.bob27Mode === BOB27_MODE_EASY ? 'easy' : 'hard';
+		const bull = includesBob27Bull(f) ? 'z bullem' : 'bez bulla';
+		return `Bob's 27 · ${mode} · ${bull} · do ${f.legsToWinSet} legów`;
+	}
+	if (isAtcFormat(f)) {
+		return `Around the Clock · do ${f.legsToWinSet} legów`;
+	}
+	if (isCatch40Format(f)) {
+		return `Catch 40 · do ${f.legsToWinSet} legów`;
+	}
+	if (isCricket56Format(f)) {
+		return `Cricket 60 · do ${f.legsToWinSet} legów`;
+	}
+	if (isSingleSetFormat(f)) {
+		if (f.winMode === 'best_of') {
+			return `best of ${f.winLength}${suffix}`;
+		}
+
+		return `do ${f.legsToWinSet} legów${suffix}`;
+	}
+
+	return `${f.setsToWinMatch} sety · ${f.legsToWinSet} legi/set${suffix}`;
+}
+
 export function formatMatchLabel(format) {
 	const f = normalizeMatchFormat(format);
 	if (isCricketFormat(f)) {
