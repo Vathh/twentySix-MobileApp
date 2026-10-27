@@ -361,6 +361,20 @@ export const FRIENDS_INVITATIONS_SENT_URL =
 	FRIENDS_API_URL + '/invitations/sent';
 export const USERS_SEARCH_URL = API_BASE_URL + '/users/search';
 
+export const FEED_URL = API_BASE_URL + '/feed';
+export const FEED_PREFERENCES_URL = API_BASE_URL + '/feed/preferences';
+export const FEED_MUTES_URL = API_BASE_URL + '/feed/mutes';
+export const getActivityCommentsUrl = (activityId) =>
+	API_BASE_URL + '/feed/activities/' + activityId + '/comments';
+export const getActivityReactionUrl = (activityId) =>
+	API_BASE_URL + '/feed/activities/' + activityId + '/reaction';
+export const getCommentUrl = (commentId) =>
+	API_BASE_URL + '/feed/comments/' + commentId;
+export const getCommentReactionUrl = (commentId) =>
+	API_BASE_URL + '/feed/comments/' + commentId + '/reaction';
+export const getPlayerFeedUrl = (playerId) =>
+	API_BASE_URL + '/players/' + playerId + '/feed';
+
 export const getGameDetailUrl = (type, gameId) =>
 	API_BASE_URL + '/games/' + type + '/' + gameId;
 

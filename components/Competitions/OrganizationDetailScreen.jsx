@@ -12,6 +12,7 @@ import useAuth from '../../hooks/useAuth';
 import { fetchCompetitionDetail } from '../../helpers/competitionsApi';
 import { getOrganizationUrl } from '../../helpers/apiConfig';
 import DetailHeader from './DetailHeader';
+import FeedMuteButton from '../Activity/FeedMuteButton';
 import ScreenLoading from '../Common/ScreenLoading';
 import { colors } from '../../theme/colors';
 
@@ -87,6 +88,12 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 							{ label: 'Ligi', value: String(data?.leagues?.length ?? 0) },
 							{ label: 'Sezony', value: String(data?.seasons?.length ?? 0) },
 						]}
+					/>
+
+					<FeedMuteButton
+						accessToken={auth?.accessToken}
+						subjectType="organization"
+						subjectKey={organizationId}
 					/>
 
 					<Text style={styles.sectionTitle}>Ligi</Text>

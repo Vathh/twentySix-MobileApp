@@ -1,0 +1,98 @@
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import FeedEngagement from './FeedEngagement';
+import PlayerAvatar from '../Common/PlayerAvatar';
+import { colors } from '../../theme/colors';
+
+function feedAgo(iso) {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	const minutes = Math.round((Date.now() - date.getTime()) / 60000);
+	if (minutes < 1) return 'przed chwilą';
+	if (minutes < 60) return `${minutes} min temu`;
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return `${hours} godz. temu`;
+	const days = Math.round(hours / 24);
+	if (days === 1) return 'wczoraj';
+	if (days < 30) return `${days} dni temu`;
+	return date.toLocaleDateString('pl-PL');
+}
+
+const FeedPost = ({ item, accessToken }) => {
+	const navigation = useNavigation();
+	const actor = item?.actor ?? {};
+	const playerId = actor.playerId;
+	const kind = item?.kind?.label || 'Historia';
+
+	const openActor = () => {
+		if (!playerId) return;
+		navigation.push('PlayerProfile', { playerId, name: actor.name });
+	};
+
+	return (
+		<View style={styles.card}>
+			<View style={styles.head}>
+				<Pressable onPress={openActor} disabled={!playerId} accessibilityRole="button">
+					<PlayerAvatar
+						name={actor.name}
+						initials={actor.initials}
+						avatarUrl={actor.avatarUrl}
+						size={44}
+						rounded={22}
+					/>
+				</Pressable>
+				<View style={styles.identity}>
+					<Pressable onPress={openActor} disabled={!playerId}>
+						<Text style={styles.name} numberOfLines={1}>
+							{actor.name}
+						</Text>
+					</Pressable>
+					<Text style={styles.meta} numberOfLines={1}>
+						{item?.occurredAt ? `${feedAgo(item.occurredAt)} · ${kind}` : kind}
+					</Text>
+				</View>
+			</View>
+			<Text style={styles.body}>{item?.sentence}</Text>
+			<FeedEngagement item={item} accessToken={accessToken} />
+		</View>
+	);
+};
+
+const styles = StyleSheet.create({
+	card: {
+		borderWidth: 1,
+		borderColor: colors.border,
+		borderRadius: 12,
+		paddingVertical: 12,
+		paddingHorizontal: 14,
+		backgroundColor: colors.bgElevated,
+	},
+	head: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 12,
+	},
+	identity: {
+		flex: 1,
+		minWidth: 0,
+	},
+	name: {
+		color: colors.text,
+		fontSize: 15,
+		fontWeight: '700',
+	},
+	meta: {
+		marginTop: 2,
+		color: colors.textMuted,
+		fontSize: 12,
+	},
+	body: {
+		marginTop: 12,
+		color: colors.text,
+		fontSize: 15,
+		lineHeight: 22,
+	},
+});
+
+export default FeedPost;

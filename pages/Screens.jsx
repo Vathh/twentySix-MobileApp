@@ -34,6 +34,7 @@ import GameDetailScreen from '../components/Game/GameDetailScreen';
 import AccountScreen from '../components/Account/AccountScreen';
 import MyCompetitionsScreen from '../components/Account/MyCompetitionsScreen';
 import ChangePasswordScreen from '../components/Account/ChangePasswordScreen';
+import FeedSettingsScreen from '../components/Account/FeedSettingsScreen';
 import CompetitionsScreen from '../components/Competitions/CompetitionsScreen';
 import OrganizationsListScreen from '../components/Competitions/OrganizationsListScreen';
 import SeasonsListScreen from '../components/Competitions/SeasonsListScreen';
@@ -191,25 +192,35 @@ function KontoStack() {
 				component={ChangePasswordScreen}
 				options={{ title: 'Zmień hasło' }}
 			/>
+			<Stack.Screen
+				name="FeedSettings"
+				component={FeedSettingsScreen}
+				options={{ title: 'Tablica' }}
+			/>
 		</Stack.Navigator>
 	);
 }
 
-function HiddenHomeStack() {
+function FeedStack() {
 	return (
-		<Stack.Navigator screenOptions={{ headerShown: false }}>
-			<Stack.Screen name="HomeDashboard" component={HomeDashboard} />
+		<Stack.Navigator screenOptions={stackScreenOptions}>
+			<Stack.Screen
+				name="HomeDashboard"
+				component={HomeDashboard}
+				options={{ headerBackVisible: false, title: '' }}
+			/>
+			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
 		</Stack.Navigator>
 	);
 }
 
-const GrajTab = withAnimatedTabScene(GrajStack, { skipInitial: true, tabName: 'Graj' });
+const GrajTab = withAnimatedTabScene(GrajStack, { tabName: 'Graj' });
 const RozgrywkiTab = withAnimatedTabScene(RozgrywkiStack, { tabName: 'Rozgrywki' });
 const ZnajomiTab = withAnimatedTabScene(ZnajomiStack, { tabName: 'Znajomi' });
 const ZaproszeniaTab = withAnimatedTabScene(ZaproszeniaStack, { tabName: 'Zaproszenia' });
 const KontoTab = withAnimatedTabScene(KontoStack, { tabName: 'Konto' });
 
-/** Dolny pasek: Graj / Rozgrywki / Znajomi / Zaproszenia / Konto (+ ukryty Home). */
+/** Dolny pasek: Graj / Rozgrywki / Znajomi / Zaproszenia / Konto. Tablica bańki jest ukrytym pierwszym ekranem. */
 function UserMainTabs() {
 	return (
 		<TabTransitionProvider>
@@ -224,7 +235,7 @@ function UserMainTabsNavigator() {
 	return (
 		<Tab.Navigator
 			id="UserMainTabs"
-			initialRouteName="Graj"
+			initialRouteName="Home"
 			screenOptions={{
 				headerShown: false,
 				tabBarStyle: {
@@ -244,9 +255,10 @@ function UserMainTabsNavigator() {
 		>
 			<Tab.Screen
 				name="Home"
-				component={HiddenHomeStack}
+				component={FeedStack}
 				options={{
 					tabBarButton: () => null,
+					tabBarItemStyle: { display: 'none', width: 0 },
 				}}
 			/>
 			<Tab.Screen

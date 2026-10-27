@@ -40,7 +40,10 @@ function goToHome() {
 	}
 	const root = navigationRef.current.getRootState();
 	if (rootHasRoute(root, 'MainTabs')) {
-		navigate('MainTabs', { screen: 'Home' });
+		navigate('MainTabs', {
+			screen: 'Home',
+			params: { screen: 'HomeDashboard' },
+		});
 		return;
 	}
 	if (rootHasRoute(root, 'Home')) {
@@ -145,7 +148,7 @@ const HeaderTitle = () => {
 			onPress={goToHome}
 			hitSlop={scaleSize(8)}
 			accessibilityRole="button"
-			accessibilityLabel="twentysix — strona główna"
+			accessibilityLabel="Tablica"
 			style={styles.wrap}
 		>
 			<View style={styles.stage} collapsable={false}>

@@ -106,6 +106,12 @@ const AccountScreen = ({ navigation }) => {
 						onPress={() => navigation.navigate('MyCompetitions')}
 					/>
 					<MenuRow
+						icon="home-outline"
+						title="Tablica"
+						hint="Widoczność profilu i wyciszenia"
+						onPress={() => navigation.navigate('FeedSettings')}
+					/>
+					<MenuRow
 						icon="lock-closed-outline"
 						title="Zmień hasło"
 						last

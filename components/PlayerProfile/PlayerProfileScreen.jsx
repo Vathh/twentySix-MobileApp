@@ -12,20 +12,24 @@ import useAuth from '../../hooks/useAuth';
 import { fetchPlayerProfile } from '../../helpers/playerProfileApi';
 import ProfileHeader from './ProfileHeader';
 import ProfileFriendshipActions from './ProfileFriendshipActions';
+import FeedMuteButton from '../Activity/FeedMuteButton';
 import ProfileStatsOverview from './ProfileStatsOverview';
 import ProfileGameHistory from './ProfileGameHistory';
 import ProfileCareerDashboard from './ProfileCareerDashboard';
 import ProfileBadges from './ProfileBadges';
+import ProfileFeed from './ProfileFeed';
 import { colors } from '../../theme/colors';
 import ScreenLoading from '../Common/ScreenLoading';
 
 const TAB_OVERVIEW = 'overview';
+const TAB_FEED = 'feed';
 const TAB_HISTORY = 'history';
 const TAB_CAREER = 'career';
 const TAB_BADGES = 'badges';
 
 const TABS = [
-	{ key: TAB_OVERVIEW, label: 'Przegląd' },
+	{ key: TAB_OVERVIEW, label: 'Podsumowanie' },
+	{ key: TAB_FEED, label: 'Tablica' },
 	{ key: TAB_HISTORY, label: 'Historia meczów' },
 	{ key: TAB_CAREER, label: 'Statystyki' },
 	{ key: TAB_BADGES, label: 'Odznaczenia' },
@@ -197,6 +201,13 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								accessToken={auth?.accessToken}
 								onChanged={loadProfile}
 							/>
+							{profile?.player?.userId && !friendship?.isSelf ? (
+								<FeedMuteButton
+									accessToken={auth?.accessToken}
+									subjectType="user"
+									subjectKey={profile.player.userId}
+								/>
+							) : null}
 						</ProfileHeader>
 					</View>
 				</View>
@@ -225,6 +236,10 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 									})
 								}
 							/>
+						) : null}
+
+						{activeTab === TAB_FEED ? (
+							<ProfileFeed playerId={playerId} accessToken={auth?.accessToken} />
 						) : null}
 
 						{activeTab === TAB_HISTORY ? (
