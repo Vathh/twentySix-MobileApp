@@ -101,6 +101,7 @@ function GrajStack() {
 			<Stack.Screen name="TournamentCode" component={TournamentCode} />
 			<Stack.Screen name="JoinTournament" component={JoinTournamentScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen
 				name="EditPlayerProfile"
 				component={EditPlayerProfileScreen}
@@ -140,6 +141,7 @@ function ZnajomiStack() {
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="ZnajomiHome" component={FriendsScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen
 				name="EditPlayerProfile"
 				component={EditPlayerProfileScreen}
@@ -155,6 +157,7 @@ function ZaproszeniaStack() {
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="ZaproszeniaHome" component={InvitationsScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen
 				name="EditPlayerProfile"
 				component={EditPlayerProfileScreen}
@@ -210,6 +213,7 @@ function FeedStack() {
 				options={{ headerBackVisible: false, title: '' }}
 			/>
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 		</Stack.Navigator>
 	);
 }

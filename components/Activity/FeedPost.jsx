@@ -21,31 +21,37 @@ function feedAgo(iso) {
 
 const FeedPost = ({ item, accessToken }) => {
 	const navigation = useNavigation();
-	const actor = item?.actor ?? {};
-	const playerId = actor.playerId;
+	const header = item?.header ?? item?.actor ?? {};
 	const kind = item?.kind?.label || 'Historia';
+	const playerId = header.playerId;
+	const organizationId = header.organizationId;
 
-	const openActor = () => {
-		if (!playerId) return;
-		navigation.push('PlayerProfile', { playerId, name: actor.name });
+	const openHeader = () => {
+		if (organizationId) {
+			navigation.push('OrganizationDetail', { id: organizationId });
+			return;
+		}
+		if (playerId) {
+			navigation.push('PlayerProfile', { playerId, name: header.name });
+		}
 	};
 
 	return (
 		<View style={styles.card}>
 			<View style={styles.head}>
-				<Pressable onPress={openActor} disabled={!playerId} accessibilityRole="button">
+				<Pressable onPress={openHeader} disabled={!playerId && !organizationId} accessibilityRole="button">
 					<PlayerAvatar
-						name={actor.name}
-						initials={actor.initials}
-						avatarUrl={actor.avatarUrl}
+						name={header.name}
+						initials={header.initials}
+						avatarUrl={header.avatarUrl}
 						size={44}
 						rounded={22}
 					/>
 				</Pressable>
 				<View style={styles.identity}>
-					<Pressable onPress={openActor} disabled={!playerId}>
+					<Pressable onPress={openHeader} disabled={!playerId && !organizationId}>
 						<Text style={styles.name} numberOfLines={1}>
-							{actor.name}
+							{header.name}
 						</Text>
 					</Pressable>
 					<Text style={styles.meta} numberOfLines={1}>
