@@ -449,6 +449,36 @@ export const getTournamentGroupsLiveUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/groups-live';
 export const getTournamentPlayoffLiveUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/playoff-live';
+export const getTournamentSetupUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/setup';
+export const getTournamentUsersUrl = (tournamentId, query) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/users?q=' + encodeURIComponent(query);
+export const getTournamentInviteUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/invitations';
+export const getTournamentJoinSelfUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-self';
+export const getTournamentJoinRequestUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-request';
+export const getTournamentInvitationCancelUrl = (tournamentId, invitationId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/invitations/' + invitationId + '/cancel';
+export const getTournamentInvitationRemoveUrl = (tournamentId, invitationId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/invitations/' + invitationId + '/remove';
+export const getTournamentGuestsUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/guests';
+export const getTournamentRelatedGuestUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/guests/related';
+export const getTournamentJoinRequestApproveUrl = (tournamentId, requestId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-requests/' + requestId + '/approve';
+export const getTournamentJoinRequestRejectUrl = (tournamentId, requestId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-requests/' + requestId + '/reject';
+export const getTournamentStartUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/start';
+export const getTournamentTabletCodeUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/tablet-code';
+export const getOrganizationTournamentsUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/tournaments';
+export const getSeasonTournamentsUrl = (seasonId) =>
+	API_BASE_URL + '/seasons/' + seasonId + '/tournaments';
 
 export const PUSH_TOKENS_API_URL = API_BASE_URL + '/push-tokens';
 

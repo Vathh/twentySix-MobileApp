@@ -34,13 +34,15 @@ export default function TournamentScoringLeaveButton({ style }) {
  * Lista meczów tabletu — stack nie ma wstecz, więc strzałka wylogowuje do menu głównego.
  */
 export function TournamentRefereeExitButton({ style }) {
-	const { logout } = useAuth();
+	const { logout, suspendedAccount } = useAuth();
 	const confirm = useConfirm();
 
 	const onPress = async () => {
 		const ok = await confirm({
 			title: 'Wyjdź z sędziowania?',
-			message: 'Wrócisz do menu głównego. Żeby sędziować dalej, użyj ponownie kodu albo QR.',
+			message: suspendedAccount
+				? 'Wrócisz do swojego konta. Kod QR turnieju znajdziesz w Gdzie gram.'
+				: 'Wrócisz do menu głównego. Żeby sędziować dalej, użyj ponownie kodu albo QR.',
 			cancelLabel: 'Zostań',
 			confirmLabel: 'Wyjdź',
 		});

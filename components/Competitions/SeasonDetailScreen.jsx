@@ -180,6 +180,14 @@ const SeasonDetailScreen = ({ navigation, route }) => {
 					) : null}
 
 					<Text style={styles.sectionTitle}>Turnieje</Text>
+					{data?.canManage ? (
+						<Pressable
+							style={styles.manageButton}
+							onPress={() => navigation.navigate('CreateTournament', { seasonId })}
+						>
+							<Text style={styles.manageButtonText}>Nowy turniej</Text>
+						</Pressable>
+					) : null}
 					{(data?.tournaments ?? []).length === 0 ? (
 						<Text style={styles.empty}>Brak turniejów.</Text>
 					) : (
@@ -270,6 +278,14 @@ const styles = StyleSheet.create({
 	cardSub: { marginTop: 6, color: colors.textMuted, fontSize: 13 },
 	badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
 	badgeText: { fontSize: 11, fontWeight: '600' },
+	manageButton: {
+		marginBottom: 12,
+		backgroundColor: colors.accent,
+		borderRadius: 8,
+		paddingVertical: 12,
+		alignItems: 'center',
+	},
+	manageButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
 });
 
 export default SeasonDetailScreen;

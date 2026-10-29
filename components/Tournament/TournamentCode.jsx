@@ -20,7 +20,7 @@ import { colors } from '../../theme/colors'
  * route.params.code — opcjonalny kod ze skanu lub deep linku.
  */
 const TournamentCode = ({ route, navigation }) => {
-  const { setAuth } = useAuth()
+  const { setAuth, beginTabletReferee, auth } = useAuth()
   const initialCode = String(route?.params?.code ?? '').toUpperCase()
 
   const [code, setCode] = useState(initialCode)
@@ -54,10 +54,15 @@ const TournamentCode = ({ route, navigation }) => {
           return
         }
 
-        setAuth({
+        const next = {
           accessToken: data?.token,
           tournamentId: data?.tournamentId,
-        })
+        }
+        if (auth?.accessToken && auth?.tournamentId == null) {
+          beginTabletReferee(next)
+        } else {
+          setAuth(next)
+        }
       } catch (error) {
         setErrorMsg(userFacingErrorMessage({
           error,
@@ -68,7 +73,7 @@ const TournamentCode = ({ route, navigation }) => {
         setSubmitting(false)
       }
     },
-    [setAuth],
+    [setAuth, beginTabletReferee, auth?.accessToken, auth?.tournamentId],
   )
 
   useEffect(() => {

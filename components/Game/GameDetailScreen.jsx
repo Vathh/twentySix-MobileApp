@@ -5,6 +5,7 @@ import useAuth from '../../hooks/useAuth';
 import { fetchGameDetail } from '../../helpers/gameDetailApi';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 import { colors } from '../../theme/colors';
+import PlayerAvatar from '../Common/PlayerAvatar';
 import ScreenLoading from '../Common/ScreenLoading';
 
 function statusLabel(status) {
@@ -78,26 +79,74 @@ function cellValue(player, row) {
 	return showInt(player[row.key]);
 }
 
-function ScoreBoard({ game }) {
-	const winnerId = game?.winnerId != null ? Number(game.winnerId) : null;
-	const leftWins = winnerId != null && winnerId === Number(game?.player1?.id);
-	const rightWins = winnerId != null && winnerId === Number(game?.player2?.id);
+function PlayerCard({ player, wins, onPress }) {
+	const body = (
+		<View style={[styles.playerCard, wins && styles.playerCardWin]}>
+			<PlayerAvatar
+				name={player?.name}
+				initials={player?.initials}
+				avatarUrl={player?.avatarUrl}
+				size={76}
+				rounded={14}
+			/>
+			<Text style={[styles.playerName, wins && styles.scoreWin]} numberOfLines={3}>
+				{player?.name || '—'}
+			</Text>
+		</View>
+	);
+
+	if (!onPress) {
+		return <View style={styles.playerCardWrap}>{body}</View>;
+	}
 
 	return (
-		<View style={styles.scoreCard}>
-			<Text style={styles.format}>{game?.formatLabel || 'Mecz'}</Text>
-			<Text style={styles.scoreHint}>
-				Wynik meczu{game?.scoreUnit ? ` (${game.scoreUnit})` : ''}
-			</Text>
-			<View style={styles.scoreRow}>
-				<Text style={[styles.scoreNum, leftWins && styles.scoreWin]}>
-					{game?.player1Score ?? 0}
-				</Text>
-				<Text style={styles.scoreSep}>:</Text>
-				<Text style={[styles.scoreNum, rightWins && styles.scoreWin]}>
-					{game?.player2Score ?? 0}
-				</Text>
+		<Pressable style={styles.playerCardWrap} onPress={onPress} accessibilityRole="link">
+			{body}
+		</Pressable>
+	);
+}
+
+function ScoreBoard({ game, navigation }) {
+	const finished = game?.status === 'finished';
+	const winnerId = game?.winnerId != null ? Number(game.winnerId) : null;
+	const leftWins = finished && winnerId != null && winnerId === Number(game?.player1?.id);
+	const rightWins = finished && winnerId != null && winnerId === Number(game?.player2?.id);
+
+	const openPlayer = (player) => {
+		if (!player?.userId || !navigation) return;
+		navigation.navigate('PlayerProfile', { playerId: player.id, name: player.name });
+	};
+
+	return (
+		<View style={styles.board}>
+			<PlayerCard
+				player={game?.player1}
+				wins={leftWins}
+				onPress={game?.player1?.userId ? () => openPlayer(game.player1) : null}
+			/>
+			<View style={styles.boardMid}>
+				<View style={styles.scoreRow}>
+					<Text style={[styles.boardScore, leftWins && styles.scoreWin]}>
+						{game?.player1Score ?? 0}
+					</Text>
+					<Text style={styles.scoreSep}>:</Text>
+					<Text style={[styles.boardScore, rightWins && styles.scoreWin]}>
+						{game?.player2Score ?? 0}
+					</Text>
+				</View>
+				<Text style={styles.boardFormat}>{game?.formatLabel || 'Mecz'}</Text>
+				{game?.leagueMatchdayLabel ? (
+					<Text style={styles.boardNote}>{game.leagueMatchdayLabel}</Text>
+				) : null}
+				{game?.leagueWalkoverLabel ? (
+					<Text style={styles.boardNote}>{game.leagueWalkoverLabel}</Text>
+				) : null}
 			</View>
+			<PlayerCard
+				player={game?.player2}
+				wins={rightWins}
+				onPress={game?.player2?.userId ? () => openPlayer(game.player2) : null}
+			/>
 		</View>
 	);
 }
@@ -110,26 +159,26 @@ function StatsTable({ game }) {
 	return (
 		<View style={styles.section}>
 			<Text style={styles.sectionTitle}>Statystyki meczu</Text>
-			<View style={styles.table}>
-				<View style={styles.tableHead}>
-					<Text style={styles.tableLabel} />
-					<Text style={styles.tableName} numberOfLines={2}>
+			<View style={styles.stats}>
+				<View style={styles.statsHead}>
+					<Text style={styles.statsNameLeft} numberOfLines={2}>
 						{left?.name || game?.player1?.name || '-'}
 					</Text>
-					<Text style={styles.tableName} numberOfLines={2}>
+					<Text style={styles.statsLabel} />
+					<Text style={styles.statsNameRight} numberOfLines={2}>
 						{right?.name || game?.player2?.name || '-'}
 					</Text>
 				</View>
 				{STAT_SECTIONS.map((section) => (
 					<View key={section.title}>
-						<Text style={styles.tableSection}>{section.title}</Text>
+						<Text style={styles.statsGroup}>{section.title}</Text>
 						{section.rows
 							.filter((row) => !row.liveOnly || live)
 							.map((row) => (
-								<View key={row.key} style={styles.tableRow}>
-									<Text style={styles.tableLabel}>{row.label}</Text>
-									<Text style={styles.tableValue}>{cellValue(left, row)}</Text>
-									<Text style={styles.tableValue}>{cellValue(right, row)}</Text>
+								<View key={row.key} style={styles.statsRow}>
+									<Text style={styles.statsValueLeft}>{cellValue(left, row)}</Text>
+									<Text style={styles.statsLabel}>{row.label}</Text>
+									<Text style={styles.statsValueRight}>{cellValue(right, row)}</Text>
 								</View>
 							))}
 					</View>
@@ -292,7 +341,7 @@ function LegsBrowser({ game }) {
 	);
 }
 
-const GameDetailScreen = ({ route }) => {
+const GameDetailScreen = ({ route, navigation }) => {
 	const { auth } = useAuth();
 	const type = route?.params?.type;
 	const gameId = route?.params?.gameId;
@@ -355,15 +404,7 @@ const GameDetailScreen = ({ route }) => {
 				) : null}
 			</View>
 			{game.subtitle ? <Text style={styles.subtitle}>{game.subtitle}</Text> : null}
-			{freeForAll ? (
-				<Text style={styles.title}>Wynik meczu</Text>
-			) : (
-				<Text style={styles.title}>
-					{game.player1?.name || '—'}
-					<Text style={styles.vs}> vs </Text>
-					{game.player2?.name || '—'}
-				</Text>
-			)}
+			{freeForAll ? <Text style={styles.title}>Wynik meczu</Text> : null}
 			{freeForAll ? (
 				<View style={styles.scoreCard}>
 					<Text style={styles.format}>{game.formatLabel || 'Mecz'}</Text>
@@ -380,7 +421,7 @@ const GameDetailScreen = ({ route }) => {
 					))}
 				</View>
 			) : (
-				<ScoreBoard game={game} />
+				<ScoreBoard game={game} navigation={navigation} />
 			)}
 			{freeForAll ? null : <StatsTable game={game} />}
 			<LegsBrowser key={`${game.kind}-${game.gameId}-${game.sets?.length ?? 0}`} game={game} />
@@ -456,9 +497,60 @@ const styles = StyleSheet.create({
 		fontWeight: '700',
 		marginBottom: 16,
 	},
-	vs: {
+	board: {
+		flexDirection: 'row',
+		alignItems: 'stretch',
+		gap: 8,
+		marginBottom: 22,
+	},
+	playerCardWrap: {
+		flex: 1,
+		minWidth: 0,
+	},
+	playerCard: {
+		flex: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 10,
+		paddingVertical: 14,
+		paddingHorizontal: 6,
+		borderRadius: 14,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+	},
+	playerCardWin: {
+		borderColor: colors.accentBorder,
+		borderTopWidth: 3,
+		borderTopColor: colors.accent,
+	},
+	playerName: {
+		color: colors.text,
+		fontSize: 14,
+		fontWeight: '700',
+		textAlign: 'center',
+	},
+	boardMid: {
+		width: 96,
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 4,
+		paddingHorizontal: 2,
+	},
+	boardScore: {
+		color: colors.text,
+		fontSize: 30,
+		fontWeight: '800',
+	},
+	boardFormat: {
 		color: colors.textMuted,
-		fontWeight: '400',
+		fontSize: 11,
+		textAlign: 'center',
+	},
+	boardNote: {
+		color: colors.textMuted,
+		fontSize: 11,
+		textAlign: 'center',
 	},
 	scoreCard: {
 		backgroundColor: colors.bgElevated,
@@ -475,21 +567,9 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		marginBottom: 4,
 	},
-	scoreHint: {
-		color: colors.textDim,
-		fontSize: 12,
-		marginBottom: 8,
-	},
 	scoreRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
-	},
-	scoreNum: {
-		color: colors.text,
-		fontSize: 36,
-		fontWeight: '700',
-		minWidth: 48,
-		textAlign: 'center',
 	},
 	scoreWin: {
 		color: colors.accent,
@@ -509,21 +589,22 @@ const styles = StyleSheet.create({
 		fontWeight: '700',
 		marginBottom: 10,
 	},
-	table: {
+	stats: {
 		backgroundColor: colors.bgElevated,
-		borderRadius: 10,
+		borderRadius: 14,
 		borderWidth: 1,
 		borderColor: colors.border,
 		overflow: 'hidden',
 	},
-	tableHead: {
+	statsHead: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		gap: 6,
 		paddingVertical: 10,
 		paddingHorizontal: 10,
 		backgroundColor: colors.bgDeep,
 	},
-	tableSection: {
+	statsGroup: {
 		paddingVertical: 8,
 		paddingHorizontal: 10,
 		color: colors.accent,
@@ -531,35 +612,53 @@ const styles = StyleSheet.create({
 		fontWeight: '700',
 		letterSpacing: 0.6,
 		textTransform: 'uppercase',
+		textAlign: 'center',
 		backgroundColor: colors.accentMuted,
+		borderTopWidth: StyleSheet.hairlineWidth,
+		borderTopColor: colors.border,
 	},
-	tableRow: {
+	statsRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		gap: 6,
 		paddingVertical: 8,
 		paddingHorizontal: 10,
 		borderTopWidth: StyleSheet.hairlineWidth,
 		borderTopColor: colors.border,
 	},
-	tableLabel: {
-		flex: 1.3,
-		color: colors.textMuted,
-		fontSize: 13,
-		paddingRight: 6,
-	},
-	tableName: {
+	statsNameLeft: {
 		flex: 1,
 		color: colors.accent,
 		fontSize: 12,
 		fontWeight: '700',
+		textAlign: 'right',
+	},
+	statsNameRight: {
+		flex: 1,
+		color: colors.accent,
+		fontSize: 12,
+		fontWeight: '700',
+		textAlign: 'left',
+	},
+	statsLabel: {
+		width: 108,
+		color: colors.textMuted,
+		fontSize: 12,
 		textAlign: 'center',
 	},
-	tableValue: {
+	statsValueLeft: {
 		flex: 1,
 		color: colors.textSecondary,
-		fontSize: 13,
-		fontWeight: '600',
-		textAlign: 'center',
+		fontSize: 14,
+		fontWeight: '700',
+		textAlign: 'right',
+	},
+	statsValueRight: {
+		flex: 1,
+		color: colors.textSecondary,
+		fontSize: 14,
+		fontWeight: '700',
+		textAlign: 'left',
 	},
 	muted: {
 		color: colors.textMuted,

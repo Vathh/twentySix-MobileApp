@@ -102,7 +102,7 @@ const AccountScreen = ({ navigation }) => {
 					<MenuRow
 						icon="flag-outline"
 						title="Gdzie gram"
-						hint="Sezony, ligi i organizacje"
+						hint="Turnieje, sezony, ligi i organizacje"
 						onPress={() => navigation.navigate('MyCompetitions')}
 					/>
 					<MenuRow

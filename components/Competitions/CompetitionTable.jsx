@@ -16,6 +16,7 @@ const CompetitionTable = ({
 	emptyText = 'Brak danych.',
 	onPlayerPress,
 	onGameCellPress,
+	onGameDetailPress,
 	showHorizontalScroll = false,
 	freezePlayerColumn = false,
 	hugContent = false,
@@ -153,6 +154,16 @@ const CompetitionTable = ({
 								onGameCellPress
 									? raw.game
 									: null;
+							const detailGame =
+								!playableGame &&
+								!isPlayer &&
+								raw &&
+								typeof raw === 'object' &&
+								raw.openable &&
+								raw.game &&
+								onGameDetailPress
+									? raw.game
+									: null;
 							const sequence =
 								!isPlayer && raw && typeof raw === 'object' && raw.sequence != null
 									? raw.sequence
@@ -176,6 +187,19 @@ const CompetitionTable = ({
 											) : (
 												badge
 											)}
+										</Pressable>
+									);
+								}
+								if (detailGame) {
+									return (
+										<Pressable
+											key={col.key}
+											style={[cellWidth, styles.sequenceCell]}
+											onPress={() => onGameDetailPress(detailGame)}
+											accessibilityRole="button"
+											accessibilityLabel="Szczegóły meczu"
+										>
+											{badge}
 										</Pressable>
 									);
 								}
@@ -231,6 +255,29 @@ const CompetitionTable = ({
 												) : null}
 											</View>
 										)}
+									</Pressable>
+								);
+							}
+
+							if (detailGame) {
+								return (
+									<Pressable
+										key={col.key}
+										style={[cellWidth, live && styles.liveCell]}
+										onPress={() => onGameDetailPress(detailGame)}
+										accessibilityRole="button"
+										accessibilityLabel="Szczegóły meczu"
+									>
+										<View style={styles.liveScoreLine}>
+											{live ? <View style={styles.liveDot} /> : null}
+											<CellLines
+												text={text}
+												secondary={secondary}
+												textStyle={[styles.detailCellText, alignStyle(col.align)]}
+												align={alignStyle(col.align)}
+												lines={1}
+											/>
+										</View>
 									</Pressable>
 								);
 							}
@@ -519,6 +566,12 @@ const styles = StyleSheet.create({
 		color: colors.accent,
 		fontSize: 16,
 		fontWeight: '700',
+	},
+	detailCellText: {
+		color: colors.accent,
+		fontSize: 13,
+		fontWeight: '700',
+		fontVariant: ['tabular-nums'],
 	},
 	alignLeft: { textAlign: 'left' },
 	alignCenter: { textAlign: 'center' },

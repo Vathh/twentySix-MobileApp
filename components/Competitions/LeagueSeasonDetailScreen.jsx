@@ -96,16 +96,34 @@ const GameSide = ({ player, average, onPress, align }) => (
 	</View>
 );
 
-const GameRow = ({ game, onPlayerPress }) => (
-	<View style={styles.gameRow}>
-		<GameSide player={game.player1} average={game.player1Average} onPress={onPlayerPress} align="right" />
-		<Text style={styles.gameScore}>{gameScoreText(game)}</Text>
-		<GameSide player={game.player2} average={game.player2Average} onPress={onPlayerPress} />
-		{game.isThirdPlace ? <Text style={styles.gameHint}>· o 3. miejsce</Text> : null}
-	</View>
-);
+const GameRow = ({ game, onPlayerPress, onGamePress }) => {
+	const openable = Boolean(game?.id != null && onGamePress);
+	const body = (
+		<>
+			<GameSide player={game.player1} average={game.player1Average} onPress={onPlayerPress} align="right" />
+			<Text style={[styles.gameScore, openable && styles.gameScoreLink]}>{gameScoreText(game)}</Text>
+			<GameSide player={game.player2} average={game.player2Average} onPress={onPlayerPress} />
+			{game.isThirdPlace ? <Text style={styles.gameHint}>· o 3. miejsce</Text> : null}
+		</>
+	);
 
-const RoundBlock = ({ round, onPlayerPress }) => {
+	if (!openable) {
+		return <View style={styles.gameRow}>{body}</View>;
+	}
+
+	return (
+		<Pressable
+			style={({ pressed }) => [styles.gameRow, pressed && styles.gameRowPressed]}
+			onPress={() => onGamePress(game)}
+			accessibilityRole="button"
+			accessibilityLabel="Szczegóły meczu"
+		>
+			{body}
+		</Pressable>
+	);
+};
+
+const RoundBlock = ({ round, onPlayerPress, onGamePress }) => {
 	const [open, setOpen] = useState(round.isCurrent === true);
 
 	return (
@@ -119,14 +137,14 @@ const RoundBlock = ({ round, onPlayerPress }) => {
 			</Pressable>
 			{open
 				? (round.games ?? []).map((game) => (
-						<GameRow key={game.id} game={game} onPlayerPress={onPlayerPress} />
+						<GameRow key={game.id} game={game} onPlayerPress={onPlayerPress} onGamePress={onGamePress} />
 					))
 				: null}
 		</View>
 	);
 };
 
-const GamesListBlock = ({ games, onPlayerPress }) => {
+const GamesListBlock = ({ games, onPlayerPress, onGamePress }) => {
 	const [open, setOpen] = useState(false);
 	if (!games?.length) {
 		return null;
@@ -140,7 +158,7 @@ const GamesListBlock = ({ games, onPlayerPress }) => {
 			</Pressable>
 			{open
 				? games.map((game) => (
-						<GameRow key={game.id} game={game} onPlayerPress={onPlayerPress} />
+						<GameRow key={game.id} game={game} onPlayerPress={onPlayerPress} onGamePress={onGamePress} />
 					))
 				: null}
 		</View>
@@ -204,6 +222,11 @@ const LeagueSeasonDetailScreen = ({ navigation, route }) => {
 
 	const openPlayer = (playerId, name) => {
 		navigation.navigate('PlayerProfile', { playerId, name });
+	};
+
+	const openGame = (game) => {
+		if (game?.id == null) return;
+		navigation.navigate('GameDetail', { type: 'league', gameId: game.id });
 	};
 
 	return (
@@ -281,9 +304,9 @@ const LeagueSeasonDetailScreen = ({ navigation, route }) => {
 								onPlayerPress={openPlayer}
 							/>
 							{(selectedDivision.rounds ?? []).map((round) => (
-								<RoundBlock key={round.id} round={round} onPlayerPress={openPlayer} />
+								<RoundBlock key={round.id} round={round} onPlayerPress={openPlayer} onGamePress={openGame} />
 							))}
-							<GamesListBlock games={selectedDivision.games} onPlayerPress={openPlayer} />
+							<GamesListBlock games={selectedDivision.games} onPlayerPress={openPlayer} onGamePress={openGame} />
 						</View>
 					) : null}
 
@@ -291,7 +314,7 @@ const LeagueSeasonDetailScreen = ({ navigation, route }) => {
 						<>
 							<Text style={styles.sectionTitle}>Dogrywki</Text>
 							{(data?.tiebreakGames ?? []).map((game) => (
-								<GameRow key={game.id} game={game} onPlayerPress={openPlayer} />
+								<GameRow key={game.id} game={game} onPlayerPress={openPlayer} onGamePress={openGame} />
 							))}
 						</>
 					) : null}
@@ -300,7 +323,7 @@ const LeagueSeasonDetailScreen = ({ navigation, route }) => {
 						<>
 							<Text style={styles.sectionTitle}>Baraże</Text>
 							{(data?.playoffGames ?? []).map((game) => (
-								<GameRow key={game.id} game={game} onPlayerPress={openPlayer} />
+								<GameRow key={game.id} game={game} onPlayerPress={openPlayer} onGamePress={openGame} />
 							))}
 						</>
 					) : null}
@@ -351,9 +374,13 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		marginBottom: 8,
 	},
+	gameRowPressed: {
+		opacity: 0.75,
+	},
 	gameName: { color: colors.text, fontSize: 14, fontWeight: '600' },
 	gameNameLink: { color: colors.accent, fontSize: 14, fontWeight: '600' },
 	gameScore: { color: colors.textSecondary, fontSize: 14, fontVariant: ['tabular-nums'] },
+	gameScoreLink: { color: colors.accent, fontWeight: '700' },
 	gameSide: { maxWidth: '42%' },
 	gameSideRight: { alignItems: 'flex-end' },
 	gameAverage: {

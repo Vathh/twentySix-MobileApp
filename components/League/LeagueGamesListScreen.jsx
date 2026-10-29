@@ -169,6 +169,16 @@ export default function LeagueGamesListScreen({ navigation }) {
 									</Text>
 								</Pressable>
 							) : null}
+							{!game.canOpenLobby && !game.canEnterLobby && !game.canResumeScoring ? (
+								<Pressable
+									style={styles.buttonOutlined}
+									onPress={() =>
+										navigation.navigate('GameDetail', { type: 'league', gameId: game.id })
+									}
+								>
+									<Text style={styles.buttonOutlinedText}>Zobacz mecz</Text>
+								</Pressable>
+							) : null}
 						</View>
 					);
 				})

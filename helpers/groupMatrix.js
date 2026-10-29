@@ -32,7 +32,7 @@ function averageLabel(game, rowPlayerId) {
 
 export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = false } = {}) {
 	if (!game) {
-		return { text: '—', average: null, sequence: null, playable: false, game: null };
+		return { text: '—', average: null, sequence: null, playable: false, openable: false, game: null };
 	}
 	if (isFinishedStatus(game.status)) {
 		return {
@@ -41,6 +41,7 @@ export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = fals
 			sequence: null,
 			live: false,
 			playable: false,
+			openable: game.id != null,
 			game,
 		};
 	}
@@ -51,6 +52,7 @@ export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = fals
 			sequence: null,
 			live: true,
 			playable: playableUnfinished && game.lockedByOther !== true,
+			openable: game.id != null,
 			game,
 		};
 	}
@@ -60,20 +62,22 @@ export function matrixCellForPair(game, rowPlayerId, { playableUnfinished = fals
 			average: null,
 			sequence: game.sequence,
 			playable: playableUnfinished,
+			openable: game.id != null,
 			game,
 		};
 	}
 	if (playableUnfinished) {
-		return { text: '—', average: null, sequence: null, playable: true, game };
+		return { text: '—', average: null, sequence: null, playable: true, openable: game.id != null, game };
 	}
 	if (game.status === 'scheduled') {
-		return { text: '—', average: null, sequence: null, playable: false, game };
+		return { text: '—', average: null, sequence: null, playable: false, openable: game.id != null, game };
 	}
 	return {
 		text: scoreForRow(game, rowPlayerId),
 		average: averageLabel(game, rowPlayerId),
 		sequence: null,
 		playable: false,
+		openable: game.id != null,
 		game,
 	};
 }
@@ -142,7 +146,7 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 		};
 		standings.forEach((col) => {
 			if (row.playerId === col.playerId) {
-				next[`vs_${col.playerId}`] = { text: 'X', playable: false, game: null };
+				next[`vs_${col.playerId}`] = { text: 'X', playable: false, openable: false, game: null };
 				return;
 			}
 			next[`vs_${col.playerId}`] = matrixCellForPair(

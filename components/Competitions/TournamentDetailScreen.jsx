@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -17,6 +18,9 @@ import CompetitionTable from './CompetitionTable';
 import GroupRefereeLine from './GroupRefereeLine';
 import PlayoffBracket from './PlayoffBracket';
 import TournamentAchievements from './TournamentAchievements';
+import TabletLoginCard from '../Tournament/TabletLoginCard';
+import TournamentRosterPanel from '../Tournament/TournamentRosterPanel';
+import { applyTournamentJoin } from '../../helpers/tournamentManageApi';
 import { colors } from '../../theme/colors';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
 import { useTournamentCatalogLive } from '../../hooks/useTournamentCatalogLive';
@@ -43,6 +47,8 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
 	const [activeTab, setActiveTab] = useState('results');
+	const [tabletLogin, setTabletLogin] = useState(null);
+	const [joinBusy, setJoinBusy] = useState(false);
 
 	const load = useCallback(
 		async ({ soft } = {}) => {
@@ -63,6 +69,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 			} else {
 				setError('');
 				setData(result.data);
+				setTabletLogin(result.data?.tabletLogin ?? null);
 			}
 			setLoading(false);
 			setRefreshing(false);
@@ -75,6 +82,18 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 			void load();
 		}, [load]),
 	);
+
+	const applyJoin = async () => {
+		setJoinBusy(true);
+		setError('');
+		const result = await applyTournamentJoin(auth?.accessToken, tournamentId);
+		setJoinBusy(false);
+		if (!result.ok) {
+			setError(result.message);
+			return;
+		}
+		void load({ soft: true });
+	};
 
 	const liveStatus = data?.tournament?.status === 'group' || data?.tournament?.status === 'playoff';
 	useTournamentCatalogLive({
@@ -105,6 +124,16 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 
 	const openPlayer = (playerId, name) => {
 		navigation.navigate('PlayerProfile', { playerId, name });
+	};
+
+	const openGroupGame = (game) => {
+		if (game?.id == null) return;
+		navigation.navigate('GameDetail', { type: 'group', gameId: game.id });
+	};
+
+	const openPlayoffGame = (game) => {
+		if (game?.id == null) return;
+		navigation.navigate('GameDetail', { type: 'playoff', gameId: game.id });
 	};
 
 	if (loading) {
@@ -183,6 +212,50 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 						meta={[{ label: 'Data rozgrywek', value: tournament.date || '—' }]}
 					/>
 
+					{data?.canManage && !tournament.isStarted ? (
+						<TournamentRosterPanel tournamentId={tournamentId} navigation={navigation} />
+					) : null}
+
+					{!data?.canManage && !tournament.isStarted && data?.roster ? (
+						<View style={styles.rosterPublic}>
+							<Text style={styles.sectionTitle}>Skład</Text>
+							<Text style={styles.rosterCount}>
+								{data.roster.participantCount} / min. {data.roster.minPlayers}
+							</Text>
+							{(data.roster.participants ?? []).length === 0 ? (
+								<Text style={styles.empty}>Jeszcze nikt nie jest w składzie.</Text>
+							) : (
+								(data.roster.participants ?? []).map((person) => (
+									<Text key={`${person.kind}-${person.name}`} style={styles.rosterName}>
+										{person.name}{person.kind === 'guest' ? ' · gość' : ''}
+									</Text>
+								))
+							)}
+							{data.join?.alreadyParticipant ? (
+								<Text style={styles.rosterNote}>Jesteś w składzie tego turnieju.</Text>
+							) : null}
+							{data.join?.alreadyPending ? (
+								<Text style={styles.rosterNote}>Zgłoszenie wysłane. Czekasz na decyzję organizatora.</Text>
+							) : null}
+							{data.join?.canApply ? (
+								<Pressable style={styles.manageButton} onPress={applyJoin} disabled={joinBusy}>
+									<Text style={styles.manageButtonText}>
+										{joinBusy ? 'Wysyłanie…' : 'Zgłoś się'}
+									</Text>
+								</Pressable>
+							) : null}
+						</View>
+					) : null}
+
+					{data?.canManage && tabletLogin ? (
+						<TabletLoginCard
+							login={tabletLogin}
+							accessToken={auth?.accessToken}
+							tournamentId={tournamentId}
+							onCodeChange={setTabletLogin}
+						/>
+					) : null}
+
 					{tabs.length === 0 ? (
 						<Text style={styles.empty}>
 							Turniej jeszcze się nie rozpoczął. Wyniki i tabele pojawią się po starcie.
@@ -224,6 +297,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 													rows={matrix.rows}
 													emptyText="Brak tabeli."
 													onPlayerPress={openPlayer}
+													onGameDetailPress={openGroupGame}
 													showHorizontalScroll
 													freezePlayerColumn
 												/>
@@ -241,6 +315,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 										<PlayoffBracket
 											rounds={data?.playoff ?? []}
 											onPlayerPress={openPlayer}
+											onGamePress={openPlayoffGame}
 										/>
 										<Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
 											Drabinka pocieszenia
@@ -248,12 +323,14 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 										<PlayoffBracket
 											rounds={data.consolationPlayoff}
 											onPlayerPress={openPlayer}
+											onGamePress={openPlayoffGame}
 										/>
 									</>
 								) : (
 									<PlayoffBracket
 										rounds={data?.playoff ?? []}
 										onPlayerPress={openPlayer}
+										onGamePress={openPlayoffGame}
 									/>
 								)
 							) : null}
@@ -299,6 +376,18 @@ const styles = StyleSheet.create({
 	sectionTitleSpaced: {
 		marginTop: 24,
 	},
+	manageButton: {
+		marginTop: 16,
+		backgroundColor: colors.accent,
+		borderRadius: 8,
+		paddingVertical: 12,
+		alignItems: 'center',
+	},
+	manageButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
+	rosterPublic: { marginTop: 16 },
+	rosterCount: { color: colors.text, fontWeight: '700', marginBottom: 8 },
+	rosterName: { color: colors.text, fontSize: 15, paddingVertical: 4 },
+	rosterNote: { color: colors.textMuted, marginTop: 8 },
 });
 
 export default TournamentDetailScreen;

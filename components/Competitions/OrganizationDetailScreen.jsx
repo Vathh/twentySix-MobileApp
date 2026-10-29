@@ -113,6 +113,14 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 					)}
 
 					<Text style={styles.sectionTitle}>Turnieje jednorazowe</Text>
+					{data?.canManage ? (
+						<Pressable
+							style={styles.manageButton}
+							onPress={() => navigation.navigate('CreateTournament', { organizationId })}
+						>
+							<Text style={styles.manageButtonText}>Nowy turniej</Text>
+						</Pressable>
+					) : null}
 					{(data?.oneOffTournaments ?? []).length === 0 ? (
 						<Text style={styles.empty}>Brak turniejów jednorazowych.</Text>
 					) : (
@@ -175,6 +183,14 @@ const styles = StyleSheet.create({
 		marginBottom: 10,
 	},
 	linkCardText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+	manageButton: {
+		marginBottom: 12,
+		backgroundColor: colors.accent,
+		borderRadius: 8,
+		paddingVertical: 12,
+		alignItems: 'center',
+	},
+	manageButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
 });
 
 export default OrganizationDetailScreen;

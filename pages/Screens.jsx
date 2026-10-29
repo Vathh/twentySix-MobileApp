@@ -26,6 +26,8 @@ import TrainingHub from '../components/QuickGame/TrainingHub';
 import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
 import TrainingHistoryList from '../components/QuickGame/TrainingHistoryList';
 import TrainingGameDetail from '../components/QuickGame/TrainingGameDetail';
+import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
+import TournamentSetupScreen from '../components/Tournament/TournamentSetupScreen';
 import FriendsScreen from '../components/Friends/FriendsScreen';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import PlayerProfileScreen from '../components/PlayerProfile/PlayerProfileScreen';
@@ -108,6 +110,9 @@ function GrajStack() {
 				options={{ title: 'Edycja profilu' }}
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
+			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -132,6 +137,8 @@ function RozgrywkiStack() {
 				options={{ title: 'Edycja profilu' }}
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 		</Stack.Navigator>
 	);
 }
@@ -148,6 +155,9 @@ function ZnajomiStack() {
 				options={{ title: 'Edycja profilu' }}
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
+			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -164,6 +174,9 @@ function ZaproszeniaStack() {
 				options={{ title: 'Edycja profilu' }}
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
+			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
 	);
 }
@@ -200,6 +213,8 @@ function KontoStack() {
 				component={FeedSettingsScreen}
 				options={{ title: 'Tablica' }}
 			/>
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 		</Stack.Navigator>
 	);
 }
@@ -214,6 +229,9 @@ function FeedStack() {
 			/>
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
+			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
+			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
 	);
 }

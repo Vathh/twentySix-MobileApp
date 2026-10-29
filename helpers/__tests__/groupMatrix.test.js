@@ -38,12 +38,14 @@ const open = group.games[1];
 const finishedCell = matrixCellForPair(finished, 1, { playableUnfinished: true });
 assert(finishedCell.text === '3 - 0', 'finished score from row player 1');
 assert(finishedCell.playable === false, 'finished not playable');
+assert(finishedCell.openable === true, 'finished cell opens match detail');
 assert(finishedCell.average == null, 'finished without visits has no average');
 
 const openCell = matrixCellForPair(open, 1, { playableUnfinished: true });
 assert(openCell.text === '—', 'open is dash');
 assert(openCell.sequence == null, 'open without sequence has no badge');
 assert(openCell.playable === true, 'open is playable');
+assert(openCell.openable === true, 'scheduled cell opens match detail');
 assert(openCell.game.id === 11, 'open keeps game');
 
 const numbered = matrixCellForPair(
@@ -58,6 +60,7 @@ assert(numbered.playable === true, 'numbered cell stays playable');
 const matrix = buildGroupMatrix(group, { playableUnfinished: true });
 assert(matrix.rows[0][`vs_1`].text === 'X', 'diagonal X');
 assert(matrix.rows[0][`vs_1`].playable === false, 'diagonal not playable');
+assert(matrix.rows[0][`vs_1`].openable === false, 'diagonal does not open a match');
 
 const scored = matrixCellForPair(
 	{ ...finished, player1Average: 80.5, player2Average: 40 },

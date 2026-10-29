@@ -7,7 +7,7 @@ import { SESSION_EXPIRED_MESSAGE } from './sessionExpired';
  *
  * @returns {Promise<{
  *   ok: true,
- *   data: { seasons: Array, leagues: Array, organizations: Array }
+ *   data: { tournaments: Array, seasons: Array, leagues: Array, organizations: Array }
  * } | { ok: false, status: number, message: string }>}
  */
 export async function fetchMyCompetitions(accessToken) {
@@ -31,6 +31,7 @@ export async function fetchMyCompetitions(accessToken) {
 		return {
 			ok: true,
 			data: {
+				tournaments: Array.isArray(data?.tournaments) ? data.tournaments : [],
 				seasons: Array.isArray(data?.seasons) ? data.seasons : [],
 				leagues: Array.isArray(data?.leagues) ? data.leagues : [],
 				organizations: Array.isArray(data?.organizations) ? data.organizations : [],

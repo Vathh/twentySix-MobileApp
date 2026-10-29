@@ -193,11 +193,17 @@ function indexOfRound(rounds, key) {
 	return idx < 0 ? 0 : idx;
 }
 
+function canOpenPlayoffGame(game) {
+	if (game?.id == null) return false;
+	if (game.status === 'finished' || game.status === 'in_progress') return true;
+	return game.status === 'scheduled' && Boolean(game.player1?.id) && Boolean(game.player2?.id);
+}
+
 /**
  * Drabinka playoff w stylu Flashscore: zakładki rund, pary karmiące
  * następny mecz + łuk ze strzałką w prawo. Swipe jak karuzela.
  */
-export default function PlayoffBracket({ rounds = [], onPlayerPress }) {
+export default function PlayoffBracket({ rounds = [], onPlayerPress, onGamePress }) {
 	const list = Array.isArray(rounds) ? rounds : [];
 	const roundKey = list.map((r) => r.round).join('|');
 	const [activeRound, setActiveRound] = useState(() => pickInitialRoundKey(list));
@@ -457,6 +463,7 @@ export default function PlayoffBracket({ rounds = [], onPlayerPress }) {
 										allRounds={list}
 										highlightId={active ? highlightId : null}
 										onPlayerPress={active ? onPlayerPress : undefined}
+										onGamePress={active ? onGamePress : undefined}
 										onAdvance={
 											active
 												? (group) =>
@@ -474,7 +481,7 @@ export default function PlayoffBracket({ rounds = [], onPlayerPress }) {
 	);
 }
 
-function RoundList({ round, allRounds, highlightId = null, onPlayerPress, onAdvance }) {
+function RoundList({ round, allRounds, highlightId = null, onPlayerPress, onGamePress, onAdvance }) {
 	const groups = round ? groupForRound(round, allRounds) : [];
 	if (!round) {
 		return <View />;
@@ -489,12 +496,13 @@ function RoundList({ round, allRounds, highlightId = null, onPlayerPress, onAdva
 			group={group}
 			highlightId={highlightId}
 			onPlayerPress={onPlayerPress}
+			onGamePress={onGamePress}
 			onAdvance={onAdvance ? () => onAdvance(group) : undefined}
 		/>
 	));
 }
 
-function BracketGroup({ group, highlightId, onPlayerPress, onAdvance }) {
+function BracketGroup({ group, highlightId, onPlayerPress, onGamePress, onAdvance }) {
 	const showArrow = group.games.length > 1 && !!group.nextRound;
 
 	return (
@@ -507,6 +515,7 @@ function BracketGroup({ group, highlightId, onPlayerPress, onAdvance }) {
 						compact={showArrow}
 						highlighted={highlightId === game.id}
 						onPlayerPress={onPlayerPress}
+						onGamePress={onGamePress}
 					/>
 				))}
 			</View>
@@ -526,19 +535,18 @@ function PairConnector({ onPress }) {
 	);
 }
 
-function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress }) {
+function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress, onGamePress }) {
 	const winnerId = winnerIdOf(game);
 	const live = game.status === 'in_progress';
-
-	return (
-		<View
-			style={[
-				styles.card,
-				compact && styles.cardCompact,
-				live && styles.cardLive,
-				highlighted && styles.cardHighlight,
-			]}
-		>
+	const canOpen = Boolean(onGamePress) && canOpenPlayoffGame(game);
+	const cardStyle = [
+		styles.card,
+		compact && styles.cardCompact,
+		live && styles.cardLive,
+		highlighted && styles.cardHighlight,
+	];
+	const body = (
+		<>
 			{live ? <Text style={styles.liveBadge}>Na żywo</Text> : null}
 			<PlayerRow
 				player={game.player1}
@@ -557,7 +565,22 @@ function PlayoffMatchCard({ game, compact, highlighted, onPlayerPress }) {
 				tbd={!game.player2?.id}
 				onPress={onPlayerPress}
 			/>
-		</View>
+		</>
+	);
+
+	if (!canOpen) {
+		return <View style={cardStyle}>{body}</View>;
+	}
+
+	return (
+		<Pressable
+			style={({ pressed }) => [...cardStyle, pressed && styles.cardPressed]}
+			onPress={() => onGamePress(game)}
+			accessibilityRole="button"
+			accessibilityLabel="Szczegóły meczu"
+		>
+			{body}
+		</Pressable>
 	);
 }
 
@@ -725,6 +748,9 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		marginBottom: 8,
 		overflow: 'hidden',
+	},
+	cardPressed: {
+		opacity: 0.75,
 	},
 	cardCompact: {
 		marginBottom: 0,

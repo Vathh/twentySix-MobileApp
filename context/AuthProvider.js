@@ -26,13 +26,17 @@ const AuthContext = createContext({
 	persistSession: async () => {},
 	logout: async () => {},
 	applyAuthFromApi: () => ({}),
+	beginTabletReferee: () => {},
+	suspendedAccount: null,
 });
 
 export const AuthProvider = ({ children }) => {
 	const [auth, setAuth] = useState({});
 	const [authLoading, setAuthLoading] = useState(true);
 	const [rememberMePreferred, setRememberMePreferred] = useState(true);
+	const [suspendedAccount, setSuspendedAccount] = useState(null);
 	const authRef = useRef(auth);
+	const suspendedAccountRef = useRef(null);
 	authRef.current = auth;
 	const refreshInFlightRef = useRef(null);
 
@@ -79,6 +83,19 @@ export const AuthProvider = ({ children }) => {
 		return result;
 	}, [refreshRememberedSession]);
 
+	const beginTabletReferee = useCallback((tabletAuth) => {
+		const current = authRef.current;
+		if (current?.accessToken && !isTabletRefereeSession(current)) {
+			suspendedAccountRef.current = current;
+			setSuspendedAccount(current);
+		}
+		setCurrentAccessToken(tabletAuth?.accessToken ?? null);
+		setAuth({
+			accessToken: tabletAuth?.accessToken ?? null,
+			tournamentId: tabletAuth?.tournamentId ?? null,
+		});
+	}, []);
+
 	const applyAuthFromApi = useCallback((data) => {
 		const next = mapLoginResponseToAuth(data);
 		setCurrentAccessToken(next.accessToken);
@@ -102,6 +119,14 @@ export const AuthProvider = ({ children }) => {
 		const token = current?.accessToken;
 
 		if (isTabletRefereeSession(current)) {
+			const suspended = suspendedAccountRef.current;
+			suspendedAccountRef.current = null;
+			setSuspendedAccount(null);
+			if (suspended?.accessToken) {
+				setCurrentAccessToken(suspended.accessToken);
+				setAuth(suspended);
+				return;
+			}
 			setCurrentAccessToken(null);
 			setAuth({});
 			const stored = await loadStoredSession();
@@ -210,6 +235,8 @@ export const AuthProvider = ({ children }) => {
 				persistSession,
 				logout,
 				applyAuthFromApi,
+				beginTabletReferee,
+				suspendedAccount,
 			}}
 		>
 			{children}

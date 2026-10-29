@@ -16,6 +16,23 @@ import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import ScreenLoading from '../Common/ScreenLoading';
 
+function formatTournamentMeta(item) {
+	const parts = [];
+	if (item.organizationName) {
+		parts.push(item.organizationName);
+	}
+	if (item.seasonName) {
+		parts.push(item.seasonName);
+	}
+	if (item.date) {
+		parts.push(item.date);
+	}
+	if (item.statusLabel) {
+		parts.push(item.statusLabel);
+	}
+	return parts.join(' · ');
+}
+
 function formatSeasonMeta(item) {
 	const parts = [];
 	if (item.organizationName) {
@@ -95,9 +112,10 @@ const Section = ({ title, emptyText, items, onPress, onLeave, subtitle, icon }) 
 	</View>
 );
 
-/** Sezony turniejowe, ligi i organizacje, z którymi użytkownik jest powiązany. */
+/** Sezony turniejowe, turnieje, ligi i organizacje, z którymi użytkownik jest powiązany. */
 const MyCompetitionsScreen = ({ navigation }) => {
 	const { auth } = useAuth();
+	const [tournaments, setTournaments] = useState([]);
 	const [seasons, setSeasons] = useState([]);
 	const [leagues, setLeagues] = useState([]);
 	const [organizations, setOrganizations] = useState([]);
@@ -120,6 +138,7 @@ const MyCompetitionsScreen = ({ navigation }) => {
 			const result = await fetchMyCompetitions(auth.accessToken);
 			if (!result.ok) {
 				if (!soft) {
+					setTournaments([]);
 					setSeasons([]);
 					setLeagues([]);
 					setOrganizations([]);
@@ -127,6 +146,7 @@ const MyCompetitionsScreen = ({ navigation }) => {
 				setError(result.message);
 			} else {
 				setError('');
+				setTournaments(result.data.tournaments);
 				setSeasons(result.data.seasons);
 				setLeagues(result.data.leagues);
 				setOrganizations(result.data.organizations);
@@ -194,10 +214,18 @@ const MyCompetitionsScreen = ({ navigation }) => {
 		>
 			<View style={styles.form}>
 				<Text style={styles.lead}>
-					Sezony, ligi i organizacje, w których jesteś w składzie albo którymi zarządzasz.
+					Turnieje, sezony, ligi i organizacje, w których grasz albo którymi zarządzasz.
 				</Text>
 				{error ? <Text style={styles.error}>{error}</Text> : null}
 
+				<Section
+					title="Turnieje"
+					icon="trophy-outline"
+					emptyText="Nie masz teraz turnieju do rozegrania ani do prowadzenia."
+					items={tournaments}
+					subtitle={formatTournamentMeta}
+					onPress={(item) => navigation.navigate('TournamentDetail', { id: item.id })}
+				/>
 				<Section
 					title="Sezony"
 					icon="calendar-outline"
