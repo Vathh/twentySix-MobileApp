@@ -19,6 +19,30 @@ function feedAgo(iso) {
 	return date.toLocaleDateString('pl-PL');
 }
 
+function Sentence({ item, navigation }) {
+	const parts = Array.isArray(item?.sentenceParts) && item.sentenceParts.length > 0
+		? item.sentenceParts
+		: [{ text: item?.sentence || '' }];
+
+	return (
+		<Text style={styles.body}>
+			{parts.map((part, index) => (
+				part?.playerId ? (
+					<Text
+						key={index}
+						style={styles.mention}
+						onPress={() => navigation.push('PlayerProfile', { playerId: part.playerId, name: part.text })}
+					>
+						{part.text}
+					</Text>
+				) : (
+					<Text key={index}>{part?.text || ''}</Text>
+				)
+			))}
+		</Text>
+	);
+}
+
 const FeedPost = ({ item, accessToken }) => {
 	const navigation = useNavigation();
 	const header = item?.header ?? item?.actor ?? {};
@@ -59,7 +83,7 @@ const FeedPost = ({ item, accessToken }) => {
 					</Text>
 				</View>
 			</View>
-			<Text style={styles.body}>{item?.sentence}</Text>
+			<Sentence item={item} navigation={navigation} />
 			<FeedEngagement item={item} accessToken={accessToken} />
 		</View>
 	);
@@ -98,6 +122,10 @@ const styles = StyleSheet.create({
 		color: colors.text,
 		fontSize: 15,
 		lineHeight: 22,
+	},
+	mention: {
+		color: colors.accent,
+		fontWeight: '700',
 	},
 });
 

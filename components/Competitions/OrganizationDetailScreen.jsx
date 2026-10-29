@@ -87,6 +87,7 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 							{ label: 'Ostatnia aktywność', value: organization.updatedAt || '—' },
 							{ label: 'Ligi', value: String(data?.leagues?.length ?? 0) },
 							{ label: 'Sezony', value: String(data?.seasons?.length ?? 0) },
+							{ label: 'Jednorazowe', value: String(data?.oneOffTournaments?.length ?? 0) },
 						]}
 					/>
 
@@ -107,6 +108,21 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 								onPress={() => navigation.navigate('LeagueDetail', { id: league.id })}
 							>
 								<Text style={styles.linkCardText}>{league.name}</Text>
+							</Pressable>
+						))
+					)}
+
+					<Text style={styles.sectionTitle}>Turnieje jednorazowe</Text>
+					{(data?.oneOffTournaments ?? []).length === 0 ? (
+						<Text style={styles.empty}>Brak turniejów jednorazowych.</Text>
+					) : (
+						(data?.oneOffTournaments ?? []).map((tournament) => (
+							<Pressable
+								key={tournament.id}
+								style={styles.linkCard}
+								onPress={() => navigation.navigate('TournamentDetail', { id: tournament.id })}
+							>
+								<Text style={styles.linkCardText}>{tournament.name}</Text>
 							</Pressable>
 						))
 					)}
