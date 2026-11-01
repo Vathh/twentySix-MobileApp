@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -224,31 +224,103 @@ const QuickGameLobby = ({ navigation, route }) => {
     }
   };
 
-  const handleInviteFriend = async (friend) => {
-    if (!lobby?.id || !auth?.accessToken) return;
+  const sendLobbyInvite = async (lobbyId, friend) => {
+    if (!lobbyId || !auth?.accessToken) return false;
     const playerId = friend.playerId ?? friend.player_id ?? friend.id;
     const name = friend.name ?? friend.playerName ?? 'Znajomy';
+    const { ok, data } = await inviteToQuickGameLobby(lobbyId, auth.accessToken, playerId);
+    if (ok) {
+      setInvitations((prev) => {
+        const id = Number(playerId);
+        if (prev.some((i) => Number(i.id) === id)) return prev;
+        return [...prev, { id, name, status: 'sent' }];
+      });
+      setInviteModalVisible(false);
+      fetchLobbyById(lobbyId);
+      return true;
+    }
+    Alert.alert('Błąd', data?.message || 'Nie udało się wysłać zaproszenia');
+    return false;
+  };
+
+  const handleInviteFriend = async (friend) => {
+    if (!lobby?.id) return;
     try {
-      const { ok, data } = await inviteToQuickGameLobby(
-        lobby.id,
-        auth.accessToken,
-        playerId,
-      );
-      if (ok) {
-        setInvitations((prev) => {
-          const id = Number(playerId);
-          if (prev.some((i) => Number(i.id) === id)) return prev;
-          return [...prev, { id, name, status: 'sent' }];
-        });
-        setInviteModalVisible(false);
-        fetchLobbyById(lobby.id);
-      } else {
-        Alert.alert('Błąd', data?.message || 'Nie udało się wysłać zaproszenia');
-      }
+      await sendLobbyInvite(lobby.id, friend);
     } catch (e) {
       Alert.alert('Błąd', 'Błąd połączenia');
     }
   };
+
+  const lobbyRef = useRef(lobby);
+  lobbyRef.current = lobby;
+  const matchFormatRef = useRef(matchFormat);
+  matchFormatRef.current = matchFormat;
+
+  useEffect(() => {
+    const playerId = route.params?.invitePlayerId;
+    if (playerId == null || !auth?.accessToken) {
+      return undefined;
+    }
+    const name = route.params?.invitePlayerName ?? 'Znajomy';
+    let cancelled = false;
+
+    const clearInviteParams = () => {
+      navigation.setParams({
+        invitePlayerId: undefined,
+        invitePlayerName: undefined,
+        inviteRequestId: undefined,
+      });
+    };
+
+    (async () => {
+      setLoading(true);
+      try {
+        let lobbyId = lobbyRef.current?.id ?? null;
+        if (lobbyRef.current?.status === 'started') {
+          if (!cancelled) {
+            Alert.alert('Gra w toku', 'Zakończ obecną grę, zanim zaprosisz do nowego lobby.');
+          }
+          return;
+        }
+        if (!lobbyId) {
+          const { ok, status, data } = await createQuickGameLobby(auth.accessToken);
+          if (cancelled) return;
+          if (ok && data?.id) {
+            lobbyId = data.id;
+            setLobby({ ...data, gameType: data.gameType ?? data.game_type ?? GAME_TYPES.X01 });
+            setMatchFormat(normalizeMatchFormat(data.matchFormat ?? matchFormatRef.current));
+            setGameType(data.gameType ?? data.game_type ?? GAME_TYPES.X01);
+            setInvitations([]);
+          } else if (status === 409 && data?.existingLobbyId) {
+            if (data.status === 'started' || data.existingStatus === 'started') {
+              const game = await resolveActiveFfaGame(auth.accessToken);
+              if (!cancelled) setActiveGame(game);
+              return;
+            }
+            lobbyId = data.existingLobbyId;
+            await fetchLobbyById(lobbyId);
+          } else {
+            if (!cancelled) setError(data?.message || 'Nie udało się utworzyć lobby');
+            return;
+          }
+        }
+        if (!lobbyId || cancelled) return;
+        await sendLobbyInvite(lobbyId, { playerId, name });
+      } catch (e) {
+        if (!cancelled) Alert.alert('Błąd', 'Błąd połączenia');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          clearInviteParams();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.accessToken, navigation, route.params?.invitePlayerId, route.params?.invitePlayerName, route.params?.inviteRequestId]);
 
   const handleLeave = async () => {
     if (!lobby?.id || !auth?.accessToken) {

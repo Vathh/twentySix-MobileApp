@@ -13,7 +13,6 @@ import { colors } from '../../theme/colors';
 export const VISIBLE_TAB_ORDER = [
 	'Graj',
 	'Rozgrywki',
-	'Znajomi',
 	'Zaproszenia',
 	'Konto',
 ];

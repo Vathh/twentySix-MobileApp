@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useAuth from '../hooks/useAuth';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -28,7 +28,7 @@ import TrainingHistoryList from '../components/QuickGame/TrainingHistoryList';
 import TrainingGameDetail from '../components/QuickGame/TrainingGameDetail';
 import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
 import TournamentSetupScreen from '../components/Tournament/TournamentSetupScreen';
-import FriendsScreen from '../components/Friends/FriendsScreen';
+import { PeoplePanelProvider, usePeoplePanel } from '../components/Friends/PeoplePanel';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import PlayerProfileScreen from '../components/PlayerProfile/PlayerProfileScreen';
 import EditPlayerProfileScreen from '../components/PlayerProfile/EditPlayerProfileScreen';
@@ -143,25 +143,6 @@ function RozgrywkiStack() {
 	);
 }
 
-function ZnajomiStack() {
-	return (
-		<Stack.Navigator screenOptions={stackScreenOptions}>
-			<Stack.Screen name="ZnajomiHome" component={FriendsScreen} />
-			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
-			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
-			<Stack.Screen
-				name="EditPlayerProfile"
-				component={EditPlayerProfileScreen}
-				options={{ title: 'Edycja profilu' }}
-			/>
-			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
-			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
-			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
-			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
-		</Stack.Navigator>
-	);
-}
-
 function ZaproszeniaStack() {
 	return (
 		<Stack.Navigator screenOptions={stackScreenOptions}>
@@ -238,21 +219,54 @@ function FeedStack() {
 
 const GrajTab = withAnimatedTabScene(GrajStack, { tabName: 'Graj' });
 const RozgrywkiTab = withAnimatedTabScene(RozgrywkiStack, { tabName: 'Rozgrywki' });
-const ZnajomiTab = withAnimatedTabScene(ZnajomiStack, { tabName: 'Znajomi' });
 const ZaproszeniaTab = withAnimatedTabScene(ZaproszeniaStack, { tabName: 'Zaproszenia' });
 const KontoTab = withAnimatedTabScene(KontoStack, { tabName: 'Konto' });
 
-/** Dolny pasek: Graj / Rozgrywki / Znajomi / Zaproszenia / Konto. Tablica bańki jest ukrytym pierwszym ekranem. */
+function FriendsTabPlaceholder() {
+	return null;
+}
+
+function FriendsTabIcon({ color, size }) {
+	const { peoplePanelOpen } = usePeoplePanel();
+	return (
+		<AnimatedTabIcon
+			name="people-outline"
+			color={peoplePanelOpen ? colors.accent : color}
+			size={size}
+			focused={peoplePanelOpen}
+		/>
+	);
+}
+
+function FriendsTabLabel({ color }) {
+	const { peoplePanelOpen } = usePeoplePanel();
+	return (
+		<Text
+			style={{
+				color: peoplePanelOpen ? colors.accent : color,
+				fontSize: scaleSize(12),
+				fontWeight: '600',
+			}}
+		>
+			Znajomi
+		</Text>
+	);
+}
+
+/** Dolny pasek: Graj / Rozgrywki / Znajomi / Zaproszenia / Konto. Znajomi otwierają panel, nie osobny ekran. Tablica bańki jest ukrytym pierwszym ekranem. */
 function UserMainTabs() {
 	return (
 		<TabTransitionProvider>
-			<UserMainTabsNavigator />
+			<PeoplePanelProvider>
+				<UserMainTabsNavigator />
+			</PeoplePanelProvider>
 		</TabTransitionProvider>
 	);
 }
 
 function UserMainTabsNavigator() {
 	const insets = useSafeAreaInsets();
+	const { peoplePanelOpen, openPeoplePanel, closePeoplePanel } = usePeoplePanel();
 
 	return (
 		<Tab.Navigator
@@ -301,10 +315,20 @@ function UserMainTabsNavigator() {
 			/>
 			<Tab.Screen
 				name="Znajomi"
-				component={ZnajomiTab}
+				component={FriendsTabPlaceholder}
+				listeners={{
+					tabPress: (event) => {
+						event.preventDefault();
+						if (peoplePanelOpen) {
+							closePeoplePanel();
+						} else {
+							openPeoplePanel();
+						}
+					},
+				}}
 				options={{
-					tabBarLabel: 'Znajomi',
-					tabBarIcon: tabIcon('people-outline'),
+					tabBarLabel: FriendsTabLabel,
+					tabBarIcon: FriendsTabIcon,
 				}}
 			/>
 			<Tab.Screen

@@ -22,11 +22,11 @@ const API_PRESETS = {
 		reverbHost: LOCAL_HOST,
 	},
 	staging: {
-		apiUrl: 'https://dartscore.studiokam.pl/api',
+		apiUrl: 'https://twentysix.pl/api',
 		reverbKey: '28e001f35df29406bc8a144a39a4ef4a',
 		reverbScheme: 'https',
 		reverbPort: 443,
-		reverbHost: 'dartscore.studiokam.pl',
+		reverbHost: 'twentysix.pl',
 	},
 };
 

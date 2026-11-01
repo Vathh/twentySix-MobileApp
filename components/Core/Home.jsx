@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import useAuth from '../../hooks/useAuth'
 import { resolveActiveFfaGame } from '../../helpers/activeQuickGame'
@@ -105,7 +105,14 @@ const Home = ({ navigation }) => {
         />
 
         {isLoggedIn ? null : (
-          <Text style={styles.loginHint}>Zaloguj się, by odkryć więcej.</Text>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => navigation.navigate('AccountLogin')}
+            style={styles.loginHint}
+          >
+            <Text style={styles.loginHintText}>Zaloguj się, by odkryć więcej.</Text>
+          </Pressable>
         )}
       </View>
     </ScrollView>
@@ -143,9 +150,12 @@ const styles = StyleSheet.create({
   },
   loginHint: {
     marginTop: 24,
+    alignSelf: 'center',
+  },
+  loginHintText: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textMuted,
+    color: colors.accent,
     textAlign: 'center',
   },
 })

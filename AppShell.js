@@ -13,7 +13,7 @@ import { navigate, navigationRef } from './helpers/navigationRef';
 import { colors } from './theme/colors';
 
 const linking = {
-	prefixes: ['twentysix://', 'https://dartscore.studiokam.pl'],
+	prefixes: ['twentysix://', 'https://twentysix.pl', 'https://dartscore.studiokam.pl'],
 	config: {
 		screens: {
 			JoinTournament: {

@@ -66,7 +66,7 @@ function PersonRow({
 	);
 }
 
-const FriendsScreen = ({ navigation }) => {
+const FriendsScreen = ({ navigation, onOpenProfile, onInviteToGame, onOpenInvitations }) => {
 	const { auth } = useAuth();
 	const confirm = useConfirm();
 	const [activeTab, setActiveTab] = useState(TAB_LIST);
@@ -192,7 +192,11 @@ const FriendsScreen = ({ navigation }) => {
 
 	const openPlayerProfile = (playerId, name) => {
 		if (!playerId) return;
-		navigation.navigate('PlayerProfile', {
+		if (onOpenProfile) {
+			onOpenProfile(playerId, name);
+			return;
+		}
+		navigation?.navigate('PlayerProfile', {
 			playerId,
 			name: name ?? undefined,
 		});
@@ -295,24 +299,36 @@ const FriendsScreen = ({ navigation }) => {
 												playerId ? () => openPlayerProfile(playerId, name) : undefined
 											}
 											trailing={
-												<Pressable
-													accessibilityRole="button"
-													accessibilityLabel={`Usuń ${name}`}
-													hitSlop={10}
-													style={styles.iconBtn}
-													onPress={() => handleRemoveFriend(f)}
-													disabled={!!actionId}
-												>
-													{removing ? (
-														<ActivityIndicator size="small" color={colors.textDim} />
-													) : (
-														<Ionicons
-															name="trash-outline"
-															size={scaleSize(18)}
-															color={colors.textDim}
-														/>
-													)}
-												</Pressable>
+												<View style={styles.rowActions}>
+													{onInviteToGame && playerId ? (
+														<Pressable
+															accessibilityRole="button"
+															accessibilityLabel={`Zaproś do gry ${name}`}
+															style={styles.inviteBtn}
+															onPress={() => onInviteToGame(f)}
+														>
+															<Text style={styles.inviteBtnText}>Zaproś do gry</Text>
+														</Pressable>
+													) : null}
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel={`Usuń ${name}`}
+														hitSlop={10}
+														style={styles.iconBtn}
+														onPress={() => handleRemoveFriend(f)}
+														disabled={!!actionId}
+													>
+														{removing ? (
+															<ActivityIndicator size="small" color={colors.textDim} />
+														) : (
+															<Ionicons
+																name="trash-outline"
+																size={scaleSize(18)}
+																color={colors.textDim}
+															/>
+														)}
+													</Pressable>
+												</View>
 											}
 										/>
 									);
@@ -354,7 +370,7 @@ const FriendsScreen = ({ navigation }) => {
 								styles.navRow,
 								pressed && styles.personRowPressed,
 							]}
-							onPress={() => navigation.navigate('Zaproszenia')}
+							onPress={() => (onOpenInvitations ? onOpenInvitations() : navigation?.navigate('Zaproszenia'))}
 						>
 							<View style={styles.navIcon}>
 								<Ionicons name="mail-outline" size={scaleSize(18)} color={colors.accent} />
@@ -582,6 +598,11 @@ const styles = StyleSheet.create({
 		marginTop: 2,
 		fontSize: 12,
 		color: colors.textMuted,
+	},
+	rowActions: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 2,
 	},
 	iconBtn: {
 		width: 32,

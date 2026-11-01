@@ -425,12 +425,9 @@ const InvitationsScreen = ({ navigation, route }) => {
 
 	const openPlayerProfile = (playerId, name) => {
 		if (!playerId) return;
-		navigation.navigate('Znajomi', {
-			screen: 'PlayerProfile',
-			params: {
-				playerId,
-				name: name ?? undefined,
-			},
+		navigation.navigate('PlayerProfile', {
+			playerId,
+			name: name ?? undefined,
 		});
 	};
 
