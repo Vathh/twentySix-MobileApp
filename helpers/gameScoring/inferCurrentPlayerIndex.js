@@ -8,7 +8,7 @@ import { isVisitComplete } from './visitUtils.js';
  * @param {number} params.N
  * @param {Array} params.visits — wizyty bieżącego lega
  * @param {number|null} params.explicitIndex — z sesji FFA (null = inferuj)
- * @param {number|null} params.legOpenerIndex — gdy brak wizyt
+ * @param {number|null} params.legOpenerIndex — gdy leg jest pusty albo jeszcze nieotwarty
  * @param {boolean} params.legOpen
  */
 export function inferCurrentPlayerIndex({
@@ -23,7 +23,7 @@ export function inferCurrentPlayerIndex({
 		return explicitIndex;
 	}
 
-	if (visits.length > 0) {
+	if (legOpen && visits.length > 0) {
 		const last = visits[visits.length - 1];
 		const lastPid = pid(last.playerId);
 		const lastIdx = players.findIndex(
@@ -38,9 +38,5 @@ export function inferCurrentPlayerIndex({
 		}
 	}
 
-	if (legOpen) {
-		return legOpenerIndex ?? 0;
-	}
-
-	return 0;
+	return legOpenerIndex ?? 0;
 }

@@ -57,4 +57,23 @@ export function runScoringQueueAckTests() {
 	);
 	assert(closed.currentLeg == null, 'closeLeg czyści lokalny leg');
 	assert(closed.pendingClosedLegId === 1, 'closeLeg pamięta leg do cofnięcia');
+
+	const rotated = patchRawStateWithEntry(
+		{
+			currentLeg: { id: 7, open: true, legNumber: 1 },
+			visits: [{ playerId: 10, score: 141 }],
+			players: [
+				{ playerId: 10, remaining: 0 },
+				{ playerId: 20, remaining: 320 },
+			],
+			turn: { currentPlayerIndex: 1, legOpenerIndex: 0, legNumber: 1 },
+			legOpenerIndex: 0,
+			game: { startingScore: 501 },
+		},
+		{ op: 'closeLeg', legId: 7, payload: { winnerId: 10 } },
+	);
+	assert(rotated.turn.legOpenerIndex === 1, 'kolejny leg otwiera drugi gracz');
+	assert(rotated.turn.currentPlayerIndex === 1, 'tura wskazuje openera');
+	assert(rotated.visits.length === 0, 'lokalny leg nie trzyma starych wizyt');
+	assert(rotated.players[0].remaining === 501 && rotated.players[1].remaining === 501, 'wynik wraca do 501');
 }

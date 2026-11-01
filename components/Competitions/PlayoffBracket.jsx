@@ -174,7 +174,7 @@ function groupForRound(round, allRounds) {
 const CARD_BLOCK = 92;
 const PAIR_GROUP_EXTRA = 32;
 const SOLO_GROUP_EXTRA = 20;
-const HEIGHT_PAD = 12;
+const HEIGHT_PAD = 16;
 
 function estimateRoundHeight(round, allRounds) {
 	const groups = round ? groupForRound(round, allRounds) : [];
@@ -228,7 +228,11 @@ export default function PlayoffBracket({ rounds = [], onPlayerPress, onGamePress
 	estimatesRef.current = list.map((round) => estimateRoundHeight(round, list));
 
 	useEffect(() => {
-		heightsSV.value = list.map((round) => estimateRoundHeight(round, list));
+		const estimates = list.map((round) => estimateRoundHeight(round, list));
+		const current = heightsSV.value ?? [];
+		heightsSV.value = estimates.map((estimate, index) =>
+			Math.max(estimate, current[index] || 0),
+		);
 		setActiveRound((prev) => {
 			if (list.length === 0) return null;
 			if (list.some((r) => r.round === prev)) return prev;
@@ -416,22 +420,6 @@ export default function PlayoffBracket({ rounds = [], onPlayerPress, onGamePress
 			)}
 
 			<View style={styles.pagerShell}>
-				<View style={styles.measureLayer} pointerEvents="none" collapsable={false}>
-					{list.map((round, index) => (
-						<View
-							key={`measure-${round.round}`}
-							style={{ width: pageWidth }}
-							onLayout={(event) => {
-								setPageHeight(
-									index,
-									Math.round(event.nativeEvent.layout.height),
-								);
-							}}
-						>
-							<RoundList round={round} allRounds={list} />
-						</View>
-					))}
-				</View>
 				<Animated.View
 					style={[styles.pagerClip, clipStyle]}
 					collapsable={false}
@@ -457,6 +445,12 @@ export default function PlayoffBracket({ rounds = [], onPlayerPress, onGamePress
 									key={round.round}
 									style={[styles.page, { width: pageWidth }]}
 									pointerEvents={active ? 'auto' : 'none'}
+									onLayout={(event) => {
+										setPageHeight(
+											index,
+											Math.round(event.nativeEvent.layout.height),
+										);
+									}}
 								>
 									<RoundList
 										round={round}
@@ -676,12 +670,6 @@ const styles = StyleSheet.create({
 	pagerShell: {
 		width: '100%',
 	},
-	measureLayer: {
-		position: 'absolute',
-		left: -9999,
-		top: 0,
-		opacity: 1,
-	},
 	pagerClip: {
 		overflow: 'hidden',
 		width: '100%',
@@ -695,7 +683,7 @@ const styles = StyleSheet.create({
 	},
 	page: {
 		flexShrink: 0,
-		paddingBottom: 4,
+		paddingBottom: 12,
 	},
 	group: {
 		marginBottom: 8,

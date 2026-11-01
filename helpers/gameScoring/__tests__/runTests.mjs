@@ -783,6 +783,15 @@ function testInferAdvancesAfterBust() {
 	});
 	assert(afterBust === 1, 'bust ends turn — next player');
 
+	const betweenLegs = inferCurrentPlayerIndex({
+		players,
+		N: 2,
+		visits: [],
+		legOpenerIndex: 1,
+		legOpen: false,
+	});
+	assert(betweenLegs === 1, 'closed leg keeps the next opener');
+
 	const partial = inferCurrentPlayerIndex({
 		players,
 		N: 2,
