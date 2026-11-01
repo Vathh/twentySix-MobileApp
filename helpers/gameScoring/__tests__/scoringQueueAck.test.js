@@ -28,6 +28,22 @@ export function runScoringQueueAckTests() {
 		'startLeg bez komunikatu o otwartym legu',
 	);
 	assert(
+		!commandAlreadyApplied(
+			{ op: 'startLeg' },
+			openLeg,
+			{ legAlreadyOpen: true, reopenedLegId: 4 },
+		),
+		'startLeg nie dokleja wizyty do lega wznowionego undo',
+	);
+	assert(
+		commandAlreadyApplied(
+			{ op: 'startLeg' },
+			openLeg,
+			{ legAlreadyOpen: true, reopenedLegId: 9 },
+		),
+		'startLeg przy innym otwartym legu jest już zapisany',
+	);
+	assert(
 		commandAlreadyApplied(
 			{ op: 'closeLeg', legId: 4 },
 			{ currentLeg: null, legs: [{ id: 4 }], game: { status: 'in_progress' } },

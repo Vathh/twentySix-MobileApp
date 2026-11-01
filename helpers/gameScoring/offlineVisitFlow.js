@@ -228,7 +228,7 @@ export function createOfflineVisitFlow(deps) {
 			return;
 		}
 
-		if (resultToApply === state.score) {
+		if (resultToApply === state.score && state.score > 1) {
 			askCheckoutLegConfirmation({
 				message: getCheckoutPrompt(player),
 				onCancel: () => {

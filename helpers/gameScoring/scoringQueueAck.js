@@ -6,11 +6,14 @@ export function isLegAlreadyOpenMessage(error) {
  * Czy odrzucona komenda jest już na serwerze (powtórka po zgubionej odpowiedzi).
  * Zwykła wizyta przy 422 nie jest tu uznawana — jej powtórka wraca jako 200.
  */
-export function commandAlreadyApplied(entry, snapshot, { legAlreadyOpen = false } = {}) {
+export function commandAlreadyApplied(entry, snapshot, { legAlreadyOpen = false, reopenedLegId = null } = {}) {
 	if (!entry || !snapshot) {
 		return false;
 	}
 	if (entry.op === 'startLeg' && legAlreadyOpen && snapshot.currentLeg?.id) {
+		if (reopenedLegId != null && Number(snapshot.currentLeg.id) === Number(reopenedLegId)) {
+			return false;
+		}
 		return true;
 	}
 	if (entry.op === 'closeLeg') {

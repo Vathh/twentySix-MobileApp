@@ -93,6 +93,8 @@ export function useGameScoring({
 	const abortedRef = useRef(false);
 	const wsHealthyRef = useRef(false);
 	const flushInFlightRef = useRef(false);
+	const flushPromiseRef = useRef(null);
+	const pendingReopenLegIdRef = useRef(null);
 	const flushAgainRef = useRef(false);
 	const retryDelayRef = useRef(FLUSH_RETRY_MS);
 	const retryTimerRef = useRef(null);
@@ -337,11 +339,12 @@ export function useGameScoring({
 		if (!key || !syncTransport) {
 			return null;
 		}
-		if (flushInFlightRef.current) {
+		if (flushPromiseRef.current) {
 			flushAgainRef.current = true;
-			return null;
+			return flushPromiseRef.current;
 		}
 
+		const run = (async () => {
 		const applyAcked = (state, tail) => {
 			if (!state) {
 				return;
@@ -392,6 +395,7 @@ export function useGameScoring({
 				snapshot
 				&& commandAlreadyApplied(entry, snapshot, {
 					legAlreadyOpen: isLegAlreadyOpenMessage(error),
+					reopenedLegId: pendingReopenLegIdRef.current,
 				})
 			) {
 				if (entry.op === 'startLeg' && snapshot.currentLeg?.id) {
@@ -532,6 +536,15 @@ export function useGameScoring({
 			pendingWritesRef.current -= 1;
 			flushInFlightRef.current = false;
 			await refreshSyncPending();
+		}
+		})();
+		flushPromiseRef.current = run;
+		try {
+			return await run;
+		} finally {
+			if (flushPromiseRef.current === run) {
+				flushPromiseRef.current = null;
+			}
 		}
 	}, [
 		markMatchFinishedFromState,
@@ -1412,6 +1425,9 @@ export function useGameScoring({
 					}
 
 					pendingWritesRef.current += 1;
+					if (needsClosedLegConfirm) {
+						pendingReopenLegIdRef.current = legId;
+					}
 					const visitsBefore = lastSyncStateRef.current?.visits?.length ?? 0;
 					try {
 						if (transport.queueCommands && transport.getOutboxKey?.()) {
@@ -1440,6 +1456,7 @@ export function useGameScoring({
 						return recovered;
 					} finally {
 						pendingWritesRef.current -= 1;
+						pendingReopenLegIdRef.current = null;
 					}
 				};
 

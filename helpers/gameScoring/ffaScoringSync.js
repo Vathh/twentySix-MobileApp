@@ -93,9 +93,7 @@ export function applyFfaSyncState(state, ctx) {
 		hasSeenScoringProgressRef.current = true;
 	}
 
-	const lockLocalTurn = Boolean(openerChosenRef?.current)
-		&& !hadProgress
-		&& !hasSeenScoringProgressRef?.current;
+	const lockLocalTurn = Boolean(openerChosenRef?.current) && !hadProgress;
 	if (lockLocalTurn) {
 		const opener = legOpenerIndexRef?.current;
 		if (Number.isInteger(opener)) {

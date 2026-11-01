@@ -380,12 +380,16 @@ export function applyGameScoringState(inputState, ctx) {
 		ctx.hasSeenScoringProgressRef.current = true;
 	}
 
-	// Blokada tylko do pierwszej wizyty (lokalny wybór openera vs puste GET/WS).
-	// Po cofnięciu wszystkich wizyt znów nie ma postępu — wtedy trzeba wrócić
-	// do openera, a nie zostawić licznika na przeciwniku.
-	const lockLocalTurn = Boolean(ctx.openerChosenRef?.current)
+	// Lokalny opener obowiązuje, dopóki leg 1 nie ma wizyt — także po cofnięciu
+	// wszystkich kolejek. Pusty kolejny leg ma już postęp (zakończone legi).
+	const legNumber = Number(
+		state.currentLeg?.legNumber ?? state.turn?.legNumber ?? 1,
+	);
+	const openingLeg = (state.legs?.length ?? 0) === 0 && legNumber <= 1;
+	const lockLocalTurn = state.format !== 'ffa'
+		&& Boolean(ctx.openerChosenRef?.current)
 		&& !hadProgress
-		&& !ctx.hasSeenScoringProgressRef?.current;
+		&& openingLeg;
 	if (!lockLocalTurn) {
 		updateLegOpenerRefs(state, ctx);
 	}

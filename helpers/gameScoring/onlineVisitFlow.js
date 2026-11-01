@@ -78,7 +78,9 @@ export function createOnlineVisitFlow(deps) {
 		};
 		const overshoot = resultToApply > visitStart;
 		const isCheckout = !overshoot && resultToApply === visitStart;
-		if (isCheckout) {
+		const leavesOne = !overshoot && visitStart - resultToApply === 1;
+		const cannotCheckout = isCheckout && visitStart < 2;
+		if (isCheckout && !cannotCheckout) {
 			okHandlingRef.current = true;
 			return new Promise((resolve) => {
 				askCheckoutLegConfirmation({
@@ -138,7 +140,7 @@ export function createOnlineVisitFlow(deps) {
 
 		let apiState = null;
 		const gameScoring = getGameScoring();
-		if (overshoot) {
+		if (overshoot || leavesOne || cannotCheckout) {
 			if (!isPerDartMode()) {
 				playVisitScore(0);
 			}

@@ -481,6 +481,30 @@ function testEmptyStartLockUsesOpenerNotCurrentThrower() {
 	assert(applied.currentIdx === 0, 'lock before first visit still uses opener');
 }
 
+function testUndoAllVisitsKeepsChosenRightOpener() {
+	let currentIdx = 0;
+	const currentPlayerIndexRef = { current: 0 };
+	applyGameScoringState(emptyH2hStartState(), {
+		players: [{ playerId: 1 }, { playerId: 2 }],
+		N: 2,
+		dispatches: [() => {}, () => {}],
+		currentPlayerIndexRef,
+		setCurrentPlayerIndex: (i) => {
+			currentIdx = i;
+		},
+		setGameClosed: () => {},
+		lastStateKeyRef: { current: '' },
+		lastPlayerSnapRef: { current: {} },
+		lastLegNumberRef: { current: 1 },
+		legOpenerIndexRef: { current: 1 },
+		useLegOpenerRotation: true,
+		openerChosenRef: { current: true },
+		hasSeenScoringProgressRef: { current: true },
+	});
+	assert(currentIdx === 1, 'undo wszystkich wizyt zostawia openera z prawej');
+	assert(currentPlayerIndexRef.current === 1, 'ref zostaje na openerze z prawej');
+}
+
 function testEmptyStartLockKeepsChosenRightOpener() {
 	let currentIdx = 1;
 	const currentPlayerIndexRef = { current: 1 };
@@ -947,6 +971,7 @@ const tests = [
 	['apply h2h', testApplyH2h],
 	['apply h2h 101 start', testApplyH2hUsesMatchStartingScore],
 	['undo all visits restores opener', testUndoAllVisitsRestoresMatchOpener],
+	['undo all visits keeps right opener', testUndoAllVisitsKeepsChosenRightOpener],
 	['empty start lock uses opener', testEmptyStartLockUsesOpenerNotCurrentThrower],
 	['empty start keeps right opener', testEmptyStartLockKeepsChosenRightOpener],
 	['apply ffa', testApplyFfa],
