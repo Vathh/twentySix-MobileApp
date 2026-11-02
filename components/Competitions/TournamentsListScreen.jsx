@@ -8,6 +8,17 @@ const TournamentsListScreen = ({ navigation }) => (
 		icon="trophy-outline"
 		emptyTitle="Brak turniejów"
 		emptyDescription="Turnieje pojawią się po utworzeniu ich na webie."
+		searchPlaceholder="Szukaj turnieju"
+		statusOptions={[
+			{ key: '', label: 'Wszystkie' },
+			{ key: 'planned', label: 'Zaplanowane' },
+			{ key: 'live', label: 'W trakcie' },
+			{ key: 'finished', label: 'Zakończone' },
+		]}
+		sortOptions={[
+			{ key: 'activity', label: 'Aktywność' },
+			{ key: 'members', label: 'Uczestnicy' },
+		]}
 		buildUrl={getTournamentsUrl}
 		detailRoute="TournamentDetail"
 		navigation={navigation}

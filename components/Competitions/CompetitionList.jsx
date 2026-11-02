@@ -1,10 +1,11 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Pressable,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	Text,
+	TextInput,
 	View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,7 +16,40 @@ import { fetchCompetitionPage } from '../../helpers/competitionsApi';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import ScreenLoading from '../Common/ScreenLoading';
+import PlayerAvatar from '../Common/PlayerAvatar';
 import { STATUS_STYLES } from './DetailHeader';
+
+function statsLine(item) {
+	if (!Array.isArray(item?.stats) || item.stats.length === 0) {
+		return null;
+	}
+	const parts = item.stats
+		.filter((stat) => stat && stat.value != null && stat.label)
+		.map((stat) => `${stat.value} ${stat.label}`);
+	return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+function ChipRow({ options, value, onChange }) {
+	if (!options || options.length === 0) {
+		return null;
+	}
+	return (
+		<View style={styles.chips}>
+			{options.map((option) => {
+				const active = option.key === value;
+				return (
+					<Pressable
+						key={option.key || 'all'}
+						style={[styles.chip, active && styles.chipOn]}
+						onPress={() => onChange(option.key)}
+					>
+						<Text style={[styles.chipText, active && styles.chipTextOn]}>{option.label}</Text>
+					</Pressable>
+				);
+			})}
+		</View>
+	);
+}
 
 /**
  * Wspólna lista katalogu Rozgrywek (organizacji / sezony / turnieje).
@@ -25,9 +59,14 @@ import { STATUS_STYLES } from './DetailHeader';
  *   emptyTitle: string,
  *   emptyDescription: string,
  *   icon?: string,
- *   buildUrl: (page: number) => string,
+ *   searchPlaceholder?: string,
+ *   sortOptions?: Array<{ key: string, label: string }>,
+ *   statusOptions?: Array<{ key: string, label: string }>,
+ *   buildUrl: (page: number, filters?: { q?: string, sort?: string, status?: string }) => string,
  *   detailRoute: string,
  *   navigation: object,
+ *   onCreate?: () => void,
+ *   createLabel?: string,
  * }} props
  */
 const CompetitionList = ({
@@ -35,23 +74,39 @@ const CompetitionList = ({
 	emptyTitle,
 	emptyDescription,
 	icon,
+	searchPlaceholder = 'Szukaj',
+	sortOptions = [],
+	statusOptions = [],
 	buildUrl,
 	detailRoute,
 	navigation,
+	onCreate,
+	createLabel = 'Nowa organizacja',
 }) => {
 	const { auth } = useAuth();
 	const [items, setItems] = useState([]);
+	const [summary, setSummary] = useState('');
+	const [canCreate, setCanCreate] = useState(false);
 	const [page, setPage] = useState(1);
 	const [hasMore, setHasMore] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const [draft, setDraft] = useState('');
+	const [query, setQuery] = useState('');
+	const [sort, setSort] = useState('activity');
+	const [status, setStatus] = useState('');
 	const requestSeqRef = useRef(0);
 	const hasLoadedRef = useRef(false);
 	const accessTokenRef = useRef(auth?.accessToken);
 	accessTokenRef.current = auth?.accessToken;
 	const sessionGate = auth?.accessToken ? 'in' : 'out';
+
+	useEffect(() => {
+		const timer = setTimeout(() => setQuery(draft.trim()), 300);
+		return () => clearTimeout(timer);
+	}, [draft]);
 
 	const loadPage = useCallback(
 		async (nextPage, { append, soft } = {}) => {
@@ -59,6 +114,8 @@ const CompetitionList = ({
 			if (!token) {
 				setItems([]);
 				setHasMore(false);
+				setSummary('');
+				setCanCreate(false);
 				setError('Brak autoryzacji.');
 				setLoading(false);
 				return;
@@ -71,7 +128,12 @@ const CompetitionList = ({
 				setLoading(true);
 			}
 
-			const result = await fetchCompetitionPage(buildUrl, token, nextPage);
+			const filters = { q: query, sort, status };
+			const result = await fetchCompetitionPage(
+				(pageNumber) => buildUrl(pageNumber, filters),
+				token,
+				nextPage,
+			);
 
 			if (seq !== requestSeqRef.current) {
 				return;
@@ -88,12 +150,18 @@ const CompetitionList = ({
 				if (!append) {
 					setItems([]);
 					setHasMore(false);
+					setSummary('');
+					setCanCreate(false);
 				}
 				setError(result.error);
 			} else {
 				setError('');
 				setItems((prev) => (append ? [...prev, ...result.items] : result.items));
 				setHasMore(result.hasMore);
+				if (!append) {
+					setSummary(result.summary || '');
+					setCanCreate(Boolean(result.canCreate));
+				}
 				setPage(nextPage);
 				hasLoadedRef.current = true;
 			}
@@ -102,7 +170,7 @@ const CompetitionList = ({
 			setLoadingMore(false);
 			setRefreshing(false);
 		},
-		[buildUrl],
+		[buildUrl, query, sort, status],
 	);
 
 	useFocusEffect(
@@ -129,16 +197,42 @@ const CompetitionList = ({
 		return <ScreenLoading />;
 	}
 
+	const filtered = Boolean(query || status);
+	const shownEmptyTitle = filtered ? 'Brak wyników' : emptyTitle;
+	const shownEmptyDescription = filtered
+		? 'Zmień frazę albo filtr, żeby zobaczyć więcej.'
+		: emptyDescription;
+
 	return (
 		<ScrollView
 			style={styles.container}
 			contentContainerStyle={styles.content}
+			keyboardShouldPersistTaps="handled"
 			refreshControl={
 				<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
 			}
 		>
 			<View style={styles.form}>
 				<Text style={styles.sectionLabel}>{title}</Text>
+				{canCreate && onCreate ? (
+					<Pressable style={styles.createButton} onPress={onCreate}>
+						<Text style={styles.createButtonText}>{createLabel}</Text>
+					</Pressable>
+				) : null}
+
+				<TextInput
+					style={styles.search}
+					value={draft}
+					onChangeText={setDraft}
+					placeholder={searchPlaceholder}
+					placeholderTextColor={colors.placeholder}
+					autoCapitalize="none"
+					autoCorrect={false}
+					clearButtonMode="while-editing"
+				/>
+				<ChipRow options={statusOptions} value={status} onChange={setStatus} />
+				<ChipRow options={sortOptions} value={sort} onChange={setSort} />
+				{summary ? <Text style={styles.summary}>{summary}</Text> : null}
 
 				{error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -149,8 +243,8 @@ const CompetitionList = ({
 								<Ionicons name={icon} size={scaleSize(26)} color={colors.accent} />
 							</View>
 						) : null}
-						<Text style={styles.emptyTitle}>{emptyTitle}</Text>
-						<Text style={styles.emptyDescription}>{emptyDescription}</Text>
+						<Text style={styles.emptyTitle}>{shownEmptyTitle}</Text>
+						<Text style={styles.emptyDescription}>{shownEmptyDescription}</Text>
 					</View>
 				) : null}
 
@@ -161,6 +255,8 @@ const CompetitionList = ({
 					const statusStyle = item.status_variant
 						? STATUS_STYLES[item.status_variant] ?? STATUS_STYLES.finished
 						: null;
+					const counts = statsLine(item);
+					const showAvatar = Boolean(item.logoUrl || item.initials);
 
 					return (
 						<Pressable
@@ -174,7 +270,15 @@ const CompetitionList = ({
 								}
 							}}
 						>
-							{icon ? (
+							{showAvatar ? (
+								<PlayerAvatar
+									name={item.name || item.title}
+									initials={item.initials}
+									avatarUrl={item.logoUrl}
+									size={40}
+									rounded={10}
+								/>
+							) : icon ? (
 								<View style={styles.cardIcon}>
 									<Ionicons name={icon} size={scaleSize(20)} color={colors.accent} />
 								</View>
@@ -191,6 +295,10 @@ const CompetitionList = ({
 									) : null}
 								</View>
 								{subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
+								{item.tournamentCountLabel ? (
+									<Text style={styles.cardMeta}>{item.tournamentCountLabel}</Text>
+								) : null}
+								{counts ? <Text style={styles.cardMeta}>{counts}</Text> : null}
 							</View>
 							<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.textDim} />
 						</Pressable>
@@ -234,6 +342,18 @@ const styles = StyleSheet.create({
 		width: '100%',
 		maxWidth: 400,
 	},
+	createButton: {
+		marginBottom: 12,
+		backgroundColor: colors.accent,
+		borderRadius: 10,
+		paddingVertical: 12,
+		alignItems: 'center',
+	},
+	createButtonText: {
+		color: colors.onAccent,
+		fontWeight: '700',
+		fontSize: 15,
+	},
 	sectionLabel: {
 		marginBottom: 10,
 		fontSize: 12,
@@ -241,6 +361,48 @@ const styles = StyleSheet.create({
 		letterSpacing: 0.8,
 		textTransform: 'uppercase',
 		color: colors.textDim,
+	},
+	search: {
+		marginBottom: 10,
+		paddingHorizontal: 14,
+		paddingVertical: 12,
+		borderRadius: 10,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
+		color: colors.text,
+		fontSize: 15,
+	},
+	chips: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 8,
+		marginBottom: 10,
+	},
+	chip: {
+		paddingHorizontal: 12,
+		paddingVertical: 7,
+		borderRadius: 999,
+		borderWidth: 1,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
+	},
+	chipOn: {
+		backgroundColor: colors.accentMuted,
+		borderColor: colors.accent,
+	},
+	chipText: {
+		color: colors.textMuted,
+		fontSize: 13,
+		fontWeight: '600',
+	},
+	chipTextOn: {
+		color: colors.accent,
+	},
+	summary: {
+		marginBottom: 12,
+		color: colors.textMuted,
+		fontSize: 13,
 	},
 	error: {
 		color: colors.dangerText,
@@ -322,6 +484,11 @@ const styles = StyleSheet.create({
 		marginTop: 3,
 		fontSize: 13,
 		color: colors.textMuted,
+	},
+	cardMeta: {
+		marginTop: 3,
+		fontSize: 12,
+		color: colors.textSecondary,
 	},
 	badge: {
 		paddingHorizontal: 8,

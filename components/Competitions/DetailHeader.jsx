@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import PlayerAvatar from '../Common/PlayerAvatar';
 
 export const STATUS_STYLES = {
 	planned: {
@@ -25,6 +26,7 @@ export const STATUS_STYLES = {
  *   eyebrow?: string|null,
  *   breadcrumb?: Array<{ label: string, onPress?: () => void }>,
  *   meta?: Array<{ label: string, value: string }>,
+ *   avatar?: { name?: string, initials?: string|null, logoUrl?: string|null }|null,
  * }} props
  */
 const DetailHeader = ({
@@ -34,6 +36,7 @@ const DetailHeader = ({
 	eyebrow,
 	breadcrumb = [],
 	meta = [],
+	avatar = null,
 }) => {
 	const statusStyle = statusVariant
 		? STATUS_STYLES[statusVariant] ?? STATUS_STYLES.finished
@@ -61,6 +64,15 @@ const DetailHeader = ({
 			{eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
 
 			<View style={styles.titleRow}>
+				{avatar ? (
+					<PlayerAvatar
+						name={avatar.name || title}
+						initials={avatar.initials}
+						avatarUrl={avatar.logoUrl}
+						size={44}
+						rounded={10}
+					/>
+				) : null}
 				<Text style={styles.title}>{title}</Text>
 				{statusLabel && statusStyle ? (
 					<View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>

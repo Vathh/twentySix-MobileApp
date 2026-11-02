@@ -55,15 +55,21 @@ function formatLeagueMeta(item) {
 	return parts.join(' · ');
 }
 
-const Section = ({ title, emptyText, items, onPress, onLeave, subtitle, icon }) => (
+const PREVIEW_COUNT = 3;
+
+const Section = ({ title, emptyText, items, onPress, onLeave, subtitle, icon }) => {
+	const [shown, setShown] = useState(PREVIEW_COUNT);
+	const visible = items.slice(0, shown);
+
+	return (
 	<View style={styles.section}>
 		<Text style={styles.sectionLabel}>{title}</Text>
 		{items.length === 0 ? (
 			<Text style={styles.empty}>{emptyText}</Text>
 		) : (
 			<View style={styles.group}>
-				{items.map((item, index) => {
-					const last = index === items.length - 1;
+				{visible.map((item, index) => {
+					const last = index === visible.length - 1 && items.length <= shown;
 					return (
 						<Pressable
 							key={`${title}-${item.id}`}
@@ -107,10 +113,20 @@ const Section = ({ title, emptyText, items, onPress, onLeave, subtitle, icon }) 
 						</Pressable>
 					);
 				})}
+				{items.length > shown ? (
+					<Pressable
+						accessibilityRole="button"
+						onPress={() => setShown((count) => count + PREVIEW_COUNT)}
+						style={styles.more}
+					>
+						<Text style={styles.moreText}>Załaduj więcej</Text>
+					</Pressable>
+				) : null}
 			</View>
 		)}
 	</View>
-);
+	);
+};
 
 /** Sezony turniejowe, turnieje, ligi i organizacje, z którymi użytkownik jest powiązany. */
 const MyCompetitionsScreen = ({ navigation }) => {
@@ -367,6 +383,17 @@ const styles = StyleSheet.create({
 	},
 	roleMember: {
 		color: colors.textDim,
+	},
+	more: {
+		alignItems: 'center',
+		paddingVertical: 12,
+		borderTopWidth: StyleSheet.hairlineWidth,
+		borderTopColor: colors.border,
+	},
+	moreText: {
+		color: colors.accent,
+		fontSize: 14,
+		fontWeight: '700',
 	},
 });
 

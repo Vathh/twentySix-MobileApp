@@ -13,6 +13,11 @@ import {
 	storedSessionToAuth,
 } from '../helpers/authSessionStorage';
 import { isTabletRefereeSession } from '../helpers/authSessionKind';
+import {
+	clearTabletRefereeSession,
+	loadTabletRefereeSession,
+	saveTabletRefereeSession,
+} from '../helpers/tabletRefereeSession';
 import { unregisterCurrentDevicePushToken } from '../helpers/pushNotifications/unregisterPushToken';
 import { setCurrentAccessToken } from '../helpers/authTokenHolder';
 import { setOnUnauthorized } from '../helpers/sessionExpired';
@@ -119,6 +124,7 @@ export const AuthProvider = ({ children }) => {
 		const token = current?.accessToken;
 
 		if (isTabletRefereeSession(current)) {
+			await clearTabletRefereeSession();
 			const suspended = suspendedAccountRef.current;
 			suspendedAccountRef.current = null;
 			setSuspendedAccount(null);
@@ -173,19 +179,30 @@ export const AuthProvider = ({ children }) => {
 				return;
 			}
 
-			if (!stored) {
-				setAuthLoading(false);
-				return;
+			if (stored) {
+				setRememberMePreferred(true);
+				const restored = storedSessionToAuth(stored);
+				authRef.current = restored;
+				setCurrentAccessToken(restored.accessToken);
+				setAuth(restored);
+
+				const refresh = await applyRememberedRefresh(stored.accessToken, () => !cancelled);
+				if (cancelled) {
+					return;
+				}
+				if (refresh?.ok) {
+					authRef.current = mapLoginResponseToAuth(refresh.data);
+				} else if (refresh && (refresh.status === 401 || refresh.status === 403)) {
+					authRef.current = {};
+				}
 			}
 
-			setRememberMePreferred(true);
-			const restored = storedSessionToAuth(stored);
-			setCurrentAccessToken(restored.accessToken);
-			setAuth(restored);
-
-			await applyRememberedRefresh(stored.accessToken, () => !cancelled);
+			const tablet = await loadTabletRefereeSession();
 			if (cancelled) {
 				return;
+			}
+			if (tablet) {
+				beginTabletReferee(tablet);
 			}
 
 			setAuthLoading(false);
@@ -194,7 +211,17 @@ export const AuthProvider = ({ children }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [applyRememberedRefresh]);
+	}, [applyRememberedRefresh, beginTabletReferee]);
+
+	useEffect(() => {
+		if (!isTabletRefereeSession(auth)) {
+			return;
+		}
+		void saveTabletRefereeSession({
+			accessToken: auth.accessToken,
+			tournamentId: auth.tournamentId,
+		});
+	}, [auth?.accessToken, auth?.tournamentId]);
 
 	useEffect(() => {
 		const subscription = AppState.addEventListener('change', (nextState) => {

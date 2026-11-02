@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
+import { useTournamentRosterLive } from '../../hooks/useTournamentRosterLive';
 import {
 	fetchTournamentSetup,
 	startTournament,
@@ -46,6 +47,7 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 	const [consolationThird, setConsolationThird] = useState(false);
 	const [formats, setFormats] = useState({});
 	const seededFor = useRef(null);
+	const fetchSeq = useRef(0);
 
 	const applySetup = (data) => {
 		setSetup(data);
@@ -72,16 +74,40 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 	};
 
 	const load = useCallback(async () => {
+		const seq = ++fetchSeq.current;
 		const result = await fetchTournamentSetup(auth?.accessToken, tournamentId);
+		if (seq !== fetchSeq.current) {
+			return;
+		}
 		if (!result.ok) {
 			setError(result.message);
-			setSetup(null);
+			setSetup((current) => current);
 		} else {
 			setError('');
 			applySetup(result.data);
 		}
 		setLoading(false);
 	}, [auth?.accessToken, tournamentId]);
+
+	useTournamentRosterLive({
+		tournamentId,
+		enabled: true,
+		onReload: (payload) => {
+			if (payload && Array.isArray(payload.participants)) {
+				fetchSeq.current += 1;
+				setSetup((current) => (
+					current
+						? {
+							...current,
+							participants: payload.participants,
+							participantCount: Number(payload.participantCount ?? payload.participants.length) || 0,
+						}
+						: current
+				));
+			}
+			void load();
+		},
+	});
 
 	useFocusEffect(
 		useCallback(() => {
@@ -102,7 +128,7 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 		);
 	}
 
-	const count = setup.participantCount ?? 0;
+	const count = setup.participants?.length ?? setup.participantCount ?? 0;
 	const minPlayers = setup.minPlayers ?? 4;
 	const ready = count >= minPlayers;
 	const groupOptions = setup.groupCountOptions ?? [];
@@ -226,6 +252,14 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 										Mecz o 3. miejsce w pocieszeniu {consolationThird ? '· włączony' : ''}
 									</Text>
 								</Pressable>
+							) : null}
+							{consolation ? (
+								<Text style={styles.meta}>
+									{remaining} nieawansujących → drabinka {consolationSize}
+									{consolationSize > remaining
+										? ` (${consolationSize - remaining} wolnych losów)`
+										: ''}
+								</Text>
 							) : null}
 						</>
 					) : null}

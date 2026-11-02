@@ -125,6 +125,7 @@ const CompetitionTable = ({
 									? { minHeight: rowHeights[rowKey] }
 									: null,
 								rowIndex % 2 === 1 && styles.bodyRowAlt,
+								row.advances && styles.bodyRowAdvance,
 							]}
 							onLayout={
 								side
@@ -498,6 +499,9 @@ const styles = StyleSheet.create({
 	},
 	bodyRowAlt: {
 		backgroundColor: colors.bgElevated,
+	},
+	bodyRowAdvance: {
+		backgroundColor: colors.successMuted,
 	},
 	cell: {
 		color: colors.textSecondary,

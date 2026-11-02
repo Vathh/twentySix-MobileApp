@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	Pressable,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -20,11 +19,25 @@ import PlayoffBracket from './PlayoffBracket';
 import TournamentAchievements from './TournamentAchievements';
 import TabletLoginCard from '../Tournament/TabletLoginCard';
 import TournamentRosterPanel from '../Tournament/TournamentRosterPanel';
+import TournamentPublicRoster from '../Tournament/TournamentPublicRoster';
 import { applyTournamentJoin } from '../../helpers/tournamentManageApi';
+import { useTournamentRosterLive } from '../../hooks/useTournamentRosterLive';
 import { colors } from '../../theme/colors';
+import ManageLinks from './ManageLinks';
 import { buildGroupMatrix } from '../../helpers/groupMatrix';
 import { useTournamentCatalogLive } from '../../hooks/useTournamentCatalogLive';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
+
+function placesLabel(count) {
+	const n = Number(count) || 0;
+	if (n === 1) return '1 pozycja';
+	const mod10 = n % 10;
+	const mod100 = n % 100;
+	if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+		return `${n} pozycje`;
+	}
+	return `${n} pozycji`;
+}
 
 const TAB_LABELS = {
 	results: 'Wyniki',
@@ -49,6 +62,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 	const [activeTab, setActiveTab] = useState('results');
 	const [tabletLogin, setTabletLogin] = useState(null);
 	const [joinBusy, setJoinBusy] = useState(false);
+	const [bracketKey, setBracketKey] = useState(null);
 
 	const load = useCallback(
 		async ({ soft } = {}) => {
@@ -95,7 +109,26 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 		void load({ soft: true });
 	};
 
+	const brackets = useMemo(
+		() => (Array.isArray(data?.playoffBrackets) ? data.playoffBrackets : []),
+		[data?.playoffBrackets],
+	);
+	useEffect(() => {
+		if (brackets.length === 0) return;
+		if (!brackets.some((bracket) => bracket.key === bracketKey)) {
+			setBracketKey(brackets[0].key);
+		}
+	}, [brackets, bracketKey]);
+
 	const liveStatus = data?.tournament?.status === 'group' || data?.tournament?.status === 'playoff';
+	const plannedForPlayer = Boolean(data?.tournament && !data.tournament.isStarted && !data?.canManage);
+	useTournamentRosterLive({
+		tournamentId,
+		enabled: plannedForPlayer,
+		onReload: () => {
+			void load({ soft: true });
+		},
+	});
 	useTournamentCatalogLive({
 		tournamentId,
 		enabled: liveStatus,
@@ -212,39 +245,61 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 						meta={[{ label: 'Data rozgrywek', value: tournament.date || '—' }]}
 					/>
 
+					{data?.canManage ? (
+						<ManageLinks
+							actions={[
+								{
+									label: 'Administratorzy',
+									onPress: () => navigation.navigate('PeopleManage', {
+										mode: 'tournament-admins',
+										id: tournamentId,
+									}),
+								},
+								...(tournament.status === 'group' || tournament.status === 'playoff'
+									? [{
+										label: 'Anuluj rozgrywki',
+										danger: true,
+										onPress: () => navigation.navigate('ConfirmAction', {
+											mode: 'cancel',
+											entity: 'tournament',
+											id: tournamentId,
+											name: tournament.name,
+										}),
+									}]
+									: []),
+								{
+									label: 'Usuń turniej',
+									danger: true,
+									onPress: () => navigation.navigate('ConfirmAction', {
+										mode: 'delete',
+										entity: 'tournament',
+										id: tournamentId,
+										name: tournament.name,
+										seasonId: data?.season?.id ?? null,
+										organizationId: data?.organization?.id ?? null,
+									}),
+								},
+							]}
+						/>
+					) : null}
+
+					{(data?.admins ?? []).length > 0 ? (
+						<Text style={styles.admins}>
+							Prowadzą: {data.admins.map((person) => person.name).join(', ')}
+						</Text>
+					) : null}
+
 					{data?.canManage && !tournament.isStarted ? (
 						<TournamentRosterPanel tournamentId={tournamentId} navigation={navigation} />
 					) : null}
 
-					{!data?.canManage && !tournament.isStarted && data?.roster ? (
-						<View style={styles.rosterPublic}>
-							<Text style={styles.sectionTitle}>Skład</Text>
-							<Text style={styles.rosterCount}>
-								{data.roster.participantCount} / min. {data.roster.minPlayers}
-							</Text>
-							{(data.roster.participants ?? []).length === 0 ? (
-								<Text style={styles.empty}>Jeszcze nikt nie jest w składzie.</Text>
-							) : (
-								(data.roster.participants ?? []).map((person) => (
-									<Text key={`${person.kind}-${person.name}`} style={styles.rosterName}>
-										{person.name}{person.kind === 'guest' ? ' · gość' : ''}
-									</Text>
-								))
-							)}
-							{data.join?.alreadyParticipant ? (
-								<Text style={styles.rosterNote}>Jesteś w składzie tego turnieju.</Text>
-							) : null}
-							{data.join?.alreadyPending ? (
-								<Text style={styles.rosterNote}>Zgłoszenie wysłane. Czekasz na decyzję organizatora.</Text>
-							) : null}
-							{data.join?.canApply ? (
-								<Pressable style={styles.manageButton} onPress={applyJoin} disabled={joinBusy}>
-									<Text style={styles.manageButtonText}>
-										{joinBusy ? 'Wysyłanie…' : 'Zgłoś się'}
-									</Text>
-								</Pressable>
-							) : null}
-						</View>
+					{!data?.canManage && !tournament.isStarted ? (
+						<TournamentPublicRoster
+							roster={data?.roster}
+							join={data?.join}
+							busy={joinBusy}
+							onApply={applyJoin}
+						/>
 					) : null}
 
 					{data?.canManage && tabletLogin ? (
@@ -287,11 +342,20 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 								) : (
 									(data?.groups ?? []).map((group) => {
 										const matrix = buildGroupMatrix(group);
+										const highlight = group.playoffHighlight;
+										const showAdvance = Boolean(
+											highlight?.complete && highlight.advanceCount > 0,
+										);
 										return (
 											<View key={group.groupNumber} style={styles.groupBlock}>
 												<Text style={styles.sectionTitle}>
 													Grupa {group.groupNumber}
 												</Text>
+												{showAdvance ? (
+													<Text style={styles.advanceHint}>
+														Awans do playoff: {placesLabel(highlight.advanceCount)}
+													</Text>
+												) : null}
 												<CompetitionTable
 													columns={matrix.columns}
 													rows={matrix.rows}
@@ -309,30 +373,56 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 							) : null}
 
 							{activeTab === 'playoff' ? (
-								(data?.consolationPlayoff ?? []).length > 0 ? (
-									<>
-										<Text style={styles.sectionTitle}>Drabinka główna</Text>
+								<>
+									{brackets.length > 0 ? (
+										<>
+											<CompetitionTabs
+												tabs={brackets.map((bracket) => ({
+													key: bracket.key,
+													label: bracket.label,
+												}))}
+												activeKey={bracketKey || brackets[0].key}
+												onChange={setBracketKey}
+											/>
+											<PlayoffBracket
+												rounds={
+													(brackets.find((bracket) => bracket.key === (bracketKey || brackets[0].key))
+														?? brackets[0]
+													).rounds
+												}
+												onPlayerPress={openPlayer}
+												onGamePress={openPlayoffGame}
+											/>
+										</>
+									) : (data?.consolationPlayoff ?? []).length > 0 ? (
+										<>
+											<Text style={styles.sectionTitle}>Drabinka główna</Text>
+											<PlayoffBracket
+												rounds={data?.playoff ?? []}
+												onPlayerPress={openPlayer}
+												onGamePress={openPlayoffGame}
+											/>
+										</>
+									) : (
 										<PlayoffBracket
 											rounds={data?.playoff ?? []}
 											onPlayerPress={openPlayer}
 											onGamePress={openPlayoffGame}
 										/>
-										<Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
-											Drabinka pocieszenia
-										</Text>
-										<PlayoffBracket
-											rounds={data.consolationPlayoff}
-											onPlayerPress={openPlayer}
-											onGamePress={openPlayoffGame}
-										/>
-									</>
-								) : (
-									<PlayoffBracket
-										rounds={data?.playoff ?? []}
-										onPlayerPress={openPlayer}
-										onGamePress={openPlayoffGame}
-									/>
-								)
+									)}
+									{(data?.consolationPlayoff ?? []).length > 0 ? (
+										<>
+											<Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
+												Drabinka pocieszenia
+											</Text>
+											<PlayoffBracket
+												rounds={data.consolationPlayoff}
+												onPlayerPress={openPlayer}
+												onGamePress={openPlayoffGame}
+											/>
+										</>
+									) : null}
+								</>
 							) : null}
 
 							{activeTab === 'achievements' ? (
@@ -356,6 +446,20 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	error: { color: colors.dangerText, marginBottom: 16, fontSize: 14 },
+	admins: {
+		marginTop: -8,
+		marginBottom: 16,
+		color: colors.textMuted,
+		fontSize: 14,
+		lineHeight: 20,
+	},
+	advanceHint: {
+		marginTop: -4,
+		marginBottom: 8,
+		color: colors.success,
+		fontSize: 13,
+		fontWeight: '600',
+	},
 	empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
 	groupBlock: { marginBottom: 20 },
 	liveNote: {
@@ -376,18 +480,6 @@ const styles = StyleSheet.create({
 	sectionTitleSpaced: {
 		marginTop: 24,
 	},
-	manageButton: {
-		marginTop: 16,
-		backgroundColor: colors.accent,
-		borderRadius: 8,
-		paddingVertical: 12,
-		alignItems: 'center',
-	},
-	manageButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
-	rosterPublic: { marginTop: 16 },
-	rosterCount: { color: colors.text, fontWeight: '700', marginBottom: 8 },
-	rosterName: { color: colors.text, fontSize: 15, paddingVertical: 4 },
-	rosterNote: { color: colors.textMuted, marginTop: 8 },
 });
 
 export default TournamentDetailScreen;

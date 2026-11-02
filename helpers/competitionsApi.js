@@ -6,11 +6,11 @@ import { notifyIfUnauthorized, SESSION_EXPIRED_MESSAGE } from './sessionExpired'
  * @param {(page: number) => string} buildUrl
  * @param {string} accessToken
  * @param {number} [page]
- * @returns {Promise<{ items: Array, hasMore: boolean, error: string|null }>}
+ * @returns {Promise<{ items: Array, hasMore: boolean, summary: string|null, error: string|null }>}
  */
 export async function fetchCompetitionPage(buildUrl, accessToken, page = 1) {
 	if (!accessToken || typeof buildUrl !== 'function') {
-		return { items: [], hasMore: false, error: 'Brak autoryzacji.' };
+		return { items: [], hasMore: false, summary: null, canCreate: false, error: 'Brak autoryzacji.' };
 	}
 
 	try {
@@ -26,6 +26,8 @@ export async function fetchCompetitionPage(buildUrl, accessToken, page = 1) {
 			return {
 				items: [],
 				hasMore: false,
+				summary: null,
+				canCreate: false,
 				error: res.status === 401 ? SESSION_EXPIRED_MESSAGE : 'Nie udało się pobrać listy.',
 			};
 		}
@@ -34,10 +36,12 @@ export async function fetchCompetitionPage(buildUrl, accessToken, page = 1) {
 		return {
 			items: Array.isArray(data?.items) ? data.items : [],
 			hasMore: Boolean(data?.has_more),
+			summary: typeof data?.summary === 'string' ? data.summary : null,
+			canCreate: Boolean(data?.canCreate),
 			error: null,
 		};
 	} catch {
-		return { items: [], hasMore: false, error: 'Błąd połączenia.' };
+		return { items: [], hasMore: false, summary: null, canCreate: false, error: 'Błąd połączenia.' };
 	}
 }
 

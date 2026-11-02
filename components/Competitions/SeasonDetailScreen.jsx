@@ -15,6 +15,8 @@ import {
 } from '../../helpers/competitionsApi';
 import { getSeasonUrl } from '../../helpers/apiConfig';
 import DetailHeader, { STATUS_STYLES } from './DetailHeader';
+import NameStrip from './NameStrip';
+import ManageLinks from './ManageLinks';
 import CompetitionTable from './CompetitionTable';
 import { colors } from '../../theme/colors';
 import ScreenLoading from '../Common/ScreenLoading';
@@ -157,8 +159,44 @@ const SeasonDetailScreen = ({ navigation, route }) => {
 							{ label: 'Start', value: season.startDate || '—' },
 							{ label: 'Koniec', value: season.endDate || '—' },
 							{ label: 'Aktualizacja', value: season.updatedAt || '—' },
+							{
+								label: 'Użytkownicy organizacji',
+								value: String(data?.community?.relatedUserCount ?? 0),
+							},
+							{
+								label: 'Goście organizacji',
+								value: String(data?.community?.guestCount ?? 0),
+							},
 						]}
 					/>
+
+					<NameStrip title="Administratorzy" names={data?.admins} empty="Brak administratorów." />
+
+					{data?.canManage ? (
+						<ManageLinks
+							actions={[
+								{
+									label: 'Edytuj sezon',
+									onPress: () => navigation.navigate('SeasonForm', { seasonId }),
+								},
+								{
+									label: 'Administratorzy',
+									onPress: () => navigation.navigate('PeopleManage', { mode: 'season-admins', id: seasonId }),
+								},
+								{
+									label: 'Usuń sezon',
+									danger: true,
+									onPress: () => navigation.navigate('ConfirmAction', {
+										mode: 'delete',
+										entity: 'season',
+										id: seasonId,
+										name: season.name,
+										organizationId: organization?.id ?? null,
+									}),
+								},
+							]}
+						/>
+					) : null}
 
 					<Text style={styles.sectionTitle}>Tabela sezonu</Text>
 					<CompetitionTable

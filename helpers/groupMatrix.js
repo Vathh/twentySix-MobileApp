@@ -104,6 +104,12 @@ function playerColumnWidth(standings) {
 export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 	const standings = group?.standings ?? [];
 	const games = group?.games ?? [];
+	const highlight = group?.playoffHighlight;
+	const advancing = new Set(
+		highlight?.complete
+			? (highlight.advancingPlayerIds ?? []).map((id) => Number(id))
+			: [],
+	);
 	const byPair = new Map();
 	games.forEach((game) => {
 		const a = game.player1?.id;
@@ -143,6 +149,7 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 			matchUnitsDifference: row.matchUnitsDifference,
 			points: row.points,
 			place: row.place,
+			advances: advancing.has(Number(row.playerId)),
 		};
 		standings.forEach((col) => {
 			if (row.playerId === col.playerId) {

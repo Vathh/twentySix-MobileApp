@@ -74,7 +74,11 @@ export function applyGroupMatrixEvent(data, payload) {
 		const groupNumber = Number(payload.groupNumber);
 		groups = groups.map((group) => (
 			Number(group.groupNumber) === groupNumber
-				? { ...group, standings: mergeStandings(group.standings, payload.standings) }
+				? {
+					...group,
+					standings: mergeStandings(group.standings, payload.standings),
+					playoffHighlight: payload.playoffHighlight ?? group.playoffHighlight,
+				}
 				: group
 		));
 	}
@@ -94,10 +98,14 @@ export function applyGroupsSnapshot(data, snapshot) {
 	}
 	const byId = new Map((snapshot.games ?? []).map((game) => [Number(game.id), game]));
 	const standingsByGroup = snapshot.standingsByGroup ?? {};
+	const highlights = snapshot.playoffHighlights ?? {};
 	return {
 		...data,
 		groups: (data.groups ?? []).map((group) => {
 			const standingUpdate = standingsByGroup[group.groupNumber] ?? standingsByGroup[String(group.groupNumber)];
+			const playoffHighlight = highlights[group.groupNumber]
+				?? highlights[String(group.groupNumber)]
+				?? group.playoffHighlight;
 			return {
 				...group,
 				games: (group.games ?? []).map((existing) => {
@@ -105,6 +113,7 @@ export function applyGroupsSnapshot(data, snapshot) {
 					return live ? mergeGroupGame(existing, live) : existing;
 				}),
 				standings: mergeStandings(group.standings, standingUpdate),
+				playoffHighlight,
 			};
 		}),
 	};
@@ -144,6 +153,12 @@ export function applyPlayoffGames(data, games) {
 		...data,
 		playoff: patchRounds(data.playoff, games),
 		consolationPlayoff: patchRounds(data.consolationPlayoff, games),
+		playoffBrackets: Array.isArray(data.playoffBrackets)
+			? data.playoffBrackets.map((section) => ({
+				...section,
+				rounds: patchRounds(section.rounds, games),
+			}))
+			: data.playoffBrackets,
 	};
 }
 

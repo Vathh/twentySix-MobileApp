@@ -424,15 +424,59 @@ export const getTournamentJoinPreviewUrl = (code) =>
 export const getTournamentJoinApplyUrl = (code) =>
 	API_BASE_URL + '/tournaments/join/' + encodeURIComponent(code);
 
-export const getOrganizationsUrl = (page = 1) =>
-	API_BASE_URL + '/organizations?page=' + page;
-export const getSeasonsUrl = (page = 1) =>
-	API_BASE_URL + '/seasons?page=' + page;
-export const getTournamentsUrl = (page = 1) =>
-	API_BASE_URL + '/tournaments?page=' + page;
+function catalogUrl(path, page = 1, filters = {}) {
+	const params = new URLSearchParams();
+	params.set('page', String(page));
+	const query = String(filters?.q ?? '').trim();
+	if (query) params.set('q', query);
+	if (filters?.sort && filters.sort !== 'activity') params.set('sort', filters.sort);
+	if (filters?.status) params.set('status', filters.status);
+	return API_BASE_URL + path + '?' + params.toString();
+}
 
+export const getOrganizationsUrl = (page = 1, filters) => catalogUrl('/organizations', page, filters);
+export const getSeasonsUrl = (page = 1, filters) => catalogUrl('/seasons', page, filters);
+export const getTournamentsUrl = (page = 1, filters) => catalogUrl('/tournaments', page, filters);
+
+export const ORGANIZATIONS_URL = API_BASE_URL + '/organizations';
 export const getOrganizationUrl = (organizationId) =>
 	API_BASE_URL + '/organizations/' + organizationId;
+export const getOrganizationManageUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/manage';
+export const getOrganizationLogoUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/logo';
+export const getOrganizationUsersUrl = (organizationId, query) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/users?q=' + encodeURIComponent(query);
+export const getOrganizationRelatedUsersUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/related-users';
+export const getOrganizationInvitationCancelUrl = (organizationId, invitationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/related-users/invitations/' + invitationId + '/cancel';
+export const getOrganizationRelatedUsersRemoveUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/related-users/remove';
+export const getOrganizationGuestsUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/guests';
+export const getOrganizationGuestsRemoveUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/guests/remove';
+export const getOrganizationAdminsUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/admins';
+export const getOrganizationAdminsRemoveUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/admins/remove';
+export const getOrganizationSeasonsUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/seasons';
+export const getSeasonManageUrl = (seasonId) =>
+	API_BASE_URL + '/seasons/' + seasonId + '/manage';
+export const getSeasonAdminsUrl = (seasonId) =>
+	API_BASE_URL + '/seasons/' + seasonId + '/admins';
+export const getSeasonAdminsRemoveUrl = (seasonId) =>
+	API_BASE_URL + '/seasons/' + seasonId + '/admins/remove';
+export const getTournamentAdminsUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/admins';
+export const getTournamentAdminUsersUrl = (tournamentId, query) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/admin-users?q=' + encodeURIComponent(query);
+export const getTournamentAdminsRemoveUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/admins/remove';
+export const getTournamentCancelUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/cancel';
 export const getLeagueUrl = (leagueId) =>
 	API_BASE_URL + '/leagues/' + leagueId;
 export const getLeagueDivisionUrl = (leagueId, divisionId) =>
@@ -455,6 +499,12 @@ export const getTournamentUsersUrl = (tournamentId, query) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/users?q=' + encodeURIComponent(query);
 export const getTournamentInviteUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/invitations';
+export const getTournamentInviteBulkUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/invitations/bulk';
+export const getTournamentJoinCodeUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-code';
+export const getTournamentJoinCodeToggleUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/join-code/toggle';
 export const getTournamentJoinSelfUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/join-self';
 export const getTournamentJoinRequestUrl = (tournamentId) =>

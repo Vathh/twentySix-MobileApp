@@ -6,6 +6,9 @@ import {
 	getTournamentInvitationCancelUrl,
 	getTournamentInvitationRemoveUrl,
 	getTournamentInviteUrl,
+	getTournamentInviteBulkUrl,
+	getTournamentJoinCodeToggleUrl,
+	getTournamentJoinCodeUrl,
 	getTournamentJoinRequestApproveUrl,
 	getTournamentJoinRequestRejectUrl,
 	getTournamentJoinRequestUrl,
@@ -72,6 +75,33 @@ export function inviteTournamentUser(accessToken, tournamentId, userId) {
 		accessToken,
 		{ method: 'POST', body: { userId } },
 		'Nie udało się wysłać zaproszenia',
+	);
+}
+
+export function inviteTournamentUsers(accessToken, tournamentId, userIds) {
+	return call(
+		getTournamentInviteBulkUrl(tournamentId),
+		accessToken,
+		{ method: 'POST', body: { userIds } },
+		'Nie udało się wysłać zaproszeń',
+	);
+}
+
+export function regenerateTournamentJoinCode(accessToken, tournamentId) {
+	return call(
+		getTournamentJoinCodeUrl(tournamentId),
+		accessToken,
+		{ method: 'POST', body: {} },
+		'Nie udało się wygenerować kodu',
+	);
+}
+
+export function toggleTournamentJoinCode(accessToken, tournamentId, enabled) {
+	return call(
+		getTournamentJoinCodeToggleUrl(tournamentId),
+		accessToken,
+		{ method: 'POST', body: { enabled } },
+		'Nie udało się zmienić przyjmowania zgłoszeń',
 	);
 }
 

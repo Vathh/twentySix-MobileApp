@@ -27,6 +27,10 @@ import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
 import TrainingHistoryList from '../components/QuickGame/TrainingHistoryList';
 import TrainingGameDetail from '../components/QuickGame/TrainingGameDetail';
 import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
+import OrganizationFormScreen from '../components/Competitions/OrganizationFormScreen';
+import SeasonFormScreen from '../components/Competitions/SeasonFormScreen';
+import PeopleManageScreen from '../components/Competitions/PeopleManageScreen';
+import ConfirmActionScreen from '../components/Competitions/ConfirmActionScreen';
 import TournamentSetupScreen from '../components/Tournament/TournamentSetupScreen';
 import { PeoplePanelProvider, usePeoplePanel } from '../components/Friends/PeoplePanel';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
@@ -74,6 +78,17 @@ function tabIcon(name) {
 	);
 }
 
+function competitionManageScreens() {
+	return (
+		<>
+			<Stack.Screen name="OrganizationForm" component={OrganizationFormScreen} options={{ title: 'Organizacja' }} />
+			<Stack.Screen name="SeasonForm" component={SeasonFormScreen} options={{ title: 'Sezon' }} />
+			<Stack.Screen name="PeopleManage" component={PeopleManageScreen} options={{ title: 'Ludzie' }} />
+			<Stack.Screen name="ConfirmAction" component={ConfirmActionScreen} options={{ title: 'Potwierdzenie' }} />
+		</>
+	);
+}
+
 const stackScreenOptions = {
 	...headerOptions,
 	headerTitle: (props) => <HeaderTitle {...props} />,
@@ -111,6 +126,7 @@ function GrajStack() {
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			{competitionManageScreens()}
 			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
@@ -138,6 +154,7 @@ function RozgrywkiStack() {
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			{competitionManageScreens()}
 			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 		</Stack.Navigator>
 	);
@@ -156,6 +173,7 @@ function ZaproszeniaStack() {
 			/>
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			{competitionManageScreens()}
 			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
@@ -195,6 +213,7 @@ function KontoStack() {
 				options={{ title: 'Tablica' }}
 			/>
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			{competitionManageScreens()}
 			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 		</Stack.Navigator>
 	);
@@ -211,6 +230,7 @@ function FeedStack() {
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
+			{competitionManageScreens()}
 			<Stack.Screen name="TournamentSetup" component={TournamentSetupScreen} options={{ title: 'Start turnieju' }} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 		</Stack.Navigator>
