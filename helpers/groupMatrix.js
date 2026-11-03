@@ -1,13 +1,5 @@
 import { formatAverage, hasAverage } from './formatAverage.js';
 
-export function shortPlayerLabel(name) {
-	const text = String(name ?? '').trim();
-	if (text.length <= 10) {
-		return text || '—';
-	}
-	return `${text.slice(0, 9)}…`;
-}
-
 function isFinishedStatus(status) {
 	return status === 'finished';
 }
@@ -122,10 +114,10 @@ export function buildGroupMatrix(group, { playableUnfinished = false } = {}) {
 	});
 
 	const columns = [
-		{ key: 'player', label: 'Zawodnik', width: playerColumnWidth(standings), align: 'left', player: true },
+		{ key: 'player', label: 'Zawodnik', width: playerColumnWidth(standings), align: 'center', player: true },
 		...standings.map((row) => ({
 			key: `vs_${row.playerId}`,
-			label: shortPlayerLabel(row.playerName),
+			label: String(row.playerName ?? '').trim() || '—',
 			width: playableUnfinished ? 76 : 72,
 		})),
 		{ key: 'gamesWon', label: 'W', width: 36 },

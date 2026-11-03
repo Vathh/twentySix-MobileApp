@@ -106,6 +106,7 @@ const CompetitionTable = ({
 								alignStyle(column.align),
 							]}
 							numberOfLines={1}
+							ellipsizeMode="clip"
 						>
 							{column.label}
 						</Text>
@@ -224,6 +225,8 @@ const CompetitionTable = ({
 											textStyle={[styles.playerCell, alignStyle(col.align)]}
 											align={alignStyle(col.align)}
 											lines={playerLines}
+											fill
+											ellipsizeMode="clip"
 										/>
 									</Pressable>
 								);
@@ -297,7 +300,8 @@ const CompetitionTable = ({
 											]}
 											align={alignStyle(col.align)}
 											lines={isPlayer ? playerLines : 1}
-											fill={Boolean(col.fitContent)}
+											fill={Boolean(col.fitContent) || isPlayer}
+											ellipsizeMode={isPlayer ? 'clip' : 'tail'}
 										/>
 									</View>
 								</View>
@@ -381,10 +385,14 @@ function fitSamples(column, rows) {
 	return labels;
 }
 
-function CellLines({ text, secondary, textStyle, align, lines = 1, fill = false }) {
+function CellLines({ text, secondary, textStyle, align, lines = 1, fill = false, ellipsizeMode = 'tail' }) {
 	return (
 		<View style={fill ? styles.cellFill : null}>
-			<Text style={[textStyle, fill && styles.cellFill]} numberOfLines={lines}>
+			<Text
+				style={[textStyle, fill && styles.cellFill]}
+				numberOfLines={lines}
+				ellipsizeMode={ellipsizeMode}
+			>
 				{text}
 			</Text>
 			{secondary ? (
