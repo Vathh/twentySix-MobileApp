@@ -257,6 +257,9 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 								},
 								...(tournament.status === 'group' || tournament.status === 'playoff'
 									? [{
+										label: 'Format rund',
+										onPress: () => navigation.navigate('PlayoffFormats', { tournamentId }),
+									}, {
 										label: 'Anuluj rozgrywki',
 										danger: true,
 										onPress: () => navigation.navigate('ConfirmAction', {

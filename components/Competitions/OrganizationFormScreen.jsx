@@ -32,6 +32,8 @@ const OrganizationFormScreen = ({ navigation, route }) => {
 	const [removeLogo, setRemoveLogo] = useState(false);
 	const [stages, setStages] = useState([]);
 	const [formats, setFormats] = useState({});
+	const [consolationStages, setConsolationStages] = useState([]);
+	const [consolationFormats, setConsolationFormats] = useState({});
 	const [loading, setLoading] = useState(editing);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
@@ -51,6 +53,8 @@ const OrganizationFormScreen = ({ navigation, route }) => {
 		setInitials(organization.initials ?? '');
 		setStages(result.data.matchFormatStages ?? []);
 		setFormats(result.data.matchFormats ?? {});
+		setConsolationStages(result.data.consolationMatchFormatStages ?? []);
+		setConsolationFormats(result.data.consolationMatchFormats ?? {});
 		setLoading(false);
 	}, [auth?.accessToken, editing, organizationId]);
 
@@ -82,6 +86,30 @@ const OrganizationFormScreen = ({ navigation, route }) => {
 		}));
 	};
 
+	const setConsolationFormat = (stage, field, value) => {
+		setConsolationFormats((current) => ({
+			...current,
+			[stage]: {
+				...(current[stage] ?? {}),
+				[field]: value.replace(/[^0-9]/g, ''),
+			},
+		}));
+	};
+
+	const packFormats = (stageList, source) => {
+		const packed = {};
+		stageList.forEach((stage) => {
+			const row = source[stage.value] ?? {};
+			packed[stage.value] = {
+				...row,
+				startingScore: Number(row.startingScore) || 501,
+				legsToWinSet: Number(row.legsToWinSet) || 2,
+				setsToWinMatch: Number(row.setsToWinMatch) || 1,
+			};
+		});
+		return packed;
+	};
+
 	const submit = async () => {
 		const trimmed = name.trim();
 		if (!trimmed) {
@@ -109,20 +137,11 @@ const OrganizationFormScreen = ({ navigation, route }) => {
 			return;
 		}
 
-		const matchFormats = {};
-		stages.forEach((stage) => {
-			const row = formats[stage.value] ?? {};
-			matchFormats[stage.value] = {
-				...row,
-				startingScore: Number(row.startingScore) || 501,
-				legsToWinSet: Number(row.legsToWinSet) || 2,
-				setsToWinMatch: Number(row.setsToWinMatch) || 1,
-			};
-		});
 		const saved = await updateOrganization(token, organizationId, {
 			name: trimmed,
 			description: description.trim() || null,
-			matchFormats,
+			matchFormats: packFormats(stages, formats),
+			consolationMatchFormats: packFormats(consolationStages, consolationFormats),
 			removeLogo: removeLogo && !picked,
 		});
 		if (!saved.ok) {
@@ -223,6 +242,48 @@ const OrganizationFormScreen = ({ navigation, route }) => {
 										keyboardType="number-pad"
 										value={String(row.setsToWinMatch ?? '')}
 										onChangeText={(value) => setFormat(stage.value, 'setsToWinMatch', value)}
+										placeholder="Sety"
+										placeholderTextColor={colors.placeholder}
+									/>
+								</View>
+							</View>
+						);
+					})}
+				</View>
+			) : null}
+			{editing && consolationStages.length > 0 ? (
+				<View style={styles.block}>
+					<Text style={styles.section}>Presety — drabinka pocieszenia</Text>
+					<Text style={styles.hint}>
+						Gdy szczebel nie jest ustawiony, start turnieju bierze preset drabinki głównej.
+					</Text>
+					{consolationStages.map((stage) => {
+						const row = consolationFormats[stage.value] ?? {};
+						return (
+							<View key={stage.value} style={styles.stage}>
+								<Text style={styles.stageTitle}>{stage.label}</Text>
+								<View style={styles.stageRow}>
+									<TextInput
+										style={[styles.input, styles.compact]}
+										keyboardType="number-pad"
+										value={String(row.startingScore ?? '')}
+										onChangeText={(value) => setConsolationFormat(stage.value, 'startingScore', value)}
+										placeholder="Punkty"
+										placeholderTextColor={colors.placeholder}
+									/>
+									<TextInput
+										style={[styles.input, styles.compact]}
+										keyboardType="number-pad"
+										value={String(row.legsToWinSet ?? '')}
+										onChangeText={(value) => setConsolationFormat(stage.value, 'legsToWinSet', value)}
+										placeholder="Legi"
+										placeholderTextColor={colors.placeholder}
+									/>
+									<TextInput
+										style={[styles.input, styles.compact]}
+										keyboardType="number-pad"
+										value={String(row.setsToWinMatch ?? '')}
+										onChangeText={(value) => setConsolationFormat(stage.value, 'setsToWinMatch', value)}
 										placeholder="Sety"
 										placeholderTextColor={colors.placeholder}
 									/>

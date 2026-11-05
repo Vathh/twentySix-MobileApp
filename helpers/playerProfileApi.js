@@ -83,7 +83,7 @@ export async function fetchPlayerCareer(playerId, accessToken, windowKey = '90d'
 /**
  * @returns {Promise<{ ok: true, data: object } | { ok: false, status: number, data: object }>}
  */
-export async function updatePlayerProfile(playerId, accessToken, { description }) {
+export async function updatePlayerProfile(playerId, accessToken, { name, description }) {
 	if (!playerId || !accessToken) {
 		return { ok: false, status: 0, data: { message: 'Brak danych logowania.' } };
 	}
@@ -93,7 +93,7 @@ export async function updatePlayerProfile(playerId, accessToken, { description }
 			method: 'PUT',
 			accessToken,
 			json: true,
-			body: { description },
+			body: { name, description },
 		});
 	} catch (error) {
 		return {

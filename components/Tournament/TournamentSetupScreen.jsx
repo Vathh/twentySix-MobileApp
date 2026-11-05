@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	ActivityIndicator,
 	Pressable,
@@ -17,6 +17,11 @@ import {
 } from '../../helpers/tournamentManageApi';
 import ScreenLoading from '../Common/ScreenLoading';
 import { colors } from '../../theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function draftKey(tournamentId) {
+	return `@twentysix/tournamentStartDraft/${tournamentId}`;
+}
 
 const FORMATS = [
 	{ value: 'groups_playoff', label: 'Grupy i playoff' },
@@ -47,31 +52,57 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 	const [consolationThird, setConsolationThird] = useState(false);
 	const [formats, setFormats] = useState({});
 	const seededFor = useRef(null);
+	const persistReady = useRef(false);
 	const fetchSeq = useRef(0);
 
-	const applySetup = (data) => {
+	const applySetup = (data, draft) => {
 		setSetup(data);
 		if (seededFor.current === tournamentId) {
 			return;
 		}
 		seededFor.current = tournamentId;
 		const groups = data.groupCountOptions ?? [];
-		const firstGroups = groups[0] ?? null;
-		setGroupsCount((current) => (groups.includes(current) ? current : firstGroups));
-		const options = firstGroups != null ? data.bracketOptionsByGroupCount?.[String(firstGroups)] ?? [] : [];
-		setBracketSize((current) => (
-			options.some((option) => option.value === current) ? current : options[0]?.value ?? null
-		));
-		setFormat(groups.length > 0 ? 'groups_playoff' : 'single_elimination');
+		const draftGroups = Number(draft?.groupsCount);
+		const chosenGroups = groups.find((option) => Number(option) === draftGroups) ?? groups[0] ?? null;
+		setGroupsCount(chosenGroups);
+		const options = chosenGroups != null ? data.bracketOptionsByGroupCount?.[String(chosenGroups)] ?? [] : [];
+		const draftBracket = Number(draft?.bracketSize);
+		setBracketSize(options.some((option) => option.value === draftBracket) ? draftBracket : (options[0]?.value ?? null));
+		const draftFormat = FORMATS.some((item) => item.value === draft?.format) ? draft.format : null;
+		setFormat(draftFormat ?? (groups.length > 0 ? 'groups_playoff' : 'single_elimination'));
+		if (draft && typeof draft.grandFinalMode === 'string') {
+			setGrandFinalMode(draft.grandFinalMode);
+		}
+		if (draft) {
+			setConsolation(!!draft.consolation);
+			setConsolationThird(!!draft.consolationThird);
+		}
 		const nextFormats = {};
 		Object.entries(data.defaultMatchFormatsByStage ?? {}).forEach(([stage, row]) => {
+			const saved = draft?.formats?.[stage] ?? {};
 			nextFormats[stage] = {
-				startingScore: row.startingScore ?? 501,
-				legsToWinSet: row.legsToWinSet ?? 2,
+				startingScore: saved.startingScore ?? row.startingScore ?? 501,
+				legsToWinSet: saved.legsToWinSet ?? row.legsToWinSet ?? 2,
 			};
 		});
 		setFormats(nextFormats);
+		persistReady.current = true;
 	};
+
+	useEffect(() => {
+		if (!persistReady.current || tournamentId == null) {
+			return;
+		}
+		AsyncStorage.setItem(draftKey(tournamentId), JSON.stringify({
+			format,
+			groupsCount,
+			bracketSize,
+			grandFinalMode,
+			consolation,
+			consolationThird,
+			formats,
+		})).catch(() => {});
+	}, [tournamentId, format, groupsCount, bracketSize, grandFinalMode, consolation, consolationThird, formats]);
 
 	const load = useCallback(async () => {
 		const seq = ++fetchSeq.current;
@@ -84,7 +115,14 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 			setSetup((current) => current);
 		} else {
 			setError('');
-			applySetup(result.data);
+			let draft = null;
+			try {
+				const raw = await AsyncStorage.getItem(draftKey(tournamentId));
+				draft = raw ? JSON.parse(raw) : null;
+			} catch {
+				draft = null;
+			}
+			applySetup(result.data, draft);
 		}
 		setLoading(false);
 	}, [auth?.accessToken, tournamentId]);
@@ -169,6 +207,7 @@ const TournamentSetupScreen = ({ navigation, route }) => {
 			setError(result.message);
 			return;
 		}
+		AsyncStorage.removeItem(draftKey(tournamentId)).catch(() => {});
 		navigation.replace('TournamentDetail', { id: tournamentId });
 	};
 

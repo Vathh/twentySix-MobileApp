@@ -523,6 +523,8 @@ export const getTournamentJoinRequestRejectUrl = (tournamentId, requestId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/join-requests/' + requestId + '/reject';
 export const getTournamentStartUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/start';
+export const getTournamentPlayoffFormatsUrl = (tournamentId) =>
+	API_BASE_URL + '/tournaments/' + tournamentId + '/playoff-formats';
 export const getTournamentTabletCodeUrl = (tournamentId) =>
 	API_BASE_URL + '/tournaments/' + tournamentId + '/tablet-code';
 export const getOrganizationTournamentsUrl = (organizationId) =>

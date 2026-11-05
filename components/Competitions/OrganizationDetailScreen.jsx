@@ -11,8 +11,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { fetchCompetitionDetail } from '../../helpers/competitionsApi';
 import { getOrganizationUrl } from '../../helpers/apiConfig';
-import DetailHeader, { STATUS_STYLES } from './DetailHeader';
+import { Ionicons } from '@expo/vector-icons';
+import { STATUS_STYLES } from './DetailHeader';
+import PlayerAvatar from '../Common/PlayerAvatar';
 import NameStrip from './NameStrip';
+import { scaleSize } from '../../theme/uiScale';
 import ManageLinks from './ManageLinks';
 import FeedMuteButton from '../Activity/FeedMuteButton';
 import ScreenLoading from '../Common/ScreenLoading';
@@ -80,25 +83,48 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 
 			{organization ? (
 				<>
-					<DetailHeader
-						title={organization.name}
-						eyebrow="Organizacja"
-						avatar={{
-							name: organization.name,
-							initials: organization.initials,
-							logoUrl: organization.logoUrl,
-						}}
-						meta={[
-							{ label: 'Opis', value: organization.description?.trim() ? organization.description : '—' },
-							{ label: 'Utworzono', value: organization.createdAt || '—' },
-							{ label: 'Ostatnia aktywność', value: organization.updatedAt || '—' },
-							{ label: 'Sezony', value: String(organization.seasonCount ?? data?.seasons?.length ?? 0) },
-							{ label: 'Ligi', value: String(data?.leagues?.length ?? 0) },
-							{ label: 'Turnieje', value: String(organization.tournamentCount ?? 0) },
-							{ label: 'Użytkownicy', value: String(organization.relatedUserCount ?? 0) },
-							{ label: 'Goście', value: String(organization.guestCount ?? 0) },
-						]}
-					/>
+					<View style={styles.hero}>
+						<Text style={styles.eyebrow}>Organizacja</Text>
+						<View style={styles.heroRow}>
+							<PlayerAvatar
+								name={organization.name}
+								initials={organization.initials}
+								avatarUrl={organization.logoUrl}
+								size={56}
+								rounded={12}
+							/>
+							<Text style={styles.heroTitle}>{organization.name}</Text>
+						</View>
+						{organization.description?.trim() ? (
+							<Text style={styles.heroLead}>{organization.description.trim()}</Text>
+						) : null}
+					</View>
+					<View style={styles.stats}>
+						<View style={styles.stat}>
+							<Text style={styles.statLabel}>Sezony</Text>
+							<Text style={styles.statValue}>{organization.seasonCount ?? data?.seasons?.length ?? 0}</Text>
+						</View>
+						<View style={styles.stat}>
+							<Text style={styles.statLabel}>Ligi</Text>
+							<Text style={styles.statValue}>{data?.leagues?.length ?? 0}</Text>
+						</View>
+						<View style={styles.stat}>
+							<Text style={styles.statLabel}>Turnieje</Text>
+							<Text style={styles.statValue}>{organization.tournamentCount ?? 0}</Text>
+						</View>
+						<View style={styles.stat}>
+							<Text style={styles.statLabel}>Skład</Text>
+							<Text style={styles.statValue}>{organization.relatedUserCount ?? 0}</Text>
+						</View>
+					</View>
+					{(organization.createdAt || organization.updatedAt) ? (
+						<Text style={styles.dates}>
+							{[
+								organization.createdAt ? `Utworzono ${organization.createdAt}` : null,
+								organization.updatedAt ? `Aktywność ${organization.updatedAt}` : null,
+							].filter(Boolean).join(' · ')}
+						</Text>
+					) : null}
 
 					<FeedMuteButton
 						accessToken={auth?.accessToken}
@@ -143,9 +169,18 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 						/>
 					) : null}
 
-					<NameStrip title="Administratorzy" names={data?.admins} empty="Brak administratorów." />
-					<NameStrip title="Skład" names={data?.relatedUsers} empty="Brak powiązanych użytkowników." />
-					<NameStrip title="Goście" names={data?.guests} empty="Brak gości." />
+					<NameStrip title="Administratorzy" names={data?.admins} empty="Brak administratorów." collapsible />
+					<NameStrip
+						title="Skład"
+						names={data?.relatedUsers}
+						empty="Brak powiązanych użytkowników."
+						collapsible
+						onNamePress={(person) => navigation.navigate('PlayerProfile', {
+							playerId: person.playerId,
+							name: person.name,
+						})}
+					/>
+					<NameStrip title="Goście" names={data?.guests} empty="Brak gości." collapsible />
 
 					<Text style={styles.sectionTitle}>Ligi</Text>
 					{(data?.leagues ?? []).length === 0 ? (
@@ -157,7 +192,10 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 								style={styles.linkCard}
 								onPress={() => navigation.navigate('LeagueDetail', { id: league.id })}
 							>
-								<Text style={styles.linkCardText}>{league.name}</Text>
+								<View style={styles.cardHeader}>
+									<Text style={styles.linkCardText}>{league.name}</Text>
+									<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.textDim} />
+								</View>
 								{league.divisionLabel ? (
 									<Text style={styles.cardSub}>{league.divisionLabel}</Text>
 								) : null}
@@ -188,6 +226,7 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 								>
 									<View style={styles.cardHeader}>
 										<Text style={styles.linkCardText}>{tournament.name}</Text>
+										<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.textDim} />
 										{tournament.statusLabel ? (
 											<View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
 												<Text style={[styles.badgeText, { color: statusStyle.text }]}>
@@ -216,7 +255,10 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 								style={styles.linkCard}
 								onPress={() => navigation.navigate('SeasonDetail', { id: season.id })}
 							>
-								<Text style={styles.linkCardText}>{season.name}</Text>
+								<View style={styles.cardHeader}>
+									<Text style={styles.linkCardText}>{season.name}</Text>
+									<Ionicons name="chevron-forward" size={scaleSize(18)} color={colors.textDim} />
+								</View>
 								<Text style={styles.cardSub}>
 									{season.dateLabel || 'Data rozgrywek: nie ustawiono'}
 								</Text>
@@ -242,8 +284,38 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	error: { color: colors.dangerText, marginBottom: 16, fontSize: 14 },
+	hero: {
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
+		borderRadius: 10,
+		padding: 14,
+	},
+	eyebrow: {
+		fontSize: 11,
+		fontWeight: '700',
+		letterSpacing: 0.6,
+		textTransform: 'uppercase',
+		color: colors.textDim,
+		marginBottom: 8,
+	},
+	heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+	heroTitle: { flex: 1, color: colors.text, fontSize: 24, fontWeight: '700' },
+	heroLead: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
+	stats: { flexDirection: 'row', gap: 8, marginTop: 12 },
+	stat: {
+		flex: 1,
+		backgroundColor: colors.bgElevated,
+		borderRadius: 10,
+		paddingVertical: 10,
+		paddingHorizontal: 6,
+		alignItems: 'center',
+	},
+	statLabel: { color: colors.textDim, fontSize: 11 },
+	statValue: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 2 },
+	dates: { marginTop: 8, color: colors.textDim, fontSize: 12 },
 	sectionTitle: {
-		marginTop: 20,
+		marginTop: 24,
 		marginBottom: 12,
 		fontSize: 16,
 		fontWeight: '700',

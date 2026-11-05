@@ -16,6 +16,7 @@ import {
 	getTournamentRelatedGuestUrl,
 	getTournamentSetupUrl,
 	getTournamentStartUrl,
+	getTournamentPlayoffFormatsUrl,
 	getTournamentTabletCodeUrl,
 	getTournamentUsersUrl,
 } from './apiConfig';
@@ -192,6 +193,24 @@ export function startTournament(accessToken, tournamentId, body) {
 		accessToken,
 		{ method: 'POST', body },
 		'Nie udało się wystartować turnieju',
+	);
+}
+
+export function fetchPlayoffFormats(accessToken, tournamentId) {
+	return call(
+		getTournamentPlayoffFormatsUrl(tournamentId),
+		accessToken,
+		{ method: 'GET' },
+		'Nie udało się wczytać formatu rund',
+	);
+}
+
+export function updatePlayoffFormats(accessToken, tournamentId, body) {
+	return call(
+		getTournamentPlayoffFormatsUrl(tournamentId),
+		accessToken,
+		{ method: 'PATCH', body },
+		'Nie udało się zapisać formatu rund',
 	);
 }
 

@@ -31,6 +31,7 @@ import OrganizationFormScreen from '../components/Competitions/OrganizationFormS
 import SeasonFormScreen from '../components/Competitions/SeasonFormScreen';
 import PeopleManageScreen from '../components/Competitions/PeopleManageScreen';
 import ConfirmActionScreen from '../components/Competitions/ConfirmActionScreen';
+import PlayoffFormatsScreen from '../components/Competitions/PlayoffFormatsScreen';
 import TournamentSetupScreen from '../components/Tournament/TournamentSetupScreen';
 import { PeoplePanelProvider, usePeoplePanel } from '../components/Friends/PeoplePanel';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
@@ -85,6 +86,7 @@ function competitionManageScreens() {
 			<Stack.Screen name="SeasonForm" component={SeasonFormScreen} options={{ title: 'Sezon' }} />
 			<Stack.Screen name="PeopleManage" component={PeopleManageScreen} options={{ title: 'Ludzie' }} />
 			<Stack.Screen name="ConfirmAction" component={ConfirmActionScreen} options={{ title: 'Potwierdzenie' }} />
+			<Stack.Screen name="PlayoffFormats" component={PlayoffFormatsScreen} options={{ title: 'Format rund' }} />
 		</>
 	);
 }
@@ -228,6 +230,7 @@ function FeedStack() {
 				options={{ headerBackVisible: false, title: '' }}
 			/>
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />
 			{competitionManageScreens()}

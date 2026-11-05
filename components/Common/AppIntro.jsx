@@ -30,8 +30,8 @@ import { scaleSize } from '../../theme/uiScale';
 
 /** Czas animacji SVG (~2.5s) + krótki zapas przed wlotem do headera. */
 const INTRO_DURATION_MS = 2900;
-/** Koniec wlotu celuje tyle dp wyżej niż zmierzony slot — bez tego 26 ląduje za nisko i przeskakuje. */
-const FLY_TARGET_Y_NUDGE = 2;
+/** Lekkie podniesienie względem zmierzonego slotu. 2 było za wysoko, 0 lądowało za nisko i przeskakiwało. */
+const FLY_TARGET_Y_NUDGE = 1;
 const FLY_MS = 720;
 const HEADER_WAIT_MS = 1200;
 const BG_FADE_MS = 520;
