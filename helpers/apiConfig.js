@@ -377,6 +377,8 @@ export const getPlayerFeedUrl = (playerId) =>
 
 export const getGameDetailUrl = (type, gameId) =>
 	API_BASE_URL + '/games/' + type + '/' + gameId;
+export const getHeadToHeadRecentUrl = (type, gameId, offset) =>
+	API_BASE_URL + '/games/' + type + '/' + gameId + '/head-to-head?offset=' + offset;
 
 export const getPlayerProfileUrl = (playerId) =>
 	API_BASE_URL + '/players/' + playerId;
