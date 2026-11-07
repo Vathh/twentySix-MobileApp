@@ -10,6 +10,7 @@ const SESSION_KEY = 'twentysix_auth_session';
  * @property {string|null} playerName
  * @property {string|null} email
  * @property {string|null} avatarUrl
+ * @property {boolean} termsAccepted
  * @property {boolean} rememberMe
  */
 
@@ -25,6 +26,7 @@ export function buildStoredSession(auth, rememberMe) {
 		playerName: auth.playerName ?? null,
 		email: auth.email ?? null,
 		avatarUrl: auth.avatarUrl ?? null,
+		termsAccepted: auth.termsAccepted === true,
 		rememberMe: true,
 	};
 }
@@ -73,5 +75,6 @@ export function storedSessionToAuth(stored) {
 		playerName: stored.playerName ?? null,
 		email: stored.email ?? null,
 		avatarUrl: stored.avatarUrl ?? null,
+		termsAccepted: stored.termsAccepted === true,
 	};
 }

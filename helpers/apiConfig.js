@@ -194,9 +194,12 @@ export const ACCOUNT_LOGIN_API_URL = API_BASE_URL + ACCOUNT_LOGIN_ENDPOINT;
 export const ACCOUNT_LOGOUT_API_URL = API_BASE_URL + '/account/logout';
 export const ACCOUNT_SESSION_REFRESH_API_URL = API_BASE_URL + '/account/session/refresh';
 export const ACCOUNT_CHANGE_PASSWORD_API_URL = API_BASE_URL + '/account/password';
+export const ACCOUNT_ACCEPT_TERMS_API_URL = API_BASE_URL + '/account/terms';
 export const ACCOUNT_FORGOT_PASSWORD_API_URL = API_BASE_URL + '/account/forgot-password';
 export const REGISTER_API_URL = API_BASE_URL + '/register';
 export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-notification';
+export const TERMS_URL = LARAVEL_BASE_URL + '/regulamin';
+export const PRIVACY_URL = LARAVEL_BASE_URL + '/polityka-prywatnosci';
 
 export const ACTIVE_GAMES_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;

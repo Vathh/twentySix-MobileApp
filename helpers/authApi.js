@@ -2,6 +2,7 @@ import {
 	ACCOUNT_LOGIN_API_URL,
 	ACCOUNT_LOGOUT_API_URL,
 	ACCOUNT_CHANGE_PASSWORD_API_URL,
+	ACCOUNT_ACCEPT_TERMS_API_URL,
 	ACCOUNT_FORGOT_PASSWORD_API_URL,
 	ACCOUNT_SESSION_REFRESH_API_URL,
 	LOGIN_API_URL,
@@ -19,6 +20,7 @@ export function mapLoginResponseToAuth(data) {
 		playerName: data?.user?.name ?? null,
 		email: data?.user?.email ?? null,
 		avatarUrl: data?.user?.avatarUrl ?? null,
+		termsAccepted: data?.user?.termsAccepted === true,
 	};
 }
 
@@ -64,11 +66,20 @@ export async function changePassword(accessToken, {
 	});
 }
 
-export async function registerAccount({ name, email, password }) {
+export async function registerAccount({ name, email, password, acceptedTerms }) {
 	return apiRequest(REGISTER_API_URL, {
 		method: 'POST',
 		json: true,
-		body: { name, email, password },
+		body: { name, email, password, acceptedTerms: acceptedTerms === true },
+	});
+}
+
+export async function acceptAccountTerms(accessToken) {
+	return apiRequest(ACCOUNT_ACCEPT_TERMS_API_URL, {
+		method: 'POST',
+		accessToken,
+		json: true,
+		body: {},
 	});
 }
 

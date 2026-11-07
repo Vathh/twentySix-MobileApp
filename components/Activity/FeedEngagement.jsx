@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useConfirm } from '../../context/ConfirmProvider';
+import useAuth from '../../hooks/useAuth';
+import { PRIVACY_URL, TERMS_URL } from '../../helpers/apiConfig';
 import {
 	addActivityComment,
 	deleteActivityComment,
@@ -19,6 +21,7 @@ function likesOf(reactions) {
 const FeedEngagement = ({ item, accessToken }) => {
 	const navigation = useNavigation();
 	const confirm = useConfirm();
+	const { auth, acceptTerms } = useAuth();
 	const [commentCount, setCommentCount] = useState(item?.commentCount ?? 0);
 	const [reactions, setReactions] = useState(item?.reactions ?? { counts: {}, mine: null });
 	const [open, setOpen] = useState(false);
@@ -29,6 +32,8 @@ const FeedEngagement = ({ item, accessToken }) => {
 	const [body, setBody] = useState('');
 	const [replyTo, setReplyTo] = useState(null);
 	const [error, setError] = useState('');
+	const [termsOk, setTermsOk] = useState(auth?.termsAccepted === true);
+	const [termsChecked, setTermsChecked] = useState(false);
 
 	useEffect(() => {
 		setCommentCount(item?.commentCount ?? 0);
@@ -40,6 +45,10 @@ const FeedEngagement = ({ item, accessToken }) => {
 		setBody('');
 		setError('');
 	}, [item?.id, item?.commentCount, item?.reactions]);
+
+	useEffect(() => {
+		setTermsOk(auth?.termsAccepted === true);
+	}, [auth?.termsAccepted, auth?.userId]);
 
 	const canEngage = Boolean(item?.canEngage && accessToken);
 	const liked = reactions?.mine === 'like';
@@ -87,9 +96,26 @@ const FeedEngagement = ({ item, accessToken }) => {
 		if (!canEngage || sending || text === '') return;
 		setSending(true);
 		setError('');
+		if (!termsOk) {
+			if (!termsChecked) {
+				setError('Zaakceptuj regulamin i politykę prywatności.');
+				setSending(false);
+				return;
+			}
+			const accepted = await acceptTerms();
+			if (!accepted?.ok) {
+				fail(accepted);
+				setSending(false);
+				return;
+			}
+			setTermsOk(true);
+		}
 		const result = await addActivityComment(accessToken, item.id, text, replyTo?.id ?? null);
 		setSending(false);
 		if (!result.ok) {
+			if (result.data?.code === 'terms_required') {
+				setTermsOk(false);
+			}
 			fail(result);
 			return;
 		}
@@ -217,6 +243,34 @@ const FeedEngagement = ({ item, accessToken }) => {
 							</Pressable>
 						</View>
 					) : null}
+					{termsOk ? null : (
+						<View style={styles.termsRow}>
+							<Pressable
+								accessibilityRole="checkbox"
+								accessibilityState={{ checked: termsChecked }}
+								accessibilityLabel="Akceptuję regulamin i politykę prywatności"
+								onPress={() => setTermsChecked((current) => !current)}
+								hitSlop={8}
+							>
+								<Ionicons
+									name={termsChecked ? 'checkbox' : 'square-outline'}
+									size={22}
+									color={termsChecked ? colors.accent : colors.textMuted}
+								/>
+							</Pressable>
+							<Text style={styles.termsText}>
+								Akceptuję{' '}
+								<Text style={styles.termsLink} onPress={() => Linking.openURL(TERMS_URL)}>
+									regulamin
+								</Text>
+								{' '}i{' '}
+								<Text style={styles.termsLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+									politykę prywatności
+								</Text>
+								.
+							</Text>
+						</View>
+					)}
 					<TextInput
 						style={styles.input}
 						value={body}
@@ -227,9 +281,9 @@ const FeedEngagement = ({ item, accessToken }) => {
 						multiline
 					/>
 					<Pressable
-						style={[styles.send, (sending || body.trim() === '') && styles.disabled]}
+						style={[styles.send, (sending || body.trim() === '' || (!termsOk && !termsChecked)) && styles.disabled]}
 						onPress={send}
-						disabled={sending || body.trim() === ''}
+						disabled={sending || body.trim() === '' || (!termsOk && !termsChecked)}
 					>
 						<Text style={styles.sendText}>Wyślij</Text>
 					</Pressable>
@@ -339,6 +393,21 @@ const styles = StyleSheet.create({
 	note: {
 		color: colors.textMuted,
 		fontSize: 12,
+	},
+	termsRow: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		gap: 8,
+	},
+	termsText: {
+		flex: 1,
+		color: colors.textMuted,
+		fontSize: 13,
+		lineHeight: 18,
+	},
+	termsLink: {
+		color: colors.accent,
+		textDecorationLine: 'underline',
 	},
 	input: {
 		minHeight: 44,

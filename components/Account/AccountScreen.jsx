@@ -1,8 +1,9 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuth from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmProvider';
+import { PRIVACY_URL, TERMS_URL } from '../../helpers/apiConfig';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import PlayerAvatar from '../Common/PlayerAvatar';
@@ -128,6 +129,15 @@ const AccountScreen = ({ navigation }) => {
 						onPress={confirmLogout}
 					/>
 				</View>
+				<Text style={styles.legal}>
+					<Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>
+						Regulamin
+					</Text>
+					<Text style={styles.legalSep}> · </Text>
+					<Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+						Polityka prywatności
+					</Text>
+				</Text>
 			</View>
 		</ScrollView>
 	);
@@ -193,6 +203,20 @@ const styles = StyleSheet.create({
 	},
 	logoutGroup: {
 		marginTop: 22,
+	},
+	legal: {
+		marginTop: 22,
+		textAlign: 'center',
+		fontSize: 13,
+		color: colors.textMuted,
+	},
+	legalLink: {
+		color: colors.accent,
+		fontSize: 13,
+	},
+	legalSep: {
+		color: colors.textDim,
+		fontSize: 13,
 	},
 	row: {
 		flexDirection: 'row',

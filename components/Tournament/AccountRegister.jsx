@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { registerAccount, resendVerificationEmail } from '../../helpers/authApi'
+import { PRIVACY_URL, TERMS_URL } from '../../helpers/apiConfig'
 import { userFacingErrorMessage } from '../../helpers/userFacingError'
 import { colors } from '../../theme/colors'
 
@@ -12,6 +14,7 @@ const AccountRegister = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,10 +33,20 @@ const AccountRegister = () => {
       return
     }
 
+    if (!acceptedTerms) {
+      setErrorMsg('Zaakceptuj regulamin i politykę prywatności.')
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { ok, data, status, error } = await registerAccount({ name, email, password })
+      const { ok, data, status, error } = await registerAccount({
+        name,
+        email,
+        password,
+        acceptedTerms: true,
+      })
 
       if (!ok) {
         setErrorMsg(parseErrorMessage(data, {
@@ -135,6 +148,32 @@ const AccountRegister = () => {
               autoCapitalize="none"
               editable={!loading}
             />
+            <View style={styles.termsRow}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
+                accessibilityLabel="Akceptuję regulamin i politykę prywatności"
+                onPress={() => setAcceptedTerms((current) => !current)}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={acceptedTerms ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={acceptedTerms ? colors.accent : colors.textMuted}
+                />
+              </Pressable>
+              <Text style={styles.termsText}>
+                Akceptuję{' '}
+                <Text style={styles.termsLink} onPress={() => Linking.openURL(TERMS_URL)}>
+                  regulamin
+                </Text>
+                {' '}i{' '}
+                <Text style={styles.termsLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+                  politykę prywatności
+                </Text>
+                .
+              </Text>
+            </View>
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleSubmit}
@@ -222,6 +261,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     fontSize: 16,
+  },
+  termsRow: {
+    width: 260,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 4,
+  },
+  termsText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
   },
   button: {
     alignItems: 'center',

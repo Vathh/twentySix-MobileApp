@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
+	acceptAccountTerms,
 	logoutAuthSession,
 	mapLoginResponseToAuth,
 	refreshAuthSession,
@@ -31,6 +32,7 @@ const AuthContext = createContext({
 	persistSession: async () => {},
 	logout: async () => {},
 	applyAuthFromApi: () => ({}),
+	acceptTerms: async () => ({ ok: false }),
 	beginTabletReferee: () => {},
 	suspendedAccount: null,
 });
@@ -106,6 +108,24 @@ export const AuthProvider = ({ children }) => {
 		setCurrentAccessToken(next.accessToken);
 		setAuth(next);
 		return next;
+	}, []);
+
+	const acceptTerms = useCallback(async () => {
+		const current = authRef.current;
+		if (!current?.accessToken || isTabletRefereeSession(current)) {
+			return { ok: false, data: { message: 'Zaloguj się na konto.' } };
+		}
+		const result = await acceptAccountTerms(current.accessToken);
+		if (!result.ok) {
+			return result;
+		}
+		const next = { ...current, termsAccepted: true };
+		setAuth(next);
+		const stored = await loadStoredSession();
+		if (stored?.accessToken === current.accessToken) {
+			await saveStoredSession(buildStoredSession(next, true));
+		}
+		return result;
 	}, []);
 
 	const persistSession = useCallback(async (nextAuth, rememberMe) => {
@@ -262,6 +282,7 @@ export const AuthProvider = ({ children }) => {
 				persistSession,
 				logout,
 				applyAuthFromApi,
+				acceptTerms,
 				beginTabletReferee,
 				suspendedAccount,
 			}}
