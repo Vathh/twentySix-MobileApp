@@ -31,6 +31,7 @@ const AuthContext = createContext({
 	setRememberMePreferred: () => {},
 	persistSession: async () => {},
 	logout: async () => {},
+	discardSession: async () => {},
 	applyAuthFromApi: () => ({}),
 	acceptTerms: async () => ({ ok: false }),
 	beginTabletReferee: () => {},
@@ -181,6 +182,15 @@ export const AuthProvider = ({ children }) => {
 		setAuth({});
 	}, []);
 
+	const discardSession = useCallback(async () => {
+		await clearStoredSession();
+		await clearTabletRefereeSession();
+		suspendedAccountRef.current = null;
+		setSuspendedAccount(null);
+		setCurrentAccessToken(null);
+		setAuth({});
+	}, []);
+
 	useEffect(() => {
 		setCurrentAccessToken(auth?.accessToken ?? null);
 	}, [auth?.accessToken]);
@@ -281,6 +291,7 @@ export const AuthProvider = ({ children }) => {
 				setRememberMePreferred,
 				persistSession,
 				logout,
+				discardSession,
 				applyAuthFromApi,
 				acceptTerms,
 				beginTabletReferee,

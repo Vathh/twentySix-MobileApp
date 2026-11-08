@@ -63,7 +63,14 @@ const ProfileFeed = ({ playerId, accessToken }) => {
 			) : (
 				<View style={styles.list}>
 					{items.map((item) => (
-						<FeedPost key={String(item.id)} item={item} accessToken={accessToken} />
+						<FeedPost
+							key={String(item.id)}
+							item={item}
+							accessToken={accessToken}
+							onAuthorBlocked={(userId) => {
+								setItems((current) => current.filter((row) => (row.actor?.userId ?? row.header?.userId) !== userId));
+							}}
+						/>
 					))}
 				</View>
 			)}

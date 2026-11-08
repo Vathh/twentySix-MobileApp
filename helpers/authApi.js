@@ -3,6 +3,7 @@ import {
 	ACCOUNT_LOGOUT_API_URL,
 	ACCOUNT_CHANGE_PASSWORD_API_URL,
 	ACCOUNT_ACCEPT_TERMS_API_URL,
+	ACCOUNT_DELETE_API_URL,
 	ACCOUNT_FORGOT_PASSWORD_API_URL,
 	ACCOUNT_SESSION_REFRESH_API_URL,
 	LOGIN_API_URL,
@@ -80,6 +81,15 @@ export async function acceptAccountTerms(accessToken) {
 		accessToken,
 		json: true,
 		body: {},
+	});
+}
+
+export async function deleteAccount(accessToken, password) {
+	return apiRequest(ACCOUNT_DELETE_API_URL, {
+		method: 'DELETE',
+		accessToken,
+		json: true,
+		body: { password },
 	});
 }
 

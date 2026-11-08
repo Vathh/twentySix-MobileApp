@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
-import { fetchFeedPreferences, setFeedMute, updateFeedPreferences } from '../../helpers/feedApi';
+import { fetchFeedPreferences, updateFeedPreferences } from '../../helpers/feedApi';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 
@@ -57,16 +57,6 @@ const FeedSettingsScreen = () => {
 		}
 	};
 
-	const unmute = async (mute) => {
-		if (!auth?.accessToken) return;
-		const result = await setFeedMute(auth.accessToken, mute.subjectType, mute.subjectKey, false);
-		if (!result.ok) {
-			Alert.alert('Tablica', result.data?.message || 'Nie udało się zdjąć wyciszenia.');
-			return;
-		}
-		void load();
-	};
-
 	if (!prefs) {
 		return (
 			<View style={styles.center}>
@@ -94,7 +84,7 @@ const FeedSettingsScreen = () => {
 
 			<Text style={styles.section}>Strona główna</Text>
 			<View style={styles.row}>
-				<Text style={styles.rowText}>Historie znajomych</Text>
+				<Text style={styles.rowText}>Historie graczy</Text>
 				<Switch
 					value={!!prefs.channels?.friends}
 					onValueChange={(value) =>
@@ -114,19 +104,6 @@ const FeedSettingsScreen = () => {
 				/>
 			</View>
 
-			<Text style={styles.section}>Wyciszone</Text>
-			{(prefs.mutes ?? []).length === 0 ? (
-				<Text style={styles.muted}>Nic nie jest wyciszone.</Text>
-			) : (
-				prefs.mutes.map((mute) => (
-					<View key={`${mute.subjectType}-${mute.subjectKey}`} style={styles.row}>
-						<Text style={styles.rowText}>{mute.label}</Text>
-						<Pressable onPress={() => unmute(mute)}>
-							<Text style={styles.restore}>Przywróć</Text>
-						</Pressable>
-					</View>
-				))
-			)}
 			{saving ? <ActivityIndicator color={colors.accent} style={styles.saving} /> : null}
 		</ScrollView>
 	);
@@ -159,8 +136,6 @@ const styles = StyleSheet.create({
 		borderColor: colors.textDim,
 	},
 	radioOn: { borderColor: colors.accent, backgroundColor: colors.accent },
-	muted: { color: colors.textMuted, fontSize: scaleSize(14) },
-	restore: { color: colors.accent, fontWeight: '600' },
 	saving: { marginTop: scaleSize(12) },
 });
 

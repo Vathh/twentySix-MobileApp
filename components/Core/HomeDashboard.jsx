@@ -97,7 +97,13 @@ const HomeDashboard = ({ navigation }) => {
 				loadingMore ? <ActivityIndicator color={colors.accent} style={styles.footer} /> : null
 			}
 			renderItem={({ item }) => (
-				<FeedPost item={item} accessToken={auth?.accessToken} />
+				<FeedPost
+					item={item}
+					accessToken={auth?.accessToken}
+					onAuthorBlocked={(userId) => {
+						setItems((current) => current.filter((row) => (row.actor?.userId ?? row.header?.userId) !== userId));
+					}}
+				/>
 			)}
 		/>
 	);

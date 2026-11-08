@@ -1,7 +1,9 @@
 import {
-	FEED_MUTES_URL,
+	BLOCKS_URL,
+	FEED_FOLLOWS_URL,
 	FEED_PREFERENCES_URL,
 	FEED_URL,
+	REPORTS_URL,
 	getActivityCommentsUrl,
 	getActivityReactionUrl,
 	getCommentReactionUrl,
@@ -34,8 +36,8 @@ export function updateFeedPreferences(accessToken, body) {
 	});
 }
 
-export function fetchMuteState(accessToken, subjectType, subjectKey) {
-	const url = `${FEED_MUTES_URL}?subjectType=${encodeURIComponent(subjectType)}&subjectKey=${encodeURIComponent(subjectKey)}`;
+export function fetchFollowState(accessToken, subjectType, subjectKey) {
+	const url = `${FEED_FOLLOWS_URL}?subjectType=${encodeURIComponent(subjectType)}&subjectKey=${encodeURIComponent(subjectKey)}`;
 	return apiRequest(url, { accessToken });
 }
 
@@ -77,9 +79,40 @@ export function setCommentReaction(accessToken, commentId, kind) {
 	});
 }
 
-export function setFeedMute(accessToken, subjectType, subjectKey, muted) {
-	return apiRequest(FEED_MUTES_URL, {
-		method: muted ? 'POST' : 'DELETE',
+export function fetchBlockedUsers(accessToken) {
+	return apiRequest(BLOCKS_URL, { accessToken });
+}
+
+export function blockFeedUser(accessToken, userId) {
+	return apiRequest(BLOCKS_URL, {
+		method: 'POST',
+		accessToken,
+		json: true,
+		body: { userId },
+	});
+}
+
+export function unblockFeedUser(accessToken, userId) {
+	return apiRequest(BLOCKS_URL, {
+		method: 'DELETE',
+		accessToken,
+		json: true,
+		body: { userId },
+	});
+}
+
+export function reportContent(accessToken, subjectType, subjectId, reason, details = '') {
+	return apiRequest(REPORTS_URL, {
+		method: 'POST',
+		accessToken,
+		json: true,
+		body: { subjectType, subjectId, reason, details },
+	});
+}
+
+export function setFollow(accessToken, subjectType, subjectKey, following) {
+	return apiRequest(FEED_FOLLOWS_URL, {
+		method: following ? 'POST' : 'DELETE',
 		accessToken,
 		json: true,
 		body: { subjectType, subjectKey },

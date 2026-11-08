@@ -17,7 +17,7 @@ import PlayerAvatar from '../Common/PlayerAvatar';
 import NameStrip from './NameStrip';
 import { scaleSize } from '../../theme/uiScale';
 import ManageLinks from './ManageLinks';
-import FeedMuteButton from '../Activity/FeedMuteButton';
+import FollowButton from '../Activity/FollowButton';
 import ScreenLoading from '../Common/ScreenLoading';
 import { colors } from '../../theme/colors';
 
@@ -126,7 +126,7 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 						</Text>
 					) : null}
 
-					<FeedMuteButton
+					<FollowButton
 						accessToken={auth?.accessToken}
 						subjectType="organization"
 						subjectKey={organizationId}

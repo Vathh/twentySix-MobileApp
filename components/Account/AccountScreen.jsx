@@ -113,6 +113,12 @@ const AccountScreen = ({ navigation }) => {
 						onPress={() => navigation.navigate('FeedSettings')}
 					/>
 					<MenuRow
+						icon="ban-outline"
+						title="Zablokowani"
+						hint="Nie widzisz ich wpisów. Oni nadal widzą Twoje."
+						onPress={() => navigation.navigate('BlockedUsers')}
+					/>
+					<MenuRow
 						icon="lock-closed-outline"
 						title="Zmień hasło"
 						last
@@ -121,6 +127,13 @@ const AccountScreen = ({ navigation }) => {
 				</View>
 
 				<View style={[styles.group, styles.logoutGroup]}>
+					<MenuRow
+						icon="trash-outline"
+						title="Usuń konto"
+						hint="E-mail, komentarze i znajomi. Wyniki meczów zostają."
+						danger
+						onPress={() => navigation.navigate('DeleteAccount')}
+					/>
 					<MenuRow
 						icon="log-out-outline"
 						title="Wyloguj"

@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
+	Alert,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -7,12 +8,16 @@ import {
 	Text,
 	View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmProvider';
 import { fetchPlayerProfile } from '../../helpers/playerProfileApi';
 import ProfileHeader from './ProfileHeader';
 import ProfileFriendshipActions from './ProfileFriendshipActions';
-import FeedMuteButton from '../Activity/FeedMuteButton';
+import FollowButton from '../Activity/FollowButton';
+import ReportModal from '../Activity/ReportModal';
+import { blockFeedUser, reportContent, unblockFeedUser } from '../../helpers/feedApi';
 import ProfileStatsOverview from './ProfileStatsOverview';
 import ProfileGameHistory from './ProfileGameHistory';
 import ProfileCareerDashboard from './ProfileCareerDashboard';
@@ -69,11 +74,13 @@ function relationLabel(friendship) {
 
 const PlayerProfileScreen = ({ navigation, route }) => {
 	const { auth } = useAuth();
+	const confirm = useConfirm();
 	const playerId = route?.params?.playerId;
 	const [profile, setProfile] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const [reportOpen, setReportOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
 	const [badgeFocus, setBadgeFocus] = useState({ anchor: null, nonce: 0 });
 	const [tabsPinned, setTabsPinned] = useState(false);
@@ -154,6 +161,28 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 	}
 
 	const friendship = profile?.friendship;
+	const canModerate = Boolean(profile?.player?.userId && !friendship?.isSelf);
+	const blocked = !!profile?.blocked;
+
+	const changeBlock = async () => {
+		const person = profile?.player?.name || 'tego gracza';
+		const accepted = await confirm({
+			title: blocked ? 'Odblokować gracza?' : 'Zablokować gracza?',
+			message: blocked
+				? `Odblokować ${person}?`
+				: `Zablokować ${person}? Nie zobaczysz jego wpisów ani komentarzy. On nadal widzi Twoje.`,
+			confirmLabel: blocked ? 'Odblokuj' : 'Zablokuj',
+		});
+		if (!accepted) return;
+		const result = blocked
+			? await unblockFeedUser(auth?.accessToken, profile.player.userId)
+			: await blockFeedUser(auth?.accessToken, profile.player.userId);
+		if (!result.ok) {
+			Alert.alert('Błąd', result.data?.message || 'Nie udało się zmienić blokady.');
+			return;
+		}
+		loadProfile();
+	};
 
 	return (
 		<View style={styles.container}>
@@ -195,19 +224,34 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								})
 							}
 						>
-							<ProfileFriendshipActions
-								friendship={friendship}
-								userId={profile?.player?.userId}
-								accessToken={auth?.accessToken}
-								onChanged={loadProfile}
-							/>
-							{profile?.player?.userId && !friendship?.isSelf ? (
-								<FeedMuteButton
+							<View style={styles.actions}>
+								<ProfileFriendshipActions
+									friendship={friendship}
+									userId={profile?.player?.userId}
+									playerName={profile?.player?.name}
 									accessToken={auth?.accessToken}
-									subjectType="user"
-									subjectKey={profile.player.userId}
+									onChanged={loadProfile}
 								/>
-							) : null}
+								{canModerate ? (
+									<FollowButton
+										accessToken={auth?.accessToken}
+										subjectType="user"
+										subjectKey={profile.player.userId}
+									/>
+								) : null}
+								{canModerate ? (
+									<Pressable onPress={() => setReportOpen(true)} accessibilityRole="button" style={styles.reportPlayer}>
+										<Ionicons name="flag-outline" size={16} color={colors.accent} />
+										<Text style={styles.reportPlayerText}>Zgłoś gracza</Text>
+									</Pressable>
+								) : null}
+								{canModerate ? (
+									<Pressable onPress={changeBlock} accessibilityRole="button" style={styles.blockPlayer}>
+										<Ionicons name="ban-outline" size={16} color={colors.danger} />
+										<Text style={styles.blockPlayerText}>{blocked ? 'Odblokuj' : 'Zablokuj'}</Text>
+									</Pressable>
+								) : null}
+							</View>
 						</ProfileHeader>
 					</View>
 				</View>
@@ -285,11 +329,67 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 					</View>
 				</View>
 			) : null}
+			<ReportModal
+				visible={reportOpen}
+				title="Zgłoś gracza"
+				onClose={() => setReportOpen(false)}
+				onSubmit={async ({ reason, details }) => {
+					const result = await reportContent(
+						auth?.accessToken,
+						'user',
+						profile?.player?.userId,
+						reason,
+						details,
+					);
+					return result.ok
+						? { ok: true }
+						: { ok: false, message: result.data?.message };
+				}}
+			/>
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
+	actions: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 8,
+	},
+	reportPlayer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		alignSelf: 'flex-start',
+		gap: 6,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.accent,
+		backgroundColor: 'transparent',
+	},
+	reportPlayerText: {
+		color: colors.accent,
+		fontSize: 13,
+		fontWeight: '600',
+	},
+	blockPlayer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		alignSelf: 'flex-start',
+		gap: 6,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.danger,
+		backgroundColor: 'transparent',
+	},
+	blockPlayerText: {
+		color: colors.danger,
+		fontSize: 13,
+		fontWeight: '600',
+	},
 	container: {
 		flex: 1,
 		backgroundColor: colors.bg,

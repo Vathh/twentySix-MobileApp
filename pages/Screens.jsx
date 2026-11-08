@@ -41,6 +41,8 @@ import GameDetailScreen from '../components/Game/GameDetailScreen';
 import AccountScreen from '../components/Account/AccountScreen';
 import MyCompetitionsScreen from '../components/Account/MyCompetitionsScreen';
 import ChangePasswordScreen from '../components/Account/ChangePasswordScreen';
+import DeleteAccountScreen from '../components/Account/DeleteAccountScreen';
+import BlockedUsersScreen from '../components/Account/BlockedUsersScreen';
 import FeedSettingsScreen from '../components/Account/FeedSettingsScreen';
 import CompetitionsScreen from '../components/Competitions/CompetitionsScreen';
 import OrganizationsListScreen from '../components/Competitions/OrganizationsListScreen';
@@ -208,6 +210,16 @@ function KontoStack() {
 				name="ChangePassword"
 				component={ChangePasswordScreen}
 				options={{ title: 'Zmień hasło' }}
+			/>
+			<Stack.Screen
+				name="DeleteAccount"
+				component={DeleteAccountScreen}
+				options={{ title: 'Usuń konto' }}
+			/>
+			<Stack.Screen
+				name="BlockedUsers"
+				component={BlockedUsersScreen}
+				options={{ title: 'Zablokowani' }}
 			/>
 			<Stack.Screen
 				name="FeedSettings"

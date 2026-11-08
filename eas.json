@@ -24,6 +24,7 @@
     "production": {
       "env": {
         "EXPO_PUBLIC_API_URL": "https://twentysix.pl/api",
+        "EXPO_PUBLIC_ALLOW_CLEARTEXT": "0",
         "EXPO_PUBLIC_REVERB_APP_KEY": "28e001f35df29406bc8a144a39a4ef4a",
         "EXPO_PUBLIC_REVERB_HOST": "twentysix.pl",
         "EXPO_PUBLIC_REVERB_SCHEME": "https",

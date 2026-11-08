@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useConfirm } from '../../context/ConfirmProvider';
+import useAuth from '../../hooks/useAuth';
+import { blockFeedUser, reportContent } from '../../helpers/feedApi';
 import FeedEngagement from './FeedEngagement';
+import ReportModal from './ReportModal';
 import PlayerAvatar from '../Common/PlayerAvatar';
 import { colors } from '../../theme/colors';
 
@@ -43,12 +48,18 @@ function Sentence({ item, navigation }) {
 	);
 }
 
-const FeedPost = ({ item, accessToken }) => {
+const FeedPost = ({ item, accessToken, onAuthorBlocked }) => {
 	const navigation = useNavigation();
+	const confirm = useConfirm();
+	const { auth } = useAuth();
 	const header = item?.header ?? item?.actor ?? {};
 	const kind = item?.kind?.label || 'Historia';
 	const playerId = header.playerId;
 	const organizationId = header.organizationId;
+	const authorUserId = item?.actor?.userId ?? header.userId ?? null;
+	const canModerate = Boolean(authorUserId && auth?.userId && authorUserId !== auth.userId);
+	const [error, setError] = useState('');
+	const [reportOpen, setReportOpen] = useState(false);
 
 	const openHeader = () => {
 		if (organizationId) {
@@ -58,6 +69,21 @@ const FeedPost = ({ item, accessToken }) => {
 		if (playerId) {
 			navigation.push('PlayerProfile', { playerId, name: header.name });
 		}
+	};
+
+	const blockAuthor = async () => {
+		const ok = await confirm({
+			title: 'Zablokować gracza?',
+			message: 'Nie zobaczysz jego wpisów ani komentarzy. On nadal widzi Twoje.',
+			confirmLabel: 'Zablokuj',
+		});
+		if (!ok) return;
+		const result = await blockFeedUser(accessToken, authorUserId);
+		if (!result.ok) {
+			setError(result.data?.message || 'Nie udało się zablokować.');
+			return;
+		}
+		onAuthorBlocked?.(authorUserId);
 	};
 
 	return (
@@ -82,9 +108,33 @@ const FeedPost = ({ item, accessToken }) => {
 						{item?.occurredAt ? `${feedAgo(item.occurredAt)} · ${kind}` : kind}
 					</Text>
 				</View>
+				{canModerate ? (
+					<View style={styles.tools}>
+						<Pressable onPress={blockAuthor} style={styles.toolButton}>
+							<Ionicons name="ban-outline" size={14} color={colors.danger} />
+							<Text style={styles.toolBlock}>Zablokuj</Text>
+						</Pressable>
+						<Pressable onPress={() => setReportOpen(true)} style={styles.toolButton}>
+							<Ionicons name="flag-outline" size={14} color={colors.accent} />
+							<Text style={styles.toolReport}>Zgłoś</Text>
+						</Pressable>
+					</View>
+				) : null}
 			</View>
+			{error ? <Text style={styles.feedback}>{error}</Text> : null}
+			<ReportModal
+				visible={reportOpen}
+				title="Zgłoś wpis"
+				onClose={() => setReportOpen(false)}
+				onSubmit={async ({ reason, details }) => {
+					const result = await reportContent(accessToken, 'post', item.id, reason, details);
+					return result.ok
+						? { ok: true }
+						: { ok: false, message: result.data?.message };
+				}}
+			/>
 			<Sentence item={item} navigation={navigation} />
-			<FeedEngagement item={item} accessToken={accessToken} />
+			<FeedEngagement item={item} accessToken={accessToken} onAuthorBlocked={onAuthorBlocked} />
 		</View>
 	);
 };
@@ -126,6 +176,31 @@ const styles = StyleSheet.create({
 	mention: {
 		color: colors.accent,
 		fontWeight: '700',
+	},
+	tools: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 10,
+	},
+	toolButton: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 4,
+	},
+	toolBlock: {
+		color: colors.danger,
+		fontSize: 12,
+		fontWeight: '600',
+	},
+	toolReport: {
+		color: colors.accent,
+		fontSize: 12,
+		fontWeight: '600',
+	},
+	feedback: {
+		marginTop: 6,
+		color: colors.textMuted,
+		fontSize: 12,
 	},
 });
 

@@ -7,18 +7,21 @@ import useAuth from '../../hooks/useAuth';
 import { PRIVACY_URL, TERMS_URL } from '../../helpers/apiConfig';
 import {
 	addActivityComment,
+	blockFeedUser,
 	deleteActivityComment,
 	fetchActivityComments,
+	reportContent,
 	setActivityReaction,
 	setCommentReaction,
 } from '../../helpers/feedApi';
 import { colors } from '../../theme/colors';
+import ReportModal from './ReportModal';
 
 function likesOf(reactions) {
 	return Number(reactions?.counts?.like ?? 0);
 }
 
-const FeedEngagement = ({ item, accessToken }) => {
+const FeedEngagement = ({ item, accessToken, onAuthorBlocked }) => {
 	const navigation = useNavigation();
 	const confirm = useConfirm();
 	const { auth, acceptTerms } = useAuth();
@@ -32,6 +35,7 @@ const FeedEngagement = ({ item, accessToken }) => {
 	const [body, setBody] = useState('');
 	const [replyTo, setReplyTo] = useState(null);
 	const [error, setError] = useState('');
+	const [reportTarget, setReportTarget] = useState(null);
 	const [termsOk, setTermsOk] = useState(auth?.termsAccepted === true);
 	const [termsChecked, setTermsChecked] = useState(false);
 
@@ -138,6 +142,31 @@ const FeedEngagement = ({ item, accessToken }) => {
 		setLoaded(true);
 	};
 
+	const blockPerson = async (userId) => {
+		const ok = await confirm({
+			title: 'Zablokować gracza?',
+			message: 'Nie zobaczysz jego wpisów ani komentarzy. On nadal widzi Twoje.',
+			confirmLabel: 'Zablokuj',
+		});
+		if (!ok) return;
+		const result = await blockFeedUser(accessToken, userId);
+		if (!result.ok) {
+			setError(result.data?.message || 'Nie udało się zablokować.');
+			return;
+		}
+		setComments((current) => current
+			.filter((row) => row.author?.userId !== userId)
+			.map((row) => ({
+				...row,
+				replies: (row.replies ?? []).filter((reply) => reply.author?.userId !== userId),
+			})));
+		onAuthorBlocked?.(userId);
+	};
+
+	const beginReport = (type, id) => {
+		setReportTarget({ type, id });
+	};
+
 	const remove = async (comment) => {
 		const accepted = await confirm({
 			title: 'Usunąć komentarz?',
@@ -233,6 +262,9 @@ const FeedEngagement = ({ item, accessToken }) => {
 							onLike={likeComment}
 							onReply={setReplyTo}
 							onDelete={remove}
+							onBlock={blockPerson}
+							onReport={beginReport}
+							viewerId={auth?.userId ?? null}
 						/>
 					))}
 					{replyTo ? (
@@ -289,11 +321,29 @@ const FeedEngagement = ({ item, accessToken }) => {
 					</Pressable>
 				</View>
 			) : null}
+			<ReportModal
+				visible={reportTarget !== null}
+				title="Zgłoś komentarz"
+				onClose={() => setReportTarget(null)}
+				onSubmit={async ({ reason, details }) => {
+					if (!reportTarget) return { ok: false, message: 'Nie udało się zgłosić.' };
+					const result = await reportContent(
+						accessToken,
+						reportTarget.type,
+						reportTarget.id,
+						reason,
+						details,
+					);
+					return result.ok
+						? { ok: true }
+						: { ok: false, message: result.data?.message };
+				}}
+			/>
 		</View>
 	);
 };
 
-function CommentRow({ comment, reply = false, onAuthor, onLike, onReply, onDelete }) {
+function CommentRow({ comment, reply = false, onAuthor, onLike, onReply, onDelete, onBlock, onReport, viewerId }) {
 	const liked = comment.reactions?.mine === 'like';
 	return (
 		<View style={[styles.comment, reply && styles.reply]}>
@@ -320,6 +370,18 @@ function CommentRow({ comment, reply = false, onAuthor, onLike, onReply, onDelet
 						<Text style={styles.actionText}>Usuń</Text>
 					</Pressable>
 				) : null}
+				{comment.author?.userId && comment.author.userId !== viewerId ? (
+					<>
+						<Pressable style={styles.action} onPress={() => onBlock(comment.author.userId)}>
+							<Ionicons name="ban-outline" size={14} color={colors.danger} />
+							<Text style={styles.blockText}>Zablokuj</Text>
+						</Pressable>
+						<Pressable style={styles.action} onPress={() => onReport('comment', comment.id)}>
+							<Ionicons name="flag-outline" size={14} color={colors.accent} />
+							<Text style={styles.reportText}>Zgłoś</Text>
+						</Pressable>
+					</>
+				) : null}
 			</View>
 			{(comment.replies ?? []).map((replyRow) => (
 				<CommentRow
@@ -330,6 +392,9 @@ function CommentRow({ comment, reply = false, onAuthor, onLike, onReply, onDelet
 					onLike={onLike}
 					onReply={onReply}
 					onDelete={onDelete}
+					onBlock={onBlock}
+					onReport={onReport}
+					viewerId={viewerId}
 				/>
 			))}
 		</View>
@@ -350,6 +415,16 @@ const styles = StyleSheet.create({
 	},
 	actionText: {
 		color: colors.textMuted,
+		fontSize: 13,
+		fontWeight: '600',
+	},
+	blockText: {
+		color: colors.danger,
+		fontSize: 13,
+		fontWeight: '600',
+	},
+	reportText: {
+		color: colors.accent,
 		fontSize: 13,
 		fontWeight: '600',
 	},

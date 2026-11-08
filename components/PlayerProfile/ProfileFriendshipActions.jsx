@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { sendFriendInvite } from '../../helpers/friendsApi';
+import { Ionicons } from '@expo/vector-icons';
+import { useConfirm } from '../../context/ConfirmProvider';
+import { removeFriend, sendFriendInvite } from '../../helpers/friendsApi';
 import { actOnFriendInvitation } from '../../helpers/invitationsApi';
 import { colors } from '../../theme/colors';
 
 const ProfileFriendshipActions = ({
 	friendship,
 	userId,
+	playerName,
 	accessToken,
 	onChanged,
 }) => {
+	const confirm = useConfirm();
 	const [busy, setBusy] = useState(false);
 
 	if (!friendship || friendship.isSelf) {
@@ -36,7 +40,38 @@ const ProfileFriendshipActions = ({
 		}
 	};
 
-	if (friendship.isFriend || friendship.pendingSent) {
+	if (friendship.isFriend && userId) {
+		const remove = async () => {
+			if (busy) return;
+			const accepted = await confirm({
+				title: 'Usuń znajomego',
+				message: `Usunąć ${playerName || 'tę osobę'} ze znajomych?`,
+				confirmLabel: 'Usuń',
+			});
+			if (!accepted) return;
+			await runAction(() => removeFriend(userId, accessToken));
+		};
+
+		return (
+			<Pressable
+				style={[styles.remove, busy && styles.disabled]}
+				disabled={busy}
+				onPress={remove}
+				accessibilityRole="button"
+			>
+				{busy ? (
+					<ActivityIndicator color={colors.danger} size="small" />
+				) : (
+					<View style={styles.inviteContent}>
+						<Ionicons name="person-remove-outline" size={16} color={colors.danger} />
+						<Text style={styles.removeText}>Usuń znajomego</Text>
+					</View>
+				)}
+			</Pressable>
+		);
+	}
+
+	if (friendship.pendingSent) {
 		return null;
 	}
 
@@ -78,16 +113,19 @@ const ProfileFriendshipActions = ({
 	if (friendship.canInvite && userId) {
 		return (
 			<Pressable
-				style={[styles.accept, busy && styles.disabled]}
+				style={[styles.invite, busy && styles.disabled]}
 				disabled={busy}
 				onPress={() =>
 					runAction(() => sendFriendInvite(userId, accessToken), 'Zaproszenie wysłane')
 				}
 			>
 				{busy ? (
-					<ActivityIndicator color={colors.accent} size="small" />
+					<ActivityIndicator color={colors.success} size="small" />
 				) : (
-					<Text style={styles.acceptText}>Dodaj do znajomych</Text>
+					<View style={styles.inviteContent}>
+						<Ionicons name="person-add-outline" size={16} color={colors.success} />
+						<Text style={styles.inviteText}>Dodaj do znajomych</Text>
+					</View>
 				)}
 			</Pressable>
 		);
@@ -106,7 +144,9 @@ const styles = StyleSheet.create({
 		paddingVertical: 8,
 		paddingHorizontal: 12,
 		borderRadius: 8,
-		backgroundColor: colors.accentMuted,
+		borderWidth: 1,
+		borderColor: colors.accent,
+		backgroundColor: 'transparent',
 		alignItems: 'center',
 		minWidth: 88,
 	},
@@ -115,9 +155,48 @@ const styles = StyleSheet.create({
 		fontWeight: '600',
 		fontSize: 13,
 	},
+	invite: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.success,
+		backgroundColor: 'transparent',
+	},
+	inviteContent: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 6,
+	},
+	inviteText: {
+		color: colors.success,
+		fontWeight: '600',
+		fontSize: 13,
+	},
+	remove: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		backgroundColor: 'transparent',
+		borderWidth: 1,
+		borderColor: colors.danger,
+	},
+	removeText: {
+		color: colors.danger,
+		fontWeight: '600',
+		fontSize: 13,
+	},
 	reject: {
 		paddingVertical: 8,
 		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: 'transparent',
 		alignItems: 'center',
 	},
 	rejectText: {

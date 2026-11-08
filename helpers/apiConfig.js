@@ -195,6 +195,7 @@ export const ACCOUNT_LOGOUT_API_URL = API_BASE_URL + '/account/logout';
 export const ACCOUNT_SESSION_REFRESH_API_URL = API_BASE_URL + '/account/session/refresh';
 export const ACCOUNT_CHANGE_PASSWORD_API_URL = API_BASE_URL + '/account/password';
 export const ACCOUNT_ACCEPT_TERMS_API_URL = API_BASE_URL + '/account/terms';
+export const ACCOUNT_DELETE_API_URL = API_BASE_URL + '/account';
 export const ACCOUNT_FORGOT_PASSWORD_API_URL = API_BASE_URL + '/account/forgot-password';
 export const REGISTER_API_URL = API_BASE_URL + '/register';
 export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-notification';
@@ -364,9 +365,11 @@ export const FRIENDS_INVITATIONS_SENT_URL =
 	FRIENDS_API_URL + '/invitations/sent';
 export const USERS_SEARCH_URL = API_BASE_URL + '/users/search';
 
+export const BLOCKS_URL = API_BASE_URL + '/blocks';
+export const REPORTS_URL = API_BASE_URL + '/reports';
 export const FEED_URL = API_BASE_URL + '/feed';
 export const FEED_PREFERENCES_URL = API_BASE_URL + '/feed/preferences';
-export const FEED_MUTES_URL = API_BASE_URL + '/feed/mutes';
+export const FEED_FOLLOWS_URL = API_BASE_URL + '/feed/follows';
 export const getActivityCommentsUrl = (activityId) =>
 	API_BASE_URL + '/feed/activities/' + activityId + '/comments';
 export const getActivityReactionUrl = (activityId) =>
