@@ -44,6 +44,7 @@
           "cameraPermission": "twentySix potrzebuje kamery, żeby zeskanować kod QR turnieju."
         }
       ],
+      "expo-font",
       "expo-secure-store",
       [
         "expo-audio",
