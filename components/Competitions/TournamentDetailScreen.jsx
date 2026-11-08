@@ -248,6 +248,15 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 					{data?.canManage ? (
 						<ManageLinks
 							actions={[
+								...(tournament.status !== 'finished' ? [{
+									label: 'Edytuj turniej',
+									onPress: () => navigation.navigate('CreateTournament', {
+										tournamentId,
+										name: tournament.name,
+										date: tournament.date || '',
+										canEditDate: !tournament.isStarted,
+									}),
+								}] : []),
 								{
 									label: 'Administratorzy',
 									onPress: () => navigation.navigate('PeopleManage', {
@@ -429,7 +438,10 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 							) : null}
 
 							{activeTab === 'achievements' ? (
-								<TournamentAchievements rows={data?.achievements ?? []} />
+								<TournamentAchievements
+									rows={data?.achievements ?? []}
+									onPlayerPress={openPlayer}
+								/>
 							) : null}
 						</>
 					)}

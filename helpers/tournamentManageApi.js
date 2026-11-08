@@ -16,6 +16,7 @@ import {
 	getTournamentRelatedGuestUrl,
 	getTournamentSetupUrl,
 	getTournamentStartUrl,
+	getTournamentUrl,
 	getTournamentPlayoffFormatsUrl,
 	getTournamentTabletCodeUrl,
 	getTournamentUsersUrl,
@@ -54,6 +55,15 @@ export function createSeasonTournament(accessToken, seasonId, body) {
 		accessToken,
 		{ method: 'POST', body },
 		'Nie udało się utworzyć turnieju',
+	);
+}
+
+export function updateTournament(accessToken, tournamentId, body) {
+	return call(
+		getTournamentUrl(tournamentId),
+		accessToken,
+		{ method: 'PUT', body },
+		'Nie udało się zapisać turnieju',
 	);
 }
 

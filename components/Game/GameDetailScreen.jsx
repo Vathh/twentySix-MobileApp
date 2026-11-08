@@ -158,7 +158,6 @@ function StatsTable({ game }) {
 
 	return (
 		<View style={styles.section}>
-			<Text style={styles.sectionTitle}>Statystyki meczu</Text>
 			<View style={styles.stats}>
 				<View style={styles.statsHead}>
 					<Text style={styles.statsNameLeft} numberOfLines={2}>
@@ -244,14 +243,14 @@ function VisitTable({ leg, player1Name, player2Name }) {
 	);
 }
 
-function LegsBrowser({ game }) {
+function LegsBrowser({ game, showTitle = false }) {
 	const sets = Array.isArray(game?.sets) ? game.sets : [];
 	const [selection, setSelection] = useState(() => initialSelection(sets));
 
 	if (sets.length === 0) {
 		return (
 			<View style={styles.section}>
-				<Text style={styles.sectionTitle}>Legi i wizyty</Text>
+				{showTitle ? <Text style={styles.sectionTitle}>Legi i wizyty</Text> : null}
 				<Text style={styles.muted}>Brak rozegranych legów.</Text>
 			</View>
 		);
@@ -265,7 +264,7 @@ function LegsBrowser({ game }) {
 
 	return (
 		<View style={styles.section}>
-			<Text style={styles.sectionTitle}>Legi i wizyty</Text>
+			{showTitle ? <Text style={styles.sectionTitle}>Legi i wizyty</Text> : null}
 			{showSets ? (
 				<ScrollView
 					horizontal
@@ -391,7 +390,6 @@ function HeadToHead({ game, navigation, accessToken }) {
 
 	return (
 		<View style={styles.section}>
-			<Text style={styles.sectionTitle}>H2H</Text>
 			{h2h.meetings === 0 ? (
 				<Text style={styles.muted}>Pierwsze spotkanie tych zawodników.</Text>
 			) : (
@@ -510,6 +508,7 @@ const GameDetailScreen = ({ route, navigation }) => {
 	const [game, setGame] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [detailTab, setDetailTab] = useState('stats');
 
 	const load = useCallback(async () => {
 		const result = await fetchGameDetail(type, gameId, auth?.accessToken);
@@ -529,6 +528,10 @@ const GameDetailScreen = ({ route, navigation }) => {
 			load();
 		}, [load]),
 	);
+
+	useEffect(() => {
+		setDetailTab('stats');
+	}, [type, gameId]);
 
 	if (loading) {
 		return <ScreenLoading />;
@@ -585,10 +588,51 @@ const GameDetailScreen = ({ route, navigation }) => {
 			) : (
 				<ScoreBoard game={game} navigation={navigation} />
 			)}
-			{freeForAll ? null : <StatsTable game={game} />}
-			<LegsBrowser key={`${game.kind}-${game.gameId}-${game.sets?.length ?? 0}`} game={game} />
-			{freeForAll ? null : (
-				<HeadToHead game={game} navigation={navigation} accessToken={auth?.accessToken} />
+			{freeForAll ? (
+				<LegsBrowser
+					key={`${game.kind}-${game.gameId}-${game.sets?.length ?? 0}`}
+					game={game}
+					showTitle
+				/>
+			) : (
+				<>
+					<View style={styles.detailTabs} accessibilityRole="tablist">
+						{[
+							{ id: 'stats', label: 'Statystyki' },
+							{ id: 'legs', label: 'Legi' },
+							...(game.headToHead ? [{ id: 'h2h', label: 'H2H' }] : []),
+						].map((item) => {
+							const on = detailTab === item.id;
+							return (
+								<Pressable
+									key={item.id}
+									accessibilityRole="tab"
+									accessibilityState={{ selected: on }}
+									onPress={() => setDetailTab(item.id)}
+									style={[styles.detailTab, on && styles.detailTabOn]}
+								>
+									<Text style={[styles.detailTabText, on && styles.detailTabTextOn]}>
+										{item.label}
+									</Text>
+								</Pressable>
+							);
+						})}
+					</View>
+					<View style={detailTab !== 'stats' ? styles.tabHidden : null}>
+						<StatsTable game={game} />
+					</View>
+					<View style={detailTab !== 'legs' ? styles.tabHidden : null}>
+						<LegsBrowser
+							key={`${game.kind}-${game.gameId}-${game.sets?.length ?? 0}`}
+							game={game}
+						/>
+					</View>
+					{game.headToHead ? (
+						<View style={detailTab !== 'h2h' ? styles.tabHidden : null}>
+							<HeadToHead game={game} navigation={navigation} accessToken={auth?.accessToken} />
+						</View>
+					) : null}
+				</>
 			)}
 		</ScrollView>
 	);
@@ -753,6 +797,33 @@ const styles = StyleSheet.create({
 		fontSize: 17,
 		fontWeight: '700',
 		marginBottom: 10,
+	},
+	detailTabs: {
+		flexDirection: 'row',
+		borderBottomWidth: 1,
+		borderBottomColor: colors.border,
+		marginBottom: 16,
+	},
+	detailTab: {
+		flex: 1,
+		alignItems: 'center',
+		paddingVertical: 10,
+		borderBottomWidth: 2,
+		borderBottomColor: 'transparent',
+	},
+	detailTabOn: {
+		borderBottomColor: colors.accent,
+	},
+	detailTabText: {
+		color: colors.textMuted,
+		fontSize: 14,
+		fontWeight: '700',
+	},
+	detailTabTextOn: {
+		color: colors.accent,
+	},
+	tabHidden: {
+		display: 'none',
 	},
 	stats: {
 		backgroundColor: colors.bgElevated,

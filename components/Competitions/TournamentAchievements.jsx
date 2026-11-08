@@ -1,30 +1,43 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { groupAchievementValues } from '../../helpers/groupAchievementValues';
 
-const TournamentAchievements = ({ rows }) => {
+const TournamentAchievements = ({ rows, onPlayerPress }) => {
 	if (!rows || rows.length === 0) {
 		return <Text style={styles.empty}>Brak osiągnięć.</Text>;
 	}
 
 	return rows.map((row) => (
-		<AchievementCard key={row.playerId ?? row.playerName} row={row} />
+		<AchievementCard key={row.playerId ?? row.playerName} row={row} onPlayerPress={onPlayerPress} />
 	));
 };
 
-function AchievementCard({ row }) {
+function AchievementCard({ row, onPlayerPress }) {
 	const max = Number(row.max) || 0;
 	const oneSeventy = Number(row.oneSeventy) || 0;
 	const qf = groupAchievementValues(row.qf, 'asc');
 	const hf = groupAchievementValues(row.hf, 'desc');
+	const canOpen = Boolean(row.playerId && onPlayerPress);
 
 	return (
 		<View style={styles.card}>
 			<View style={styles.head}>
-				<Text style={styles.name} numberOfLines={1}>
-					{row.playerName}
-				</Text>
+				{canOpen ? (
+					<Pressable
+						style={styles.namePress}
+						onPress={() => onPlayerPress(row.playerId, row.playerName)}
+						accessibilityRole="link"
+					>
+						<Text style={[styles.name, styles.nameLink]} numberOfLines={1}>
+							{row.playerName}
+						</Text>
+					</Pressable>
+				) : (
+					<Text style={styles.name} numberOfLines={1}>
+						{row.playerName}
+					</Text>
+				)}
 				{max > 0 || oneSeventy > 0 ? (
 					<View style={styles.counts}>
 						{max > 0 ? <Count label="180" value={max} /> : null}
@@ -102,11 +115,17 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 12,
 	},
+	namePress: {
+		flex: 1,
+	},
 	name: {
 		flex: 1,
 		color: colors.text,
 		fontSize: 15,
 		fontWeight: '700',
+	},
+	nameLink: {
+		color: colors.accent,
 	},
 	counts: {
 		flexDirection: 'row',
