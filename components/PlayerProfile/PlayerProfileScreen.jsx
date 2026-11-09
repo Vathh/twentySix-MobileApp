@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Alert,
 	Pressable,
@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmProvider';
-import { fetchPlayerProfile } from '../../helpers/playerProfileApi';
+import { fetchPlayerHeadToHead, fetchPlayerProfile } from '../../helpers/playerProfileApi';
+import HeadToHeadPanel from '../Game/HeadToHeadPanel';
 import ProfileHeader from './ProfileHeader';
 import ProfileFriendshipActions from './ProfileFriendshipActions';
 import FollowButton from '../Activity/FollowButton';
@@ -29,6 +30,7 @@ import ScreenLoading from '../Common/ScreenLoading';
 const TAB_OVERVIEW = 'overview';
 const TAB_FEED = 'feed';
 const TAB_HISTORY = 'history';
+const TAB_H2H = 'h2h';
 const TAB_CAREER = 'career';
 const TAB_BADGES = 'badges';
 
@@ -40,10 +42,20 @@ const TABS = [
 	{ key: TAB_BADGES, label: 'Odznaczenia' },
 ];
 
-function ProfileTabBar({ activeTab, onChange }) {
+function profileTabs(profile) {
+	if (!profile?.headToHead || profile?.friendship?.isSelf) {
+		return TABS;
+	}
+	const historyIndex = TABS.findIndex((tab) => tab.key === TAB_HISTORY);
+	const next = TABS.slice();
+	next.splice(historyIndex + 1, 0, { key: TAB_H2H, label: 'H2H' });
+	return next;
+}
+
+function ProfileTabBar({ tabs, activeTab, onChange }) {
 	return (
 		<View style={styles.segment}>
-			{TABS.map((tab) => {
+			{tabs.map((tab) => {
 				const on = activeTab === tab.key;
 				return (
 					<Pressable
@@ -98,6 +110,12 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 		setActiveTab(tab);
 		setBadgeFocus({ anchor: null, nonce: 0 });
 	};
+
+	useEffect(() => {
+		setActiveTab(TAB_OVERVIEW);
+	}, [playerId]);
+
+	const tabs = profileTabs(profile);
 
 	const onScroll = useCallback((event) => {
 		const next = event.nativeEvent.contentOffset.y >= tabsOffsetRef.current;
@@ -263,7 +281,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 					}}
 				>
 					<View style={styles.form}>
-						<ProfileTabBar activeTab={activeTab} onChange={changeTab} />
+						<ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={changeTab} />
 					</View>
 				</View>
 
@@ -296,6 +314,24 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 							/>
 						) : null}
 
+						{activeTab === TAB_H2H ? (
+							<HeadToHeadPanel
+								h2h={profile?.headToHead}
+								leftName={auth?.playerName || '—'}
+								rightName={profile?.player?.name || '—'}
+								resetKey={String(playerId)}
+								zeroText="Nie rozegraliście jeszcze wspólnego meczu."
+								listEmptyText="Nie rozegraliście jeszcze wspólnego meczu."
+								onOpenMeeting={(meeting) =>
+									navigation.navigate('GameDetail', {
+										type: meeting.kind,
+										gameId: meeting.id,
+									})
+								}
+								loadPage={(offset) => fetchPlayerHeadToHead(playerId, offset, auth?.accessToken)}
+							/>
+						) : null}
+
 						{activeTab === TAB_CAREER ? (
 							<ProfileCareerDashboard
 								playerId={playerId}
@@ -311,6 +347,11 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								qfItems={profile?.qfItems}
 								finishItems={profile?.finishItems}
 								careerItems={profile?.careerItems}
+								onComparePress={
+									profile?.friendship?.isSelf
+										? null
+										: () => navigation.navigate('CompareBadges', { playerId })
+								}
 								focusAnchor={badgeFocus.anchor}
 								focusNonce={badgeFocus.nonce}
 								contentRef={contentRef}
@@ -325,7 +366,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 			{tabsPinned ? (
 				<View style={styles.tabsOverlay}>
 					<View style={styles.form}>
-						<ProfileTabBar activeTab={activeTab} onChange={changeTab} />
+						<ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={changeTab} />
 					</View>
 				</View>
 			) : null}

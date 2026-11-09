@@ -392,6 +392,10 @@ export const getPlayerAvatarUrl = (playerId) =>
 	API_BASE_URL + '/players/' + playerId + '/avatar';
 export const getPlayerGamesUrl = (playerId, page = 1) =>
 	API_BASE_URL + '/players/' + playerId + '/games?page=' + page;
+export const getPlayerHeadToHeadUrl = (playerId, offset) =>
+	API_BASE_URL + '/players/' + playerId + '/head-to-head?offset=' + offset;
+export const getPlayerBadgesCompareUrl = (playerId) =>
+	API_BASE_URL + '/players/' + playerId + '/badges/compare';
 export const getPlayerCareerUrl = (playerId, windowKey = '90d', source = 'all') =>
 	API_BASE_URL
 	+ '/players/'

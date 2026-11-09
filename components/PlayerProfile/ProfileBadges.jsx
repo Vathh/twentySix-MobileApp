@@ -76,6 +76,7 @@ const ProfileBadges = ({
 	qfItems,
 	finishItems,
 	careerItems,
+	onComparePress = null,
 	focusAnchor = null,
 	focusNonce = 0,
 	contentRef = null,
@@ -139,6 +140,15 @@ const ProfileBadges = ({
 		<BadgeHelpContext.Provider value={{ helpId, setHelpId }}>
 		<View style={styles.wrap}>
 			<Text style={styles.scopeNote}>Liczą się mecze 501 w lidze i turnieju.</Text>
+			{onComparePress ? (
+				<Pressable
+					onPress={onComparePress}
+					style={styles.compareButton}
+					accessibilityRole="button"
+				>
+					<Text style={styles.compareButtonText}>Porównaj odznaczenia</Text>
+				</Pressable>
+			) : null}
 			{visits.length > 0 ? (
 				<HighVisitRow items={visits} onSelect={setSelectedVisit} />
 			) : null}
@@ -603,6 +613,21 @@ const styles = StyleSheet.create({
 		lineHeight: 18,
 		color: colors.textMuted,
 		marginBottom: 16,
+	},
+	compareButton: {
+		alignSelf: 'flex-start',
+		marginBottom: 16,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+	},
+	compareButtonText: {
+		color: colors.text,
+		fontSize: 13,
+		fontWeight: '600',
 	},
 	helpDismiss: {
 		flex: 1,

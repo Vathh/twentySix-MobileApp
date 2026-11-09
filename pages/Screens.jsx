@@ -36,6 +36,7 @@ import TournamentSetupScreen from '../components/Tournament/TournamentSetupScree
 import { PeoplePanelProvider, usePeoplePanel } from '../components/Friends/PeoplePanel';
 import InvitationsScreen from '../components/Invitations/InvitationsScreen';
 import PlayerProfileScreen from '../components/PlayerProfile/PlayerProfileScreen';
+import CompareBadgesScreen from '../components/PlayerProfile/CompareBadgesScreen';
 import EditPlayerProfileScreen from '../components/PlayerProfile/EditPlayerProfileScreen';
 import GameDetailScreen from '../components/Game/GameDetailScreen';
 import AccountScreen from '../components/Account/AccountScreen';
@@ -122,6 +123,7 @@ function GrajStack() {
 			<Stack.Screen name="TournamentCode" component={TournamentCode} />
 			<Stack.Screen name="JoinTournament" component={JoinTournamentScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="CompareBadges" component={CompareBadgesScreen} options={{ title: 'Porównanie odznaczeń' }} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen
 				name="EditPlayerProfile"
@@ -151,6 +153,7 @@ function RozgrywkiStack() {
 			<Stack.Screen name="SeasonDetail" component={SeasonDetailScreen} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="CompareBadges" component={CompareBadgesScreen} options={{ title: 'Porównanie odznaczeń' }} />
 			<Stack.Screen
 				name="EditPlayerProfile"
 				component={EditPlayerProfileScreen}
@@ -169,6 +172,7 @@ function ZaproszeniaStack() {
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="ZaproszeniaHome" component={InvitationsScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="CompareBadges" component={CompareBadgesScreen} options={{ title: 'Porównanie odznaczeń' }} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen
 				name="EditPlayerProfile"
@@ -200,6 +204,7 @@ function KontoStack() {
 			<Stack.Screen name="SeasonDetail" component={SeasonDetailScreen} />
 			<Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="CompareBadges" component={CompareBadgesScreen} options={{ title: 'Porównanie odznaczeń' }} />
 			<Stack.Screen
 				name="EditPlayerProfile"
 				component={EditPlayerProfileScreen}
@@ -242,6 +247,7 @@ function FeedStack() {
 				options={{ headerBackVisible: false, title: '' }}
 			/>
 			<Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+			<Stack.Screen name="CompareBadges" component={CompareBadgesScreen} options={{ title: 'Porównanie odznaczeń' }} />
 			<Stack.Screen name="GameDetail" component={GameDetailScreen} />
 			<Stack.Screen name="OrganizationDetail" component={OrganizationDetailScreen} />
 			<Stack.Screen name="CreateTournament" component={CreateTournamentScreen} options={{ title: 'Nowy turniej' }} />

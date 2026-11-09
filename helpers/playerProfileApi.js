@@ -1,4 +1,11 @@
-import { getPlayerAvatarUrl, getPlayerCareerUrl, getPlayerGamesUrl, getPlayerProfileUrl } from './apiConfig';
+import {
+	getPlayerAvatarUrl,
+	getPlayerBadgesCompareUrl,
+	getPlayerCareerUrl,
+	getPlayerGamesUrl,
+	getPlayerHeadToHeadUrl,
+	getPlayerProfileUrl,
+} from './apiConfig';
 import { apiRequest } from './apiClient';
 import { CONNECTION_ERROR_MESSAGE, userFacingErrorMessage } from './userFacingError';
 
@@ -21,6 +28,66 @@ export async function fetchPlayerProfile(playerId, accessToken) {
 				ok: false,
 				status,
 				message: failMessage(status, data, 'Nie udało się wczytać profilu.', error),
+			};
+		}
+		return { ok: true, data };
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error),
+		};
+	}
+}
+
+/**
+ * Kolejna piątka wspólnych spotkań zalogowanego gracza z tym profilem.
+ *
+ * @returns {Promise<{ ok: true, data: { recent: object[], hasMore: boolean } } | { ok: false, status: number, message: string }>}
+ */
+export async function fetchPlayerHeadToHead(playerId, offset, accessToken) {
+	if (!playerId || !accessToken) {
+		return { ok: false, status: 0, message: 'Brak danych logowania.' };
+	}
+
+	try {
+		const { ok, status, data, error } = await apiRequest(getPlayerHeadToHeadUrl(playerId, offset), {
+			accessToken,
+		});
+		if (!ok) {
+			return {
+				ok: false,
+				status,
+				message: failMessage(status, data, 'Nie udało się wczytać kolejnych spotkań.', error),
+			};
+		}
+		return { ok: true, data };
+	} catch (error) {
+		return {
+			ok: false,
+			status: 0,
+			message: failMessage(0, null, CONNECTION_ERROR_MESSAGE, error),
+		};
+	}
+}
+
+/**
+ * Porównanie odznak zalogowanego gracza z tym profilem.
+ *
+ * @returns {Promise<{ ok: true, data: object } | { ok: false, status: number, message: string }>}
+ */
+export async function fetchBadgeComparison(playerId, accessToken) {
+	if (!playerId || !accessToken) {
+		return { ok: false, status: 0, message: 'Brak danych logowania.' };
+	}
+
+	try {
+		const { ok, status, data, error } = await apiRequest(getPlayerBadgesCompareUrl(playerId), { accessToken });
+		if (!ok) {
+			return {
+				ok: false,
+				status,
+				message: failMessage(status, data, 'Nie udało się wczytać porównania odznaczeń.', error),
 			};
 		}
 		return { ok: true, data };
