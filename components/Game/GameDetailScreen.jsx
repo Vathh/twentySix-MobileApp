@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { fetchGameDetail, fetchHeadToHeadRecent } from '../../helpers/gameDetailApi';
+import { useGameScoringRealtime } from '../../hooks/useGameScoringRealtime';
 import HeadToHeadPanel from './HeadToHeadPanel';
 import { formatAverage, hasAverage } from '../../helpers/formatAverage';
 import { colors } from '../../theme/colors';
@@ -46,6 +47,97 @@ function initialSelection(sets) {
 	const setIndex = Math.max(0, sets.length - 1);
 	const legIndex = Math.max(0, (sets[setIndex]?.legs?.length ?? 1) - 1);
 	return { setIndex, legIndex };
+}
+
+function fallbackRemaining(leg, side, startingScore) {
+	const rows = leg?.visits ?? [];
+	if (rows.length === 0) {
+		return startingScore;
+	}
+	const latest = rows[0];
+	const value = side === 'left' ? latest?.leftRemaining : latest?.rightRemaining;
+	if (value == null || value === '' || value === '-') {
+		return startingScore;
+	}
+	return value;
+}
+
+function rowsFromScoringVisits(visits, leftId, rightId) {
+	const sorted = [...(visits ?? [])].sort(
+		(a, b) => Number(a.visitNumber ?? 0) - Number(b.visitNumber ?? 0) || Number(a.id ?? 0) - Number(b.id ?? 0),
+	);
+	const rounds = [];
+	let current = { left: null, right: null };
+	const flush = () => {
+		if (current.left || current.right) {
+			rounds.push(current);
+			current = { left: null, right: null };
+		}
+	};
+	sorted.forEach((visit) => {
+		const id = Number(visit.playerId);
+		const side = id === Number(leftId) ? 'left' : id === Number(rightId) ? 'right' : null;
+		if (!side) {
+			return;
+		}
+		if (current[side]) {
+			flush();
+		}
+		current[side] = visit;
+	});
+	flush();
+	const total = rounds.length;
+	return rounds.reverse().map((round, index) => ({
+		leftThrown: round.left ? (round.left.bust ? 'Bust' : String(round.left.score ?? '-')) : '-',
+		leftRemaining: round.left?.remainingAfter != null ? String(round.left.remainingAfter) : '-',
+		darts: (total - index) * 3,
+		rightRemaining: round.right?.remainingAfter != null ? String(round.right.remainingAfter) : '-',
+		rightThrown: round.right ? (round.right.bust ? 'Bust' : String(round.right.score ?? '-')) : '-',
+		leftBust: Boolean(round.left?.bust),
+		rightBust: Boolean(round.right?.bust),
+	}));
+}
+
+function playerInState(state, playerId) {
+	return (state?.players ?? []).find((player) => Number(player.playerId) === Number(playerId)) ?? null;
+}
+
+function CurrentLegLive({ game, liveState }) {
+	const starting = game?.startingScore ?? 501;
+	const leftId = game?.player1?.id;
+	const rightId = game?.player2?.id;
+	const openLeg = openLegOf(game);
+	const leg = liveState
+		? { visits: rowsFromScoringVisits(liveState.visits, leftId, rightId) }
+		: openLeg;
+	const leftPlayer = liveState ? playerInState(liveState, leftId) : null;
+	const rightPlayer = liveState ? playerInState(liveState, rightId) : null;
+	const leftRemaining = leftPlayer?.remaining ?? fallbackRemaining(openLeg, 'left', starting);
+	const rightRemaining = rightPlayer?.remaining ?? fallbackRemaining(openLeg, 'right', starting);
+	const legNumber = liveState?.currentLeg?.legNumber ?? openLeg?.legNumber;
+
+	return (
+		<View style={styles.section}>
+			<Text style={styles.sectionTitle}>{legNumber ? `Leg ${legNumber}` : 'Bieżący leg'}</Text>
+			<View style={styles.remainRow}>
+				<View style={styles.remainBox}>
+					<Text style={styles.remainLabel}>Pozostało</Text>
+					<Text style={styles.remainValue}>{leftRemaining}</Text>
+				</View>
+				<View style={styles.remainBox}>
+					<Text style={styles.remainLabel}>Pozostało</Text>
+					<Text style={styles.remainValue}>{rightRemaining}</Text>
+				</View>
+			</View>
+			<VisitTable leg={leg} player1Name={game?.player1?.name} player2Name={game?.player2?.name} />
+		</View>
+	);
+}
+
+function openLegOf(game) {
+	const sets = Array.isArray(game?.sets) ? game.sets : [];
+	const { setIndex, legIndex } = initialSelection(sets);
+	return sets[setIndex]?.legs?.[legIndex] ?? null;
 }
 
 const STAT_SECTIONS = [
@@ -369,6 +461,7 @@ const GameDetailScreen = ({ route, navigation }) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [detailTab, setDetailTab] = useState('stats');
+	const [liveState, setLiveState] = useState(null);
 
 	const load = useCallback(async () => {
 		const result = await fetchGameDetail(type, gameId, auth?.accessToken);
@@ -391,7 +484,26 @@ const GameDetailScreen = ({ route, navigation }) => {
 
 	useEffect(() => {
 		setDetailTab('stats');
+		setLiveState(null);
 	}, [type, gameId]);
+
+	const onGameState = useCallback((state) => {
+		const status = state?.game?.status;
+		if (status === 'finished' || status === 'voided') {
+			setLiveState(null);
+			load();
+			return;
+		}
+		setLiveState(state);
+	}, [load]);
+
+	useGameScoringRealtime({
+		channelName: game?.broadcastChannel ?? null,
+		enabled: game?.status === 'in_progress' && Boolean(game?.broadcastChannel),
+		onGameState,
+		channelType: 'public',
+		scope: 'game-detail',
+	});
 
 	if (loading) {
 		return <ScreenLoading />;
@@ -456,6 +568,9 @@ const GameDetailScreen = ({ route, navigation }) => {
 				/>
 			) : (
 				<>
+					{game.status === 'in_progress' ? (
+						<CurrentLegLive game={game} liveState={liveState} />
+					) : null}
 					<View style={styles.detailTabs} accessibilityRole="tablist">
 						{[
 							{ id: 'stats', label: 'Statystyki' },
@@ -657,6 +772,31 @@ const styles = StyleSheet.create({
 		fontSize: 17,
 		fontWeight: '700',
 		marginBottom: 10,
+	},
+	remainRow: {
+		flexDirection: 'row',
+		gap: 10,
+		marginBottom: 12,
+	},
+	remainBox: {
+		flex: 1,
+		alignItems: 'center',
+		backgroundColor: colors.bgElevated,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: colors.border,
+		paddingVertical: 12,
+	},
+	remainLabel: {
+		color: colors.textMuted,
+		fontSize: 12,
+		marginBottom: 4,
+	},
+	remainValue: {
+		color: colors.text,
+		fontSize: 36,
+		fontWeight: '800',
+		fontVariant: ['tabular-nums'],
 	},
 	detailTabs: {
 		flexDirection: 'row',

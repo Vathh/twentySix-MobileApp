@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -21,6 +22,7 @@ import TabletLoginCard from '../Tournament/TabletLoginCard';
 import TournamentRosterPanel from '../Tournament/TournamentRosterPanel';
 import TournamentPublicRoster from '../Tournament/TournamentPublicRoster';
 import { applyTournamentJoin } from '../../helpers/tournamentManageApi';
+import { inviteOrganizationUser } from '../../helpers/competitionManageApi';
 import { useTournamentRosterLive } from '../../hooks/useTournamentRosterLive';
 import { colors } from '../../theme/colors';
 import ManageLinks from './ManageLinks';
@@ -62,6 +64,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 	const [activeTab, setActiveTab] = useState('results');
 	const [tabletLogin, setTabletLogin] = useState(null);
 	const [joinBusy, setJoinBusy] = useState(false);
+	const [inviteBusyId, setInviteBusyId] = useState(null);
 	const [bracketKey, setBracketKey] = useState(null);
 
 	const load = useCallback(
@@ -102,6 +105,20 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 		setError('');
 		const result = await applyTournamentJoin(auth?.accessToken, tournamentId);
 		setJoinBusy(false);
+		if (!result.ok) {
+			setError(result.message);
+			return;
+		}
+		void load({ soft: true });
+	};
+
+	const inviteToOrganization = async (userId) => {
+		const organizationId = data?.organization?.id;
+		if (!organizationId || !userId) return;
+		setInviteBusyId(userId);
+		setError('');
+		const result = await inviteOrganizationUser(auth?.accessToken, organizationId, userId);
+		setInviteBusyId(null);
 		if (!result.ok) {
 			setError(result.message);
 			return;
@@ -346,6 +363,40 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 									freezePlayerColumn
 									hugContent
 								/>
+								{data?.canInviteToOrganization ? (
+									<View style={styles.inviteList}>
+										{(data?.results ?? []).map((row) => {
+											if (!row.organizationInvite) return null;
+											if (row.organizationInvite === 'member') {
+												return (
+													<Text key={row.playerId} style={styles.inviteNote}>
+														{row.playerName} · W organizacji
+													</Text>
+												);
+											}
+											if (row.organizationInvite === 'pending') {
+												return (
+													<Text key={row.playerId} style={styles.inviteNote}>
+														{row.playerName} · Oczekuje
+													</Text>
+												);
+											}
+											return (
+												<Pressable
+													key={row.playerId}
+													disabled={inviteBusyId === row.userId}
+													onPress={() => inviteToOrganization(row.userId)}
+												>
+													<Text style={styles.inviteAction}>
+														{inviteBusyId === row.userId
+															? 'Wysyłanie…'
+															: `Zaproś ${row.playerName} do organizacji`}
+													</Text>
+												</Pressable>
+											);
+										})}
+									</View>
+								) : null}
 							) : null}
 
 							{activeTab === 'groups' ? (
@@ -362,6 +413,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 											<View key={group.groupNumber} style={styles.groupBlock}>
 												<Text style={styles.sectionTitle}>
 													Grupa {group.groupNumber}
+													{hasAverage(group.groupAverage) ? `  ${formatAverage(group.groupAverage)}` : ''}
 												</Text>
 												{showAdvance ? (
 													<Text style={styles.advanceHint}>
@@ -461,6 +513,9 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	error: { color: colors.dangerText, marginBottom: 16, fontSize: 14 },
+	inviteList: { marginTop: 12, gap: 8 },
+	inviteNote: { color: colors.textMuted, fontSize: 14 },
+	inviteAction: { color: colors.accent, fontWeight: '700', fontSize: 14 },
 	admins: {
 		marginTop: -8,
 		marginBottom: 16,

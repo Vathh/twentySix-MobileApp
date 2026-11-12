@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuickGameLobbyRealtime } from './useQuickGameLobbyRealtime';
-import { fetchQuickGameLobby } from '../helpers/quickGameLobbyApi';
+import { fetchQuickGameLobby, isMissingLobbyResponse } from '../helpers/quickGameLobbyApi';
 import { normalizeMatchFormat } from '../helpers/matchFormat/matchFormat';
 import {
 	loadPersistedMatchFormat,
@@ -197,7 +197,9 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 	}, [auth, lobby?.id, lobby?.youAreHost, navigation, resolveMyPlayerIndex]);
 
 	const fetchLobbyById = useCallback(async (lobbyId) => {
-		if (!lobbyId || !auth?.accessToken) return;
+		if (!lobbyId || !auth?.accessToken) {
+			return { ok: false, status: 0, data: null };
+		}
 		logReverbWs('info', 'lobby-http', 'GET lobby (polling/refresh)', { lobbyId });
 		try {
 			const { ok, status, data } = await fetchQuickGameLobby(lobbyId, auth.accessToken);
@@ -207,11 +209,18 @@ export function useQuickGameLobbyState({ route, navigation, auth, defaultMatchFo
 					players: data?.players?.length,
 				});
 				applyLobbyData(data, lobbyId);
+			} else if (isMissingLobbyResponse(status, data)) {
+				logReverbWs('warn', 'lobby-http', `GET lobby ${status} — lobby nie istnieje`, { lobbyId });
+				setLobby(null);
+				setInvitations([]);
+				setOrderedPlayers([]);
 			} else {
 				logReverbWs('warn', 'lobby-http', `GET lobby HTTP ${status}`);
 			}
+			return { ok, status, data };
 		} catch (e) {
 			logReverbWs('error', 'lobby-http', 'GET lobby błąd', e);
+			return { ok: false, status: 0, data: null };
 		}
 	}, [auth?.accessToken, applyLobbyData]);
 

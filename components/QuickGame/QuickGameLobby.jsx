@@ -25,8 +25,10 @@ import {
   addQuickGameLobbyGuest,
   createQuickGameLobby,
   inviteToQuickGameLobby,
+  isMissingLobbyResponse,
   leaveQuickGameLobby,
   markQuickGameLobbyReady,
+  missingLobbyMessage,
   startQuickGameLobby,
   updateQuickGameLobbySettings,
 } from '../../helpers/quickGameLobbyApi';
@@ -228,7 +230,7 @@ const QuickGameLobby = ({ navigation, route }) => {
     if (!lobbyId || !auth?.accessToken) return false;
     const playerId = friend.playerId ?? friend.player_id ?? friend.id;
     const name = friend.name ?? friend.playerName ?? 'Znajomy';
-    const { ok, data } = await inviteToQuickGameLobby(lobbyId, auth.accessToken, playerId);
+    const { ok, status, data } = await inviteToQuickGameLobby(lobbyId, auth.accessToken, playerId);
     if (ok) {
       setInvitations((prev) => {
         const id = Number(playerId);
@@ -238,6 +240,11 @@ const QuickGameLobby = ({ navigation, route }) => {
       setInviteModalVisible(false);
       fetchLobbyById(lobbyId);
       return true;
+    }
+    if (isMissingLobbyResponse(status, data)) {
+      clearLobbyLocal();
+      Alert.alert('Błąd', missingLobbyMessage(data));
+      return false;
     }
     Alert.alert('Błąd', data?.message || 'Nie udało się wysłać zaproszenia');
     return false;
@@ -282,6 +289,21 @@ const QuickGameLobby = ({ navigation, route }) => {
             Alert.alert('Gra w toku', 'Zakończ obecną grę, zanim zaprosisz do nowego lobby.');
           }
           return;
+        }
+        if (lobbyId) {
+          const fetched = await fetchLobbyById(lobbyId);
+          if (cancelled) return;
+          if (!fetched?.ok) {
+            if (isMissingLobbyResponse(fetched?.status, fetched?.data)) {
+              clearLobbyLocal();
+              lobbyId = null;
+            } else {
+              if (!cancelled) {
+                Alert.alert('Błąd', fetched?.data?.message || 'Nie udało się odświeżyć lobby');
+              }
+              return;
+            }
+          }
         }
         if (!lobbyId) {
           const { ok, status, data } = await createQuickGameLobby(auth.accessToken);

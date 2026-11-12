@@ -70,6 +70,14 @@ export function applyGroupMatrixEvent(data, payload) {
 		groups = patchRunningAverage(groups, game.player1Id, game.player1RunningAverage);
 		groups = patchRunningAverage(groups, game.player2Id, game.player2RunningAverage);
 	}
+	if (Object.prototype.hasOwnProperty.call(payload, 'groupAverage')) {
+		const groupNumber = Number(payload.groupNumber);
+		groups = groups.map((group) => (
+			Number(group.groupNumber) === groupNumber
+				? { ...group, groupAverage: payload.groupAverage }
+				: group
+		));
+	}
 	if (payload.includeStandings && Array.isArray(payload.standings)) {
 		const groupNumber = Number(payload.groupNumber);
 		groups = groups.map((group) => (
@@ -99,6 +107,7 @@ export function applyGroupsSnapshot(data, snapshot) {
 	const byId = new Map((snapshot.games ?? []).map((game) => [Number(game.id), game]));
 	const standingsByGroup = snapshot.standingsByGroup ?? {};
 	const highlights = snapshot.playoffHighlights ?? {};
+	const groupAverages = snapshot.groupAverages ?? {};
 	return {
 		...data,
 		groups: (data.groups ?? []).map((group) => {
@@ -106,6 +115,11 @@ export function applyGroupsSnapshot(data, snapshot) {
 			const playoffHighlight = highlights[group.groupNumber]
 				?? highlights[String(group.groupNumber)]
 				?? group.playoffHighlight;
+			const groupAverage = Object.prototype.hasOwnProperty.call(groupAverages, group.groupNumber)
+				? groupAverages[group.groupNumber]
+				: (Object.prototype.hasOwnProperty.call(groupAverages, String(group.groupNumber))
+					? groupAverages[String(group.groupNumber)]
+					: group.groupAverage);
 			return {
 				...group,
 				games: (group.games ?? []).map((existing) => {
@@ -114,6 +128,7 @@ export function applyGroupsSnapshot(data, snapshot) {
 				}),
 				standings: mergeStandings(group.standings, standingUpdate),
 				playoffHighlight,
+				groupAverage,
 			};
 		}),
 	};

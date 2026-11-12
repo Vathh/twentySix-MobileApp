@@ -33,6 +33,22 @@ export async function addQuickGameLobbyGuest(lobbyId, accessToken, tempPlayerNam
 	});
 }
 
+export function isMissingLobbyResponse(status, data) {
+	if (status === 404) {
+		return true;
+	}
+	const message = String(data?.message ?? '');
+	return message.includes('No query results for model') && message.includes('QuickGameLobby');
+}
+
+export function missingLobbyMessage(data) {
+	const message = String(data?.message ?? '');
+	if (message.includes('No query results for model')) {
+		return 'To lobby już nie istnieje.';
+	}
+	return message || 'To lobby już nie istnieje.';
+}
+
 export async function inviteToQuickGameLobby(lobbyId, accessToken, playerId) {
 	return apiRequest(getQuickGameLobbyInviteUrl(lobbyId), {
 		method: 'POST',

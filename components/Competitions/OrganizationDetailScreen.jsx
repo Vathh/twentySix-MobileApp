@@ -18,6 +18,7 @@ import NameStrip from './NameStrip';
 import { scaleSize } from '../../theme/uiScale';
 import ManageLinks from './ManageLinks';
 import FollowButton from '../Activity/FollowButton';
+import { applyOrganizationJoinRequest } from '../../helpers/competitionManageApi';
 import ScreenLoading from '../Common/ScreenLoading';
 import { colors } from '../../theme/colors';
 
@@ -28,6 +29,7 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const [joining, setJoining] = useState(false);
 
 	const load = useCallback(
 		async ({ soft } = {}) => {
@@ -57,6 +59,18 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 			void load();
 		}, [load]),
 	);
+
+	const applyToOrganization = async () => {
+		setJoining(true);
+		setError('');
+		const result = await applyOrganizationJoinRequest(auth?.accessToken, organizationId);
+		setJoining(false);
+		if (!result.ok) {
+			setError(result.message);
+			return;
+		}
+		setData((current) => (current ? { ...current, join: result.data?.join ?? current.join } : current));
+	};
 
 	if (loading) {
 		return <ScreenLoading />;
@@ -131,6 +145,20 @@ const OrganizationDetailScreen = ({ navigation, route }) => {
 						subjectType="organization"
 						subjectKey={organizationId}
 					/>
+
+					{data?.join?.alreadyMember ? (
+						<Text style={styles.joinNote}>Jesteś w składzie tej organizacji.</Text>
+					) : data?.join?.alreadyPending ? (
+						<Text style={styles.joinNote}>Zgłoszenie wysłane. Czekasz na decyzję organizatora.</Text>
+					) : data?.join?.hasInvitation ? (
+						<Text style={styles.joinNote}>Masz zaproszenie do tej organizacji.</Text>
+					) : data?.join?.canApply ? (
+						<Pressable style={styles.manageButton} disabled={joining} onPress={applyToOrganization}>
+							<Text style={styles.manageButtonText}>{joining ? 'Wysyłanie…' : 'Zgłoś się'}</Text>
+						</Pressable>
+					) : data?.join?.reason ? (
+						<Text style={styles.joinNote}>{data.join.reason}</Text>
+					) : null}
 
 					{data?.canManage ? (
 						<ManageLinks
@@ -349,6 +377,7 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	manageButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
+	joinNote: { color: colors.textMuted, marginTop: 12, marginBottom: 8 },
 });
 
 export default OrganizationDetailScreen;

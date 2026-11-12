@@ -461,6 +461,12 @@ export const getOrganizationUsersUrl = (organizationId, query) =>
 	API_BASE_URL + '/organizations/' + organizationId + '/users?q=' + encodeURIComponent(query);
 export const getOrganizationRelatedUsersUrl = (organizationId) =>
 	API_BASE_URL + '/organizations/' + organizationId + '/related-users';
+export const getOrganizationJoinRequestUrl = (organizationId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/join-request';
+export const getOrganizationJoinRequestApproveUrl = (organizationId, requestId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/join-requests/' + requestId + '/approve';
+export const getOrganizationJoinRequestRejectUrl = (organizationId, requestId) =>
+	API_BASE_URL + '/organizations/' + organizationId + '/join-requests/' + requestId + '/reject';
 export const getOrganizationInvitationCancelUrl = (organizationId, invitationId) =>
 	API_BASE_URL + '/organizations/' + organizationId + '/related-users/invitations/' + invitationId + '/cancel';
 export const getOrganizationRelatedUsersRemoveUrl = (organizationId) =>

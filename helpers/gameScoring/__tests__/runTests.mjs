@@ -14,6 +14,7 @@ import { runUndoVisitTests } from './undoVisit.test.js';
 import { runCanSwitchH2hMatchOpenerTests } from './canSwitchH2hMatchOpener.test.js';
 import { runFfaScoringCanInputTests } from './ffaScoringCanInput.test.js';
 import { runFfaTransportSharedTests } from './ffaTransportShared.test.js';
+import { runAnnounceRemoteVisitTests } from './announceRemoteVisit.test.js';
 import { runDartLimitRulesTests } from '../../matchFormat/__tests__/dartLimitRules.test.js';
 import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
 import { runPlayerResultReducerTests } from '../../reducers/__tests__/playerResultReducer.test.js';
@@ -1005,6 +1006,7 @@ const tests = [
 	['h2h switch opener', runCanSwitchH2hMatchOpenerTests],
 	['ffa scoring canInput', runFfaScoringCanInputTests],
 	['ffa transport shared', runFfaTransportSharedTests],
+	['remote visit announcement', runAnnounceRemoteVisitTests],
 	['dart limit rules', runDartLimitRulesTests],
 	['players board reducer', runPlayersBoardReducerTests],
 	['player result reducer', runPlayerResultReducerTests],

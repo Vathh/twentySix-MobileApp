@@ -21,6 +21,7 @@ import {
 import { adoptStartingScore } from '../../helpers/reducers/playersBoardReducer';
 import { achievementsReducer } from '../../helpers/reducers/achievementsReducer';
 import { initialAchievementsState } from '../../helpers/reducers/achievementActions';
+import { canFinishWithCheck } from '../../helpers/gameScoring/checkoutCheck';
 import Counter from './Counter';
 import Stats from './Stats';
 import Settings from '../Core/Settings';
@@ -1070,6 +1071,14 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 		}
 	};
 
+	const handleCheckBtn = () => {
+		const remaining = Number(playerStates[currentPlayerIndex]?.score ?? startingScore);
+		if (!canFinishWithCheck(remaining)) {
+			return;
+		}
+		submitSumVisitScore(remaining, { fromRemaining: true });
+	};
+
 	const handleOkBtn = () => {
 		submitSumVisitScore(currentResult);
 	};
@@ -1294,6 +1303,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 
 	const onNumberBtn = useLatestCallback(handleNumberBtn);
 	const onOkBtn = useLatestCallback(handleOkBtn);
+	const onCheckBtn = useLatestCallback(handleCheckBtn);
 	const onRemainingBtn = useLatestCallback(handleRemainingBtn);
 	const onUndoBtn = useLatestCallback(handleUndoBtn);
 	const onClearBtn = useLatestCallback(handleClearBtn);
@@ -1312,6 +1322,7 @@ const X01GameScoringScreen = ({ route, navigation }) => {
 						resultEdited={resultEdited}
 						handleNumberBtn={onNumberBtn}
 						handleOkBtn={onOkBtn}
+						handleCheckBtn={onCheckBtn}
 						handleRemainingBtn={onRemainingBtn}
 						handleUndoBtn={onUndoBtn}
 						handleClearBtn={onClearBtn}

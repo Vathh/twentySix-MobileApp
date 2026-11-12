@@ -69,13 +69,15 @@ const HeadToHeadPanel = ({
 			) : (
 				<View style={styles.h2hCard}>
 					<View style={styles.h2hRecord}>
-						<Text style={[styles.h2hName, styles.h2hNameLeft]} numberOfLines={2}>
-							{leftName}
-						</Text>
-						<View style={styles.h2hLabel} />
-						<Text style={[styles.h2hName, styles.h2hNameRight]} numberOfLines={2}>
-							{rightName}
-						</Text>
+						<View style={styles.h2hMetricRow}>
+							<Text style={[styles.h2hName, styles.h2hNameLeft]} numberOfLines={2}>
+								{leftName}
+							</Text>
+							<View style={styles.h2hLabel} />
+							<Text style={[styles.h2hName, styles.h2hNameRight]} numberOfLines={2}>
+								{rightName}
+							</Text>
+						</View>
 						<View
 							style={styles.h2hBar}
 							accessibilityLabel={`Bilans wygranych ${h2h.player1Wins ?? 0} do ${h2h.player2Wins ?? 0}`}
@@ -83,27 +85,33 @@ const HeadToHeadPanel = ({
 							{leftShare > 0 ? <View style={[styles.h2hBarLeft, { width: `${leftShare}%` }]} /> : null}
 							{rightShare > 0 ? <View style={[styles.h2hBarRight, { width: `${rightShare}%` }]} /> : null}
 						</View>
-						<Text style={[styles.h2hWins, styles.h2hAlignLeft, winLead.left && styles.h2hLead]}>
-							{h2h.player1Wins ?? 0}
-						</Text>
-						<Text style={styles.h2hLabel}>wygrane</Text>
-						<Text style={[styles.h2hWins, styles.h2hAlignRight, winLead.right && styles.h2hLead]}>
-							{h2h.player2Wins ?? 0}
-						</Text>
-						<Text style={[styles.h2hLegs, styles.h2hAlignLeft, legLead.left && styles.h2hLead]}>
-							{h2h.player1Legs ?? 0}
-						</Text>
-						<Text style={styles.h2hLabel}>legi</Text>
-						<Text style={[styles.h2hLegs, styles.h2hAlignRight, legLead.right && styles.h2hLead]}>
-							{h2h.player2Legs ?? 0}
-						</Text>
-						<Text style={[styles.h2hAvg, styles.h2hAlignLeft, avgLead.left && styles.h2hLead]}>
-							{showAvg(h2h.player1Average)}
-						</Text>
-						<Text style={styles.h2hLabel}>średnia</Text>
-						<Text style={[styles.h2hAvg, styles.h2hAlignRight, avgLead.right && styles.h2hLead]}>
-							{showAvg(h2h.player2Average)}
-						</Text>
+						<View style={styles.h2hMetricRow}>
+							<Text style={[styles.h2hWins, styles.h2hAlignLeft, winLead.left && styles.h2hLead]}>
+								{h2h.player1Wins ?? 0}
+							</Text>
+							<Text style={styles.h2hLabel}>wygrane</Text>
+							<Text style={[styles.h2hWins, styles.h2hAlignRight, winLead.right && styles.h2hLead]}>
+								{h2h.player2Wins ?? 0}
+							</Text>
+						</View>
+						<View style={styles.h2hMetricRow}>
+							<Text style={[styles.h2hLegs, styles.h2hAlignLeft, legLead.left && styles.h2hLead]}>
+								{h2h.player1Legs ?? 0}
+							</Text>
+							<Text style={styles.h2hLabel}>legi</Text>
+							<Text style={[styles.h2hLegs, styles.h2hAlignRight, legLead.right && styles.h2hLead]}>
+								{h2h.player2Legs ?? 0}
+							</Text>
+						</View>
+						<View style={styles.h2hMetricRow}>
+							<Text style={[styles.h2hAvg, styles.h2hAlignLeft, avgLead.left && styles.h2hLead]}>
+								{showAvg(h2h.player1Average)}
+							</Text>
+							<Text style={styles.h2hLabel}>średnia</Text>
+							<Text style={[styles.h2hAvg, styles.h2hAlignRight, avgLead.right && styles.h2hLead]}>
+								{showAvg(h2h.player2Average)}
+							</Text>
+						</View>
 					</View>
 					{h2h.streak || h2h.firstMeetingAt ? (
 						<Text style={styles.h2hMeta}>
@@ -189,13 +197,15 @@ const styles = StyleSheet.create({
 		overflow: 'hidden',
 	},
 	h2hRecord: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		alignItems: 'center',
-		columnGap: 8,
-		rowGap: 6,
 		paddingVertical: 14,
 		paddingHorizontal: 12,
+		gap: 6,
+	},
+	h2hMetricRow: {
+		width: '100%',
+		flexDirection: 'row',
+		alignItems: 'center',
+		columnGap: 8,
 	},
 	h2hName: {
 		flexGrow: 1,

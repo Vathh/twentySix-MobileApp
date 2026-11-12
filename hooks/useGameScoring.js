@@ -160,6 +160,8 @@ export function useGameScoring({
 					visits,
 					legs: Array.isArray(state.legs) ? state.legs : [],
 					turn: normalized?.turn ?? null,
+					lastLegClose: normalized?.meta?.lastLegClose ?? state.meta?.lastLegClose ?? null,
+					status: normalized?.meta?.status ?? state.meta?.status ?? null,
 				};
 				setLegVisits(visits);
 				setBullOffRequired(Boolean(normalized?.meta?.bullOffRequired ?? state.meta?.bullOffRequired));
@@ -231,13 +233,19 @@ export function useGameScoring({
 			}
 
 			lastRevisionRef.current = revision;
-			const prevVisits = lastSyncStateRef.current?.visits;
+			const prevSnapshot = lastSyncStateRef.current
+				? {
+						visits: lastSyncStateRef.current.visits,
+						lastLegClose: lastSyncStateRef.current.lastLegClose ?? null,
+						status: lastSyncStateRef.current.status ?? null,
+					}
+				: null;
 			applyStateInternal(state);
 			const sync = scoringSyncRef.current;
 			const normalized = isNormalizedScoringState(state)
 				? state
 				: normalizeScoringState(state, sync.players);
-			announceRemoteVisit(prevVisits, normalized);
+			announceRemoteVisit(prevSnapshot, normalized);
 			return true;
 		},
 		[applyStateInternal],

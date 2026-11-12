@@ -12,6 +12,7 @@ import {
   scoreUnitLabel,
 } from '../../helpers/matchFormat/matchFormatScoring'
 import { colors } from '../../theme/colors'
+import { canFinishWithCheck } from '../../helpers/gameScoring/checkoutCheck'
 import TickingScore from './TickingScore'
 import H2hLegVisitTable from './H2hLegVisitTable'
 
@@ -51,6 +52,7 @@ const Counter = ({
   resultEdited = false,
   handleNumberBtn,
   handleOkBtn,
+  handleCheckBtn,
   handleRemainingBtn,
   handleUndoBtn,
   handleClearBtn,
@@ -82,6 +84,8 @@ const Counter = ({
   const isPerDart = scoringMode === SCORING_MODES.PER_DART;
   const showLegVisitTable = isTwoPlayer && Array.isArray(legVisits);
   const inputDisabled = !canInput || submitting;
+  const checkScore = Number(playerStates?.[currentPlayerIndex]?.score);
+  const checkEnabled = !inputDisabled && canFinishWithCheck(checkScore);
   const canPressOpponentName = typeof onPressOpponentName === 'function';
 
   const renderH2hPlayerName = (index, label) => {
@@ -458,25 +462,36 @@ const Counter = ({
   const scoreDisplayText =
     resultEdited || currentResult > 0 ? String(currentResult) : 'Wprowadź wynik';
   const scoreSection = (
-    <View style={styles.scoreContainer}>
-      <View style={styles.score}>
-        <Text style={styles.scoreText}>{scoreDisplayText}</Text>
+    <View>
+      <View style={styles.scoreContainer}>
+        <View style={styles.score}>
+          <Text style={styles.scoreText}>{scoreDisplayText}</Text>
+        </View>
+        <View style={styles.undoContainer}>
+          <Pressable
+            style={styles.remainingBtn}
+            onPress={() => handleRemainingBtn?.()}
+            accessibilityRole="button"
+            accessibilityLabel="Zostało"
+          >
+            <Text style={styles.remainingText} numberOfLines={1}>
+              Zostało
+            </Text>
+          </Pressable>
+          <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
+            <Text style={styles.undoText}>Cofnij</Text>
+          </Pressable>
+        </View>
       </View>
-      <View style={styles.undoContainer}>
-        <Pressable
-          style={styles.remainingBtn}
-          onPress={() => handleRemainingBtn?.()}
-          accessibilityRole="button"
-          accessibilityLabel="Zostało"
-        >
-          <Text style={styles.remainingText} numberOfLines={1}>
-            Zostało
-          </Text>
-        </Pressable>
-        <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
-          <Text style={styles.undoText}>Cofnij</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        style={[styles.checkBtn, !checkEnabled && styles.checkBtnDisabled]}
+        onPress={() => handleCheckBtn?.()}
+        disabled={!checkEnabled}
+        accessibilityRole="button"
+        accessibilityLabel="Check"
+      >
+        <Text style={styles.checkBtnText}>Check</Text>
+      </Pressable>
     </View>
   );
 
@@ -867,7 +882,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     marginRight: 15,
     fontSize: 20,
-    color: colors.textMuted
+    color: colors.textSecondary
   },
   legsSetLabel: {
     fontSize: 15,
@@ -877,9 +892,9 @@ const styles = StyleSheet.create({
   },
   legsInSetScore: {
     marginTop: 2,
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textSecondary,
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
     fontVariant: ['tabular-nums'],
   },
   legsSubText: {
@@ -888,9 +903,11 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   legsResultText: {
-    fontSize: 28,
+    fontSize: 40,
+    fontWeight: '800',
     justifyContent: 'center',
-    color: colors.textMuted
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   countersContainer: {
     flex: 1,
@@ -1057,6 +1074,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.textMuted
   },
+  checkBtn: {
+    marginTop: 8,
+    marginHorizontal: 4,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBtnDisabled: {
+    backgroundColor: colors.scrimMild,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  checkBtnText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
   waitingOverlay: {
     position: 'absolute',
     left: 0,
@@ -1167,8 +1203,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   multiLegs: {
-    color: colors.textMuted,
-    fontSize: 14,
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
     marginTop: 2,
   },
   multiAvg: {

@@ -6,6 +6,9 @@ import {
 	getOrganizationGuestsRemoveUrl,
 	getOrganizationGuestsUrl,
 	getOrganizationInvitationCancelUrl,
+	getOrganizationJoinRequestApproveUrl,
+	getOrganizationJoinRequestRejectUrl,
+	getOrganizationJoinRequestUrl,
 	getOrganizationLogoUrl,
 	getOrganizationManageUrl,
 	getOrganizationRelatedUsersRemoveUrl,
@@ -76,6 +79,18 @@ export function searchOrganizationUsers(accessToken, organizationId, query) {
 
 export function inviteOrganizationUser(accessToken, organizationId, userId) {
 	return send(getOrganizationRelatedUsersUrl(organizationId), accessToken, { method: 'POST', body: { userId } }, 'Nie udało się zaprosić.');
+}
+
+export function applyOrganizationJoinRequest(accessToken, organizationId) {
+	return send(getOrganizationJoinRequestUrl(organizationId), accessToken, { method: 'POST', body: {} }, 'Nie udało się wysłać zgłoszenia.');
+}
+
+export function approveOrganizationJoinRequest(accessToken, organizationId, requestId) {
+	return send(getOrganizationJoinRequestApproveUrl(organizationId, requestId), accessToken, { method: 'POST', body: {} }, 'Nie udało się zatwierdzić zgłoszenia.');
+}
+
+export function rejectOrganizationJoinRequest(accessToken, organizationId, requestId) {
+	return send(getOrganizationJoinRequestRejectUrl(organizationId, requestId), accessToken, { method: 'POST', body: {} }, 'Nie udało się odrzucić zgłoszenia.');
 }
 
 export function cancelOrganizationInvitation(accessToken, organizationId, invitationId) {

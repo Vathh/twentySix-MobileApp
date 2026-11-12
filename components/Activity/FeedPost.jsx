@@ -31,19 +31,33 @@ function Sentence({ item, navigation }) {
 
 	return (
 		<Text style={styles.body}>
-			{parts.map((part, index) => (
-				part?.playerId ? (
+			{parts.map((part, index) => {
+				const tournamentId = part?.tournamentId;
+				const organizationId = part?.organizationId;
+				const playerId = part?.playerId;
+				if (!playerId && !tournamentId && !organizationId) {
+					return <Text key={index}>{part?.text || ''}</Text>;
+				}
+				return (
 					<Text
 						key={index}
 						style={styles.mention}
-						onPress={() => navigation.push('PlayerProfile', { playerId: part.playerId, name: part.text })}
+						onPress={() => {
+							if (playerId) {
+								navigation.push('PlayerProfile', { playerId, name: part.text });
+								return;
+							}
+							if (tournamentId) {
+								navigation.push('TournamentDetail', { id: tournamentId });
+								return;
+							}
+							navigation.push('OrganizationDetail', { id: organizationId });
+						}}
 					>
 						{part.text}
 					</Text>
-				) : (
-					<Text key={index}>{part?.text || ''}</Text>
-				)
-			))}
+				);
+			})}
 		</Text>
 	);
 }

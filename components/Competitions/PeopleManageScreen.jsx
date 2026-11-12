@@ -15,11 +15,13 @@ import {
 	addOrganizationGuest,
 	addSeasonAdmin,
 	addTournamentAdmin,
+	approveOrganizationJoinRequest,
 	cancelOrganizationInvitation,
 	fetchOrganizationManage,
 	fetchSeasonManage,
 	fetchTournamentAdmins,
 	inviteOrganizationUser,
+	rejectOrganizationJoinRequest,
 	removeOrganizationAdmin,
 	removeOrganizationGuest,
 	removeOrganizationMember,
@@ -132,6 +134,30 @@ const PeopleManageScreen = ({ navigation, route }) => {
 						busy={busy}
 						onAction={(person) => run(() => cancelOrganizationInvitation(auth?.accessToken, entityId, person.id))}
 					/>
+					<Text style={styles.section}>Zgłoszenia</Text>
+					{(data?.pendingJoinRequests ?? []).length === 0 ? (
+						<Text style={styles.empty}>Brak zgłoszeń.</Text>
+					) : (
+						(data?.pendingJoinRequests ?? []).map((request) => (
+							<View key={request.id} style={styles.person}>
+								<Text style={styles.personName}>{request.name}</Text>
+								<View style={styles.joinActions}>
+									<Pressable
+										disabled={busy}
+										onPress={() => run(() => approveOrganizationJoinRequest(auth?.accessToken, entityId, request.id))}
+									>
+										<Text style={styles.action}>Dołącz</Text>
+									</Pressable>
+									<Pressable
+										disabled={busy}
+										onPress={() => run(() => rejectOrganizationJoinRequest(auth?.accessToken, entityId, request.id))}
+									>
+										<Text style={styles.action}>Odrzuć</Text>
+									</Pressable>
+								</View>
+							</View>
+						))
+					)}
 					<Text style={styles.section}>Zaproś</Text>
 					<SearchRow query={query} setQuery={setQuery} onSearch={search} busy={busy} placeholder="Min. 5 znaków" />
 					<PersonList
@@ -290,6 +316,7 @@ const styles = StyleSheet.create({
 	},
 	personName: { flex: 1, color: colors.text, fontWeight: '600' },
 	action: { color: colors.accent, fontWeight: '700' },
+	joinActions: { flexDirection: 'row', gap: 16 },
 	input: {
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
