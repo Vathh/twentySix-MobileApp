@@ -22,10 +22,15 @@ import HomeDashboard from '../components/Core/HomeDashboard';
 import QuickGameLobby from '../components/QuickGame/QuickGameLobby';
 import LeagueGamesListScreen from '../components/League/LeagueGamesListScreen';
 import LeagueGameLobby from '../components/League/LeagueGameLobby';
-import TrainingHub from '../components/QuickGame/TrainingHub';
+import TrainingHome from '../components/Training/TrainingHome';
+import TrainingStartScreen from '../components/Training/TrainingStartScreen';
+import TrainingSectionScreen from '../components/Training/TrainingSectionScreen';
+import TrainingCatalogScreen from '../components/Training/TrainingCatalogScreen';
+import TrainingFavoritesScreen from '../components/Training/TrainingFavoritesScreen';
+import TrainingDefinitionScreen from '../components/Training/TrainingDefinitionScreen';
+import TrainingExerciseScreen from '../components/Training/TrainingExerciseScreen';
+import TrainingSessionSync from '../components/Training/TrainingSessionSync';
 import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
-import TrainingHistoryList from '../components/QuickGame/TrainingHistoryList';
-import TrainingGameDetail from '../components/QuickGame/TrainingGameDetail';
 import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
 import OrganizationFormScreen from '../components/Competitions/OrganizationFormScreen';
 import SeasonFormScreen from '../components/Competitions/SeasonFormScreen';
@@ -105,10 +110,14 @@ function GrajStack() {
 	return (
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="GrajHome" component={Home} />
-			<Stack.Screen name="TrainingHub" component={TrainingHub} />
+			<Stack.Screen name="TrainingHome" component={TrainingHome} />
+			<Stack.Screen name="TrainingStart" component={TrainingStartScreen} />
+			<Stack.Screen name="TrainingSection" component={TrainingSectionScreen} />
+			<Stack.Screen name="TrainingCatalog" component={TrainingCatalogScreen} />
+			<Stack.Screen name="TrainingFavorites" component={TrainingFavoritesScreen} />
+			<Stack.Screen name="TrainingDefinition" component={TrainingDefinitionScreen} />
+			<Stack.Screen name="TrainingExercise" component={TrainingExerciseScreen} />
 			<Stack.Screen name="TrainingMatchSetup" component={TrainingMatchSetup} />
-			<Stack.Screen name="TrainingHistory" component={TrainingHistoryList} />
-			<Stack.Screen name="TrainingGameDetail" component={TrainingGameDetail} />
 			<Stack.Screen name="QuickGameLobby" component={QuickGameLobby} />
 			<Stack.Screen
 				name="LeagueGames"
@@ -299,6 +308,7 @@ function UserMainTabs() {
 	return (
 		<TabTransitionProvider>
 			<PeoplePanelProvider>
+				<TrainingSessionSync />
 				<UserMainTabsNavigator />
 			</PeoplePanelProvider>
 		</TabTransitionProvider>
@@ -454,23 +464,8 @@ const Screens = () => {
 					}}
 				/>
 				<RootStack.Screen
-					name="TrainingHub"
-					component={TrainingHub}
-					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
-				/>
-				<RootStack.Screen
 					name="TrainingMatchSetup"
 					component={TrainingMatchSetup}
-					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
-				/>
-				<RootStack.Screen
-					name="TrainingHistory"
-					component={TrainingHistoryList}
-					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
-				/>
-				<RootStack.Screen
-					name="TrainingGameDetail"
-					component={TrainingGameDetail}
 					options={{ ...headerOptions, headerTitle: (props) => <HeaderTitle {...props} /> }}
 				/>
 				<RootStack.Screen

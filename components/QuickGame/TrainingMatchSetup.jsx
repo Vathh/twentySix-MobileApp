@@ -233,11 +233,11 @@ const TrainingMatchSetup = ({ navigation, route }) => {
 
 	const listHeader = (
 		<>
-			<Text style={styles.title}>Mecz treningowy</Text>
+			<Text style={styles.title}>Wolna gra</Text>
 			<Text style={styles.hint}>
 				{auth?.playerId
 					? 'Slot „JA” to Twoje konto — tylko jego statystyki trafiają do kariery. Kumpli z imion lokalnych nie zapisujemy na serwerze. Możesz usunąć JA i grać pod innym imieniem.'
-					: 'Bez konta trening zostaje tylko na tym telefonie. Zaloguj się, żeby slot JA zapisywał się w karierze.'}
+					: 'Bez konta ta gra zostaje tylko na tym telefonie. Zaloguj się, żeby slot JA zapisywał się w karierze.'}
 			</Text>
 
 			<View style={styles.section}>

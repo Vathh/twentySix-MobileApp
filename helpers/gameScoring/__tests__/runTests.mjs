@@ -19,6 +19,10 @@ import { runDartLimitRulesTests } from '../../matchFormat/__tests__/dartLimitRul
 import { runPlayersBoardReducerTests } from '../../reducers/__tests__/playersBoardReducer.test.js';
 import { runPlayerResultReducerTests } from '../../reducers/__tests__/playerResultReducer.test.js';
 import { runUserFacingErrorTests } from '../../__tests__/userFacingError.test.js';
+import { runRecentTrainingTests } from '../../training/__tests__/recentTraining.test.js';
+import { runClockExerciseTests } from '../../training/__tests__/clockExercise.test.js';
+import { runSectorClockExerciseTests } from '../../training/__tests__/sectorClockExercise.test.js';
+import { runLooseThrowsExerciseTests } from '../../training/__tests__/looseThrowsExercise.test.js';
 import {
 	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
@@ -1011,6 +1015,10 @@ const tests = [
 	['players board reducer', runPlayersBoardReducerTests],
 	['player result reducer', runPlayerResultReducerTests],
 	['user facing error', runUserFacingErrorTests],
+	['recent training', runRecentTrainingTests],
+	['clock exercise', runClockExerciseTests],
+	['sector clock exercise', runSectorClockExerciseTests],
+	['loose throws exercise', runLooseThrowsExerciseTests],
 ];
 
 let passed = 0;

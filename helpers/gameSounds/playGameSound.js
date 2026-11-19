@@ -9,6 +9,8 @@ const EVENT_SOURCES = {
 	gameon: require('../../assets/sounds/gameon.mp3'),
 	gameshot: require('../../assets/sounds/gameshot.mp3'),
 	gameshotandthematch: require('../../assets/sounds/gameshotandthematch.mp3'),
+	ticking: require('../../assets/sounds/ticking.mp3'),
+	finalBell: require('../../assets/sounds/final-bell.mp3'),
 };
 
 const PLAYER_OPTIONS = {
@@ -19,6 +21,9 @@ const PLAYER_OPTIONS = {
 let audioModePromise = null;
 let clickPlayer = null;
 let voicePlayer = null;
+let tickPlayer = null;
+let bellPlayer = null;
+let tickToken = 0;
 let voiceSourceKey = null;
 let soundsEnabled = true;
 let soundVolume = 1;
@@ -46,6 +51,12 @@ function applyVolumeToPlayers() {
 	}
 	if (voicePlayer) {
 		voicePlayer.volume = volume;
+	}
+	if (tickPlayer) {
+		tickPlayer.volume = volume;
+	}
+	if (bellPlayer) {
+		bellPlayer.volume = volume;
 	}
 }
 
@@ -162,4 +173,80 @@ export function playCheckoutWin(matchWon) {
 
 export function playCheckoutWinSound(playerState, matchFormat) {
 	playCheckoutWin(wouldWinMatch(playerState, matchFormat));
+}
+
+function getTickPlayer() {
+	if (!tickPlayer) {
+		tickPlayer = createAudioPlayer(EVENT_SOURCES.ticking, PLAYER_OPTIONS);
+		tickPlayer.volume = effectiveVolume();
+	}
+	return tickPlayer;
+}
+
+function getBellPlayer() {
+	if (!bellPlayer) {
+		bellPlayer = createAudioPlayer(EVENT_SOURCES.finalBell, PLAYER_OPTIONS);
+		bellPlayer.volume = effectiveVolume();
+	}
+	return bellPlayer;
+}
+
+export function stopTicking() {
+	tickToken += 1;
+	try {
+		tickPlayer?.pause();
+	} catch (error) {
+		console.warn('gameSounds tick stop', error);
+	}
+}
+
+/** Ostatnie 5 sekund. positionSeconds przesuwa start, gdy ćwiczenie jest krótsze niż plik. */
+export function playTicking(positionSeconds = 0) {
+	const token = tickToken;
+	void (async () => {
+		try {
+			await ensurePrefs();
+			if (token !== tickToken) {
+				return;
+			}
+			const volume = effectiveVolume();
+			if (volume <= 0) {
+				return;
+			}
+			await ensureAudioMode();
+			if (token !== tickToken) {
+				return;
+			}
+			const player = getTickPlayer();
+			player.volume = volume;
+			await player.seekTo(positionSeconds);
+			if (token !== tickToken) {
+				return;
+			}
+			player.play();
+		} catch (error) {
+			console.warn('gameSounds tick', error);
+		}
+	})();
+}
+
+/** Dzwonek po upływie czasu. Ucisza tykanie, żeby nie nachodziło. */
+export function playFinalBell() {
+	stopTicking();
+	void (async () => {
+		try {
+			await ensurePrefs();
+			const volume = effectiveVolume();
+			if (volume <= 0) {
+				return;
+			}
+			await ensureAudioMode();
+			const player = getBellPlayer();
+			player.volume = volume;
+			await player.seekTo(0);
+			player.play();
+		} catch (error) {
+			console.warn('gameSounds bell', error);
+		}
+	})();
 }

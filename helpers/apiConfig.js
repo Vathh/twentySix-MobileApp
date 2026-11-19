@@ -202,6 +202,14 @@ export const RESEND_VERIFICATION_API_URL = API_BASE_URL + '/email/verification-n
 export const TERMS_URL = LARAVEL_BASE_URL + '/regulamin';
 export const PRIVACY_URL = LARAVEL_BASE_URL + '/polityka-prywatnosci';
 
+export const TRAINING_FAVORITES_URL = API_BASE_URL + '/training/favorites';
+export const TRAINING_SESSIONS_URL = API_BASE_URL + '/training/sessions';
+export const trainingCatalogUrl = (kind) => `${API_BASE_URL}/training/catalog/${kind}`;
+export const trainingDefinitionUrl = (id) => `${API_BASE_URL}/training/definitions/${id}`;
+export const trainingExerciseUrl = (key) => `${API_BASE_URL}/training/exercises/${key}`;
+export const trainingFavoriteUrl = (id) => `${API_BASE_URL}/training/favorites/${id}`;
+export const trainingExerciseFavoriteUrl = (key) => `${API_BASE_URL}/training/favorites/exercises/${key}`;
+
 export const ACTIVE_GAMES_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;
 

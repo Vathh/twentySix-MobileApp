@@ -80,12 +80,22 @@ const Home = ({ navigation }) => {
             onPress={() => navigation.navigate('LeagueGames')}
           />
         ) : null}
-        <ModeTile
-          icon="barbell-outline"
-          title="Trening"
-          hint={isLoggedIn ? 'Lokalnie na tym telefonie' : 'Bez konta, na tym telefonie'}
-          onPress={() => navigation.navigate('TrainingHub')}
-        />
+        {isLoggedIn ? (
+          <ModeTile
+            icon="barbell-outline"
+            title="Trening"
+            hint="Plany, ćwiczenia i wolna gra"
+            onPress={() => navigation.navigate('TrainingHome')}
+          />
+        ) : (
+          <ModeTile
+            variant="primary"
+            icon="barbell-outline"
+            title="Wolna gra"
+            hint="Bez konta, na tym telefonie"
+            onPress={() => navigation.navigate('TrainingMatchSetup')}
+          />
+        )}
 
         <Text style={styles.sectionLabel}>Turniej</Text>
         {isLoggedIn ? (
