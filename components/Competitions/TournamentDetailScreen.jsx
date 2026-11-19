@@ -354,16 +354,17 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 							{liveStatus ? <Text style={styles.liveNote}>Na żywo</Text> : null}
 
 							{activeTab === 'results' ? (
-								<CompetitionTable
-									columns={resultsColumns}
-									rows={resultsRows}
-									emptyText="Brak wyników — pojawią się po odpadnięciu zawodników z turnieju."
-									onPlayerPress={openPlayer}
-									showHorizontalScroll
-									freezePlayerColumn
-									hugContent
-								/>
-								{data?.canInviteToOrganization ? (
+								<>
+									<CompetitionTable
+										columns={resultsColumns}
+										rows={resultsRows}
+										emptyText="Brak wyników — pojawią się po odpadnięciu zawodników z turnieju."
+										onPlayerPress={openPlayer}
+										showHorizontalScroll
+										freezePlayerColumn
+										hugContent
+									/>
+									{data?.canInviteToOrganization ? (
 									<View style={styles.inviteList}>
 										{(data?.results ?? []).map((row) => {
 											if (!row.organizationInvite) return null;
@@ -396,7 +397,8 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 											);
 										})}
 									</View>
-								) : null}
+									) : null}
+								</>
 							) : null}
 
 							{activeTab === 'groups' ? (
