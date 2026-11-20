@@ -9,6 +9,11 @@ import {
 	removeTrainingFavorite,
 	reorderTrainingFavorites,
 } from '../../helpers/training/trainingApi';
+import {
+	expandClockFavoriteIds,
+	expandClockFavoriteItems,
+	groupClockFavorites,
+} from '../../helpers/training/clockGroup';
 import { colors } from '../../theme/colors';
 import TrainingCard from './TrainingCard';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
@@ -63,22 +68,30 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 		}, [load]),
 	);
 
-	const items = lists[tab] ?? [];
+	const stored = lists[tab] ?? [];
+	const items = tab === 'exercises' ? groupClockFavorites(stored) : stored;
 
 	const remove = async (item) => {
 		if (!auth?.accessToken) {
 			return;
 		}
-		const result = await removeTrainingFavorite(auth.accessToken, item.id, item.kind);
-		if (!result.ok) {
-			show(result.data?.message || 'Nie udało się zapisać.');
-			return;
+		const keys = item.clockKeys ?? [item.id];
+		let removed = false;
+		for (const key of keys) {
+			const result = await removeTrainingFavorite(auth.accessToken, key, item.kind);
+			if (!result.ok) {
+				show(result.data?.message || 'Nie udało się zapisać.');
+				load();
+				return;
+			}
+			removed = removed || Boolean(result.data?.removed);
 		}
-		if (result.data?.removed) {
+		if (removed) {
 			show(FAVORITE_REMOVED);
+			const gone = new Set(keys);
 			setLists((current) => ({
 				...current,
-				[tab]: (current[tab] ?? []).filter((row) => row.id !== item.id),
+				[tab]: (current[tab] ?? []).filter((row) => !gone.has(row.id) && !gone.has(row.exerciseKey)),
 			}));
 		}
 	};
@@ -87,11 +100,14 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 		if (!auth?.accessToken || sameOrder(items, next)) {
 			return;
 		}
-		setLists((current) => ({ ...current, [tab]: next }));
+		setLists((current) => ({
+			...current,
+			[tab]: tab === 'exercises' ? expandClockFavoriteItems(next, current[tab]) : next,
+		}));
 		const result = await reorderTrainingFavorites(
 			auth.accessToken,
 			tab,
-			next.map((item) => item.id),
+			tab === 'exercises' ? expandClockFavoriteIds(next) : next.map((item) => item.id),
 		);
 		if (!result.ok) {
 			show(result.data?.message || 'Nie udało się zapisać kolejności.');
@@ -105,8 +121,8 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 
 	return (
 		<View style={styles.container}>
+			<TrainingNotice text={text} />
 			<View style={styles.header}>
-				<TrainingNotice text={text} />
 				<Text style={styles.title}>Ulubione</Text>
 				<View style={styles.tabs}>
 					{TABS.map((item) => {

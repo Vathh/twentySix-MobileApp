@@ -10,6 +10,7 @@ import {
 	recordSectorOutcome,
 	scheduleCues,
 	sectorClockCompletion,
+	sectorClockScore,
 	sectorClockStats,
 	sectorTargets,
 	startSectorClockSession,
@@ -59,45 +60,52 @@ export function runSectorClockExerciseTests() {
 	assert(currentSectorVisit(session).activeOffset === 0, 'podświetlona jest jedynka');
 
 	session = recordSectorOutcome(session, false);
-	session = recordSectorOutcome(session, false);
-	assert(labels(session) === '1,2,3', 'dwa pudła zostawiają jedynkę');
+	assert(labels(session) === '1,2,3', 'pudło nie rusza okna');
+	assert(currentSectorVisit(session).activeOffset === 0, 'pudło zostawia ramkę na jedynce');
 	session = recordSectorOutcome(session, true);
-	assert(labels(session) === '2,3,4', 'trzecia lotka zalicza jedynkę i okno idzie na 2, 3, 4');
-	assert(currentSectorVisit(session).activeOffset === 0, 'podświetlona jest dwójka');
+	assert(labels(session) === '1,2,3', 'trafienie zostawia trójkę na ekranie');
+	assert(currentSectorVisit(session).activeOffset === 1, 'ramka przechodzi na dwójkę');
+	session = recordSectorOutcome(session, false);
+	assert(labels(session) === '2,3,4', 'po trzeciej lotce jedynka schodzi');
+	assert(currentSectorVisit(session).activeOffset === 0, 'dwójka staje z lewej');
 	assert(clearedCount(session) === 1, 'zaliczony jest jeden sektor');
 
 	session = recordSectorOutcome(session, true);
-	assert(labels(session) === '3,4,5', 'trafienie w trójce przesuwa okno od razu');
+	assert(labels(session) === '2,3,4', 'kolejne trafienie zostawia okno');
+	assert(currentSectorVisit(session).activeOffset === 1, 'ramka stoi na trójce');
 	session = recordSectorOutcome(session, true);
-	assert(labels(session) === '4,5,6', 'drugie trafienie dochodzi do czwórki');
+	assert(labels(session) === '2,3,4', 'drugie trafienie dochodzi do czwórki w tym oknie');
+	assert(currentSectorVisit(session).activeOffset === 2, 'ramka stoi na czwórce');
 	session = recordSectorOutcome(session, false);
-	assert(labels(session) === '4,5,6', 'pudło zostawia czwórkę');
-	assert(currentSectorVisit(session).activeOffset === 0, 'podświetlona zostaje czwórka');
+	assert(labels(session) === '4,5,6', 'po podejściu zostaje czwórka');
+	assert(currentSectorVisit(session).activeOffset === 0, 'czwórka jest z lewej');
 	assert(sectorClockStats(session).hits === 3, 'trzy trafienia');
 	assert(sectorClockStats(session).attempts === 6, 'sześć lotek');
 	assert(sectorClockStats(session).percent === 50, 'połowa trafień');
 
 	session = undoSectorDart(session);
-	assert(labels(session) === '4,5,6', 'cofnięcie pudła zostawia czwórkę');
+	assert(labels(session) === '2,3,4', 'cofnięcie wraca niedomknięte podejście');
+	assert(currentSectorVisit(session).activeOffset === 2, 'ramka wraca na czwórkę');
 	session = undoSectorDart(session);
-	assert(labels(session) === '3,4,5', 'cofnięcie trafienia wraca okno');
+	assert(labels(session) === '2,3,4', 'cofnięcie trafienia zostawia okno');
+	assert(currentSectorVisit(session).activeOffset === 1, 'ramka wraca na trójkę');
 	assert(session.status === 'playing', 'cofnięcie zostawia ćwiczenie w toku');
 
 	const fresh = startSectorClockSession(definition, definition.id);
 	assert(undoSectorDart(fresh) === fresh, 'puste cofnięcie nic nie zmienia');
 
 	const nearEnd = play(definition, [
-		...Array(17).fill(true),
+		...Array(18).fill(true),
 	]);
-	assert(labels(nearEnd) === '18,19,20', 'przy osiemnastce widać jeszcze trzy sektory');
-	const nineteen = recordSectorOutcome(nearEnd, true);
-	assert(labels(nineteen) === '19,20,Bull', 'po osiemnastce wchodzi bull');
-	const twenty = recordSectorOutcome(nineteen, true);
-	assert(labels(twenty) === '20,Bull', 'zostaje dwudziestka i bull');
-	const bull = recordSectorOutcome(twenty, true);
-	assert(labels(bull) === 'Bull', 'zostaje sam bull');
+	assert(labels(nearEnd) === '19,20,Bull', 'po osiemnastu trafieniach widać 19, 20 i bulla');
+	assert(currentSectorVisit(nearEnd).activeOffset === 0, 'ramka stoi na dziewiętnastce');
+	const towardBull = recordSectorOutcome(recordSectorOutcome(nearEnd, true), true);
+	assert(labels(towardBull) === '19,20,Bull', 'dwa trafienia zostawiają to okno');
+	assert(currentSectorVisit(towardBull).activeOffset === 2, 'ramka dochodzi do bulla');
+	assert(towardBull.darts[towardBull.darts.length - 1].ring === 'single', 'dwudziestka jest sektorem');
+	const bull = recordSectorOutcome(towardBull, false);
+	assert(labels(bull) === 'Bull', 'po pudle zostaje sam bull');
 	assert(currentSectorVisit(bull).activeOffset === 0, 'bull jest podświetlony');
-	assert(bull.darts[bull.darts.length - 1].ring === 'single', 'dwudziestka jest sektorem');
 
 	const finished = recordSectorOutcome(bull, true);
 	assert(finished.status === 'completed', 'trafienie bulla kończy ćwiczenie');
@@ -105,8 +113,8 @@ export function runSectorClockExerciseTests() {
 	assert(currentSectorVisit(finished) === null, 'po końcu nie ma okna');
 	assert(recordSectorOutcome(finished, true) === finished, 'po końcu lotka nie dochodzi');
 	assert(sectorClockStats(finished).hits === 21, 'dwadzieścia sektorów i bull');
-	assert(sectorClockStats(finished).attempts === 21, 'bez pudeł tyle samo lotek');
-	assert(sectorClockStats(finished).percent === 100, 'pełne trafienia');
+	assert(sectorClockStats(finished).attempts === 22, 'jedno pudło dochodzi do lotek');
+	assert(sectorClockStats(finished).percent === 95, '21 z 22 to 95 procent');
 
 	const reopened = undoSectorDart(finished);
 	assert(reopened.status === 'playing', 'cofnięcie otwiera domknięte ćwiczenie');
@@ -118,8 +126,22 @@ export function runSectorClockExerciseTests() {
 	assert(sectorClockStats(stuck).hits === 0, 'same pudła nie dają trafień');
 	assert(sectorClockStats(stuck).percent === 0, 'zero trafień to zero procent');
 
+	assert(sectorClockScore(finished) === 29, 'jedno pudło przy pełnym zamknięciu daje 29');
+	const perfect = play(definition, Array(21).fill(true));
+	assert(sectorClockScore(perfect) === 30, '21 trafień bez pudła daje 30');
+	const slow = play(definition, [
+		...Array(29).fill(false),
+		...Array(21).fill(true),
+	]);
+	assert(sectorClockScore(slow) === 1, '21 trafień i 29 pudeł daje 1');
+	const weak = play(definition, [
+		...Array(40).fill(false),
+		...Array(21).fill(true),
+	]);
+	assert(sectorClockScore(weak) === -10, 'dużo pudeł schodzi poniżej zera');
+
 	const record = sectorClockCompletion(finished, '2026-11-19T18:00:00.000Z');
-	assert(record.score === null, 'ten widok nie ma punktacji pierścieni');
+	assert(record.score === 29, 'zapis ma wynik zegara sektorów');
 	assert(record.name === 'Zegar sektory', 'zapis ma nazwę ćwiczenia');
 	assert(!Object.prototype.hasOwnProperty.call(record, 'darts'), 'zapis nie ma listy lotek');
 	const body = sessionBody(record);
@@ -149,6 +171,7 @@ export function runSectorClockExerciseTests() {
 	assert(cut.status === 'completed', 'czas zamyka niedokończone ćwiczenie');
 	assert(sectorClockStats(cut).hits === 1, 'zostaje trafienie sprzed końca');
 	assert(sectorClockStats(cut).attempts === 1, 'koniec nie dopisuje lotki');
+	assert(sectorClockScore(cut) === 10, 'jeden sektor i dwadzieścia otwartych daje 10');
 	assert(currentSectorVisit(cut) === null, 'po czasie nie ma kolejnego celu');
 	assert(expireSectorClock(cut) === cut, 'drugi koniec nic nie zmienia');
 

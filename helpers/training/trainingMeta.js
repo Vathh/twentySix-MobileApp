@@ -1,3 +1,5 @@
+import { isClockKey } from './clockGroup.js';
+
 function formatDuration(seconds) {
 	const value = Number(seconds);
 	if (!Number.isFinite(value) || value <= 0) {
@@ -14,17 +16,18 @@ export function trainingMeta(item) {
 		return '';
 	}
 	const parts = [];
+	const clock = isClockKey(item.exerciseKey);
 	if (item.difficultyLabel) {
 		parts.push(item.difficultyLabel);
 	}
 	if (item.declaredMinutes) {
 		parts.push(`${item.declaredMinutes} min`);
-	} else if (item.durationSeconds) {
+	} else if (!clock && item.durationSeconds) {
 		const duration = formatDuration(item.durationSeconds);
 		if (duration) {
 			parts.push(duration);
 		}
-	} else if (item.dartCount) {
+	} else if (!clock && item.dartCount && item.exerciseKey !== 'nine_darts') {
 		parts.push(`${item.dartCount} lotek`);
 	}
 	if (item.mechanicLabel) {

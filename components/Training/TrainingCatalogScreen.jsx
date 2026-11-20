@@ -9,6 +9,7 @@ import {
 	fetchTrainingCatalog,
 	removeTrainingFavorite,
 } from '../../helpers/training/trainingApi';
+import { groupClockCatalog } from '../../helpers/training/clockGroup';
 import { colors } from '../../theme/colors';
 import { TRAINING_SECTIONS } from './trainingSections';
 import TrainingCard from './TrainingCard';
@@ -46,7 +47,8 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 			setLoading(false);
 			return;
 		}
-		setItems(Array.isArray(result.data?.items) ? result.data.items : []);
+		const rows = Array.isArray(result.data?.items) ? result.data.items : [];
+		setItems(kind === 'exercises' ? groupClockCatalog(rows) : rows);
 		setError(null);
 		setLoading(false);
 	}, [auth?.accessToken, kind]);
@@ -82,13 +84,13 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 
 	return (
 		<View style={styles.container}>
+			<TrainingNotice text={text} />
 			<FlatList
 				data={items}
 				keyExtractor={(item) => String(item.id)}
 				contentContainerStyle={styles.content}
 				ListHeaderComponent={
 					<View>
-						<TrainingNotice text={text} />
 						<Text style={styles.title}>{title}</Text>
 						{error ? <Text style={styles.empty}>{error}</Text> : null}
 						{loading && items.length === 0 ? <Text style={styles.empty}>Ładowanie…</Text> : null}

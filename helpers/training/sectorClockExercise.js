@@ -1,10 +1,12 @@
 /**
  * Zegar sektory. Pudło zostawia cel, trafienie przechodzi dalej, także w tej samej trójce.
  * Po sektorach 1–20 jest bull. Czas ucina ćwiczenie. Lotki żyją tylko w trakcie.
+ * Zamknięcie 21 sektorów bez pudła daje 30. Każde pudło i każdy niezaliczony sektor odejmuje 1.
  */
 
 export const SECTOR_CLOCK_MECHANIC = 'clock_sdt';
 export const SECTOR_COUNT = 20;
+export const SECTOR_CLOCK_PERFECT = 30;
 export const VISIT_SIZE = 3;
 export const DEFAULT_DURATION_MS = 300000;
 export const TICK_MS = 5000;
@@ -88,9 +90,7 @@ export function scheduleCues(endsAt, now, tickMs = TICK_MS) {
 	};
 }
 
-/** Ile celów jest już zaliczonych, łącznie z bullem. */
-export function clearedCount(session) {
-	const darts = session?.darts ?? [];
+function hitCount(darts) {
 	let cleared = 0;
 	for (let index = 0; index < darts.length; index += 1) {
 		if (darts[index]?.ring !== 'miss') {
@@ -98,6 +98,11 @@ export function clearedCount(session) {
 		}
 	}
 	return cleared;
+}
+
+/** Ile celów jest już zaliczonych, łącznie z bullem. */
+export function clearedCount(session) {
+	return hitCount(session?.darts ?? []);
 }
 
 export function undoSectorDart(session) {
@@ -112,21 +117,26 @@ export function undoSectorDart(session) {
 }
 
 /**
- * Okno od aktualnego sektora, najwyżej trzy. Podświetlony jest pierwszy.
+ * Okno stoi przez trzy lotki. Pudło nie rusza ramki, trafienie przesuwa ją w prawo.
+ * Po trzeciej lotce okno zaczyna się od celu, który został.
  *
- * @returns {{ targets: Array, activeOffset: number }|null}
+ * @returns {{ targets: Array, activeOffset: number, windowStart: number }|null}
  */
 export function currentSectorVisit(session) {
 	if (!session || session.status !== 'playing') {
 		return null;
 	}
-	const index = clearedCount(session);
-	if (index >= session.targets.length) {
+	const darts = session.darts ?? [];
+	const open = darts.length % VISIT_SIZE;
+	const settled = open === 0 ? darts : darts.slice(0, darts.length - open);
+	const windowStart = hitCount(settled);
+	if (windowStart >= session.targets.length) {
 		return null;
 	}
 	return {
-		targets: session.targets.slice(index, index + VISIT_SIZE),
-		activeOffset: 0,
+		targets: session.targets.slice(windowStart, windowStart + VISIT_SIZE),
+		activeOffset: hitCount(darts) - windowStart,
+		windowStart,
 	};
 }
 
@@ -177,14 +187,27 @@ export function sectorClockStats(session) {
 	return { hits, attempts, percent };
 }
 
-/** Zapis ukończenia. Bez lotek. Wynik punktowy tego widoku nie istnieje. */
+/**
+ * 30 za pełne zamknięcie bez pudła.
+ * Pudło i sektor, którego nie zaliczono, odejmują po 1.
+ */
+export function sectorClockScore(session) {
+	const hits = clearedCount(session);
+	const attempts = session?.darts?.length ?? 0;
+	const sectors = session?.targets?.length ?? SECTOR_COUNT + 1;
+	const misses = Math.max(0, attempts - hits);
+	const open = Math.max(0, sectors - hits);
+	return SECTOR_CLOCK_PERFECT - misses - open;
+}
+
+/** Zapis ukończenia. Bez lotek. */
 export function sectorClockCompletion(session, completedAt) {
 	return {
 		clientSessionId: session.clientSessionId,
 		exerciseKey: session.exerciseKey,
 		name: session.name,
 		completedAt,
-		score: null,
+		score: sectorClockScore(session),
 		stats: sectorClockStats(session),
 		sync: 'pending',
 	};

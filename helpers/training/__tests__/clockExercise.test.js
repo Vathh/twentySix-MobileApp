@@ -2,6 +2,7 @@ import {
 	CLOCK_LENGTH,
 	canPlayClock,
 	clockCompletion,
+	clockScore,
 	clockStats,
 	clockTargets,
 	currentTarget,
@@ -71,11 +72,16 @@ export function runClockExerciseTests() {
 	assert(canPlayClock(definition), 'aktywny zegar da się rozpocząć');
 	assert(!canPlayClock({ ...definition, inactive: true }), 'nieaktywny zegar nie startuje');
 	assert(!canPlayClock({ ...definition, exerciseKey: 'loose_throws' }), 'inne ćwiczenie nie startuje tym silnikiem');
+	const doubles = { ...definition, id: 'doubles_clock', exerciseKey: 'doubles_clock', name: 'Zegar' };
+	assert(canPlayClock(doubles), 'zegar doubli korzysta z tego silnika');
+	const doubleHit = recordOutcome(startClockSession(doubles, doubles.id), true);
+	assert(doubleHit.darts[0].number === 1 && doubleHit.darts[0].ring === 'double', 'trafienie doubli zapisuje double');
 
 	let session = startClockSession(definition, definition.id);
 	let visit = currentVisit(session);
 	assert(visit.targets.map(targetLabel).join(',') === '1,2,3', 'pierwsze podejście to sektory 1, 2 i 3');
 	assert(visit.activeOffset === 0, 'na starcie aktywny jest pierwszy cel');
+	assert(visit.windowStart === 0, 'okno zaczyna się od jedynki');
 	assert(currentTarget(session).number === 1, 'cel to sektor 1');
 
 	session = recordOutcome(session, true);
@@ -88,6 +94,7 @@ export function runClockExerciseTests() {
 	session = recordOutcome(session, true);
 	visit = currentVisit(session);
 	assert(visit.targets.map(targetLabel).join(',') === '4,5,6', 'po trzech lotkach wchodzi następna trójka');
+	assert(visit.windowStart === 3, 'karuzela startuje od czwórki');
 	assert(visit.activeOffset === 0, 'nowa trójka zaczyna się od pierwszego celu');
 	assert(clockStats(session).hits === 2, 'dwa trafienia i jedno pudło');
 	assert(clockStats(session).attempts === 3, 'trzy lotki są policzone');
@@ -132,15 +139,20 @@ export function runClockExerciseTests() {
 	assert(clockStats(oneMiss).hits === 20, 'pierwsze pudło schodzi z trafień');
 	assert(clockStats(oneMiss).percent === 95, '20 z 21 to 95 procent');
 
+	assert(clockScore(finished) === 21, 'zegar szybki daje 1 punkt za trafienie');
+	assert(clockScore(oneMiss) === 20, 'pudło w zegarze szybkim nie daje punktu');
+	const doubleRecord = clockCompletion(doubleHit, '2026-11-19T18:00:00.000Z');
+	assert(doubleRecord.score === 3, 'zegar doubli daje 3 punkty za trafienie');
+
 	const record = clockCompletion(finished, '2026-11-19T18:00:00.000Z');
-	assert(record.score === null, 'zegar nie ma punktacji');
+	assert(record.score === 21, 'zapis szybkiego zegara ma sumę punktów');
 	assert(record.stats.hits === 21, 'zapis ma trafienia');
 	assert(!Object.prototype.hasOwnProperty.call(record, 'darts'), 'zapis nie ma listy lotek');
 	assert(!Object.prototype.hasOwnProperty.call(record.stats, 'darts'), 'statystyki nie mają listy lotek');
 	const body = sessionBody(record);
 	assert(body.exerciseKey === 'clock_1_20_bull', 'zapis wskazuje ćwiczenie');
 	assert(!JSON.stringify(body).includes('darts'), 'na serwer nie idą lotki');
-	assert(body.score === null, 'wynik punktowy jest pusty');
+	assert(body.score === 21, 'na serwer idzie suma punktów');
 
 	const stored = enqueueCompletion([], record);
 	const again = enqueueCompletion(stored, { ...record, stats: { hits: 0, attempts: 21, percent: 0 } });

@@ -1,9 +1,11 @@
 /**
- * Zegar szybki. Jedna lotka na sektor, pudło przechodzi dalej.
- * Lotki żyją tylko w trakcie; na serwer idą trafienia i procent.
+ * Zegar szybki i zegar doubli. Jedna lotka na sektor, pudło przechodzi dalej.
+ * Szybki: 1 punkt za trafienie. Double: 3 punkty za trafienie.
  */
 
 export const CLOCK_MECHANIC = 'clock_1_20_bull';
+export const DOUBLES_CLOCK_MECHANIC = 'doubles_clock';
+export const DOUBLES_AIM_TEXT = 'Celuj kolejno po jednej lotce w pole podwójne tych sektorów';
 export const CLOCK_LENGTH = 21;
 export const VISIT_SIZE = 3;
 
@@ -11,7 +13,7 @@ export function canPlayClock(definition) {
 	return Boolean(
 		definition
 		&& definition.kind === 'exercise'
-		&& definition.exerciseKey === CLOCK_MECHANIC
+		&& (definition.exerciseKey === CLOCK_MECHANIC || definition.exerciseKey === DOUBLES_CLOCK_MECHANIC)
 		&& definition.inactive !== true,
 	);
 }
@@ -99,7 +101,7 @@ export function currentTarget(session) {
 /**
  * Trójka celów aktualnego podejścia. Ostatnie podejście może być krótsze.
  *
- * @returns {{ targets: Array, activeOffset: number }|null}
+ * @returns {{ targets: Array, activeOffset: number, windowStart: number }|null}
  */
 export function currentVisit(session) {
 	if (!session || session.status !== 'playing') {
@@ -113,18 +115,20 @@ export function currentVisit(session) {
 	return {
 		targets: session.targets.slice(start, Math.min(start + VISIT_SIZE, session.targets.length)),
 		activeOffset: index - start,
+		windowStart: start,
 	};
 }
 
-/** Lotka zgodna z celem albo pudło. Pierścień nie ma znaczenia poza zaliczeniem. */
-export function outcomeDart(target, hit) {
+/** Lotka zgodna z celem albo pudło. W zegarze doubli trafienie sektora jest doublem. */
+export function outcomeDart(target, hit, session) {
 	if (!hit) {
 		return { number: 0, ring: 'miss' };
 	}
 	if (target?.kind === 'bull') {
 		return { number: 25, ring: 'outer' };
 	}
-	return { number: target.number, ring: 'single' };
+	const ring = session?.exerciseKey === DOUBLES_CLOCK_MECHANIC ? 'double' : 'single';
+	return { number: target.number, ring };
 }
 
 export function recordOutcome(session, hit) {
@@ -132,7 +136,7 @@ export function recordOutcome(session, hit) {
 	if (!target) {
 		return session;
 	}
-	return throwDart(session, outcomeDart(target, hit));
+	return throwDart(session, outcomeDart(target, hit, session));
 }
 
 /**
@@ -152,14 +156,20 @@ export function clockStats(session) {
 	return { hits, attempts, percent };
 }
 
-/** Zapis ukończenia. Bez lotek. Wynik punktowy tego ćwiczenia nie istnieje. */
+/** Szybki daje 1 punkt za trafienie, doubli 3. */
+export function clockScore(session) {
+	const { hits } = clockStats(session);
+	return session?.exerciseKey === DOUBLES_CLOCK_MECHANIC ? hits * 3 : hits;
+}
+
+/** Zapis ukończenia. Bez lotek. */
 export function clockCompletion(session, completedAt) {
 	return {
 		clientSessionId: session.clientSessionId,
 		exerciseKey: session.exerciseKey,
 		name: session.name,
 		completedAt,
-		score: null,
+		score: clockScore(session),
 		stats: clockStats(session),
 		sync: 'pending',
 	};

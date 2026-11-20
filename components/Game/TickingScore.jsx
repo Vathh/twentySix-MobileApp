@@ -15,9 +15,9 @@ function easeOutCubic(t) {
 
 /**
  * Pozostały wynik x01: przy spadku odlicza w dół i hamuje na celu.
- * Wzrost (undo / nowy leg) — bez odliczania w górę.
+ * Wzrost (undo / nowy leg) — bez odliczania w górę, chyba że animateUp.
  */
-export default function TickingScore({ value, style, ...textProps }) {
+export default function TickingScore({ value, style, animateUp = false, ...textProps }) {
 	const target = Number.isFinite(Number(value)) ? Number(value) : 0;
 	const [shown, setShown] = useState(target);
 	const shownRef = useRef(target);
@@ -35,14 +35,14 @@ export default function TickingScore({ value, style, ...textProps }) {
 			rafRef.current = null;
 		}
 
-		if (to > from) {
+		if (to > from && !animateUp) {
 			shownRef.current = to;
 			setShown(to);
 			return undefined;
 		}
 
 		const startedAt = performance.now();
-		const duration = durationForDelta(from - to);
+		const duration = durationForDelta(Math.abs(from - to));
 
 		const frame = (now) => {
 			const t = Math.min(1, (now - startedAt) / duration);
@@ -63,7 +63,7 @@ export default function TickingScore({ value, style, ...textProps }) {
 				rafRef.current = null;
 			}
 		};
-	}, [target]);
+	}, [target, animateUp]);
 
 	return (
 		<Text style={[{ fontVariant: ['tabular-nums'] }, style]} {...textProps}>

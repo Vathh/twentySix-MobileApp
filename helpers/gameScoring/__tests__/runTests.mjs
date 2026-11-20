@@ -21,8 +21,19 @@ import { runPlayerResultReducerTests } from '../../reducers/__tests__/playerResu
 import { runUserFacingErrorTests } from '../../__tests__/userFacingError.test.js';
 import { runRecentTrainingTests } from '../../training/__tests__/recentTraining.test.js';
 import { runClockExerciseTests } from '../../training/__tests__/clockExercise.test.js';
+import { runClockGroupTests } from '../../training/__tests__/clockGroup.test.js';
 import { runSectorClockExerciseTests } from '../../training/__tests__/sectorClockExercise.test.js';
 import { runLooseThrowsExerciseTests } from '../../training/__tests__/looseThrowsExercise.test.js';
+import { runNineDartsExerciseTests } from '../../training/__tests__/nineDartsExercise.test.js';
+import { runBob27EasyExerciseTests } from '../../training/__tests__/bobs27EasyExercise.test.js';
+import { runBob27HardExerciseTests } from '../../training/__tests__/bobs27HardExercise.test.js';
+import { runBullCounterExerciseTests } from '../../training/__tests__/bullCounterExercise.test.js';
+import { runCatch20ExerciseTests } from '../../training/__tests__/catch20Exercise.test.js';
+import { runCheckout41ExerciseTests } from '../../training/__tests__/checkout41Exercise.test.js';
+import { runCheckoutBull81ExerciseTests } from '../../training/__tests__/checkoutBull81Exercise.test.js';
+import { runScoringPressureExerciseTests } from '../../training/__tests__/scoringUnderPressureExercise.test.js';
+import { runSinglesUnderPressureExerciseTests } from '../../training/__tests__/singlesUnderPressureExercise.test.js';
+import { runScoring65ExerciseTests } from '../../training/__tests__/scoring65Exercise.test.js';
 import {
 	isRemainingBeforeMismatchError,
 	isRetryableScoringError,
@@ -1017,8 +1028,19 @@ const tests = [
 	['user facing error', runUserFacingErrorTests],
 	['recent training', runRecentTrainingTests],
 	['clock exercise', runClockExerciseTests],
+	['clock group', runClockGroupTests],
 	['sector clock exercise', runSectorClockExerciseTests],
 	['loose throws exercise', runLooseThrowsExerciseTests],
+	['nine darts exercise', runNineDartsExerciseTests],
+	['bobs 27 easy exercise', runBob27EasyExerciseTests],
+	['bobs 27 hard exercise', runBob27HardExerciseTests],
+	['bull counter exercise', runBullCounterExerciseTests],
+	['catch20 exercise', runCatch20ExerciseTests],
+	['checkout 41 exercise', runCheckout41ExerciseTests],
+	['checkout bull 81 exercise', runCheckoutBull81ExerciseTests],
+	['scoring pressure exercise', runScoringPressureExerciseTests],
+	['singles under pressure exercise', runSinglesUnderPressureExerciseTests],
+	['scoring 65 exercise', runScoring65ExerciseTests],
 ];
 
 let passed = 0;

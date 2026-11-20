@@ -25,21 +25,34 @@ export default function TrainingNotice({ text }) {
 		return null;
 	}
 	return (
-		<View style={styles.banner}>
-			<Text style={styles.text}>{text}</Text>
+		<View pointerEvents="none" style={styles.overlay}>
+			<View style={styles.banner}>
+				<Text style={styles.text}>{text}</Text>
+			</View>
 		</View>
 	);
 }
 
 const styles = StyleSheet.create({
+	overlay: {
+		position: 'absolute',
+		top: 12,
+		left: 0,
+		right: 0,
+		zIndex: 20,
+		elevation: 8,
+		paddingHorizontal: 24,
+		alignItems: 'center',
+	},
 	banner: {
+		width: '100%',
+		maxWidth: 480,
 		backgroundColor: colors.bgElevated,
 		borderColor: colors.accentBorder,
 		borderWidth: 1,
 		borderRadius: 12,
 		paddingHorizontal: 14,
 		paddingVertical: 10,
-		marginBottom: 12,
 	},
 	text: {
 		color: colors.text,
