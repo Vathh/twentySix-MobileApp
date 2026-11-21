@@ -108,12 +108,14 @@ function blankView() {
 		dartsInVisit: 0,
 		openLabels: [],
 		closed: 0,
+		checkoutAttempts: 0,
 		doubles: [],
 		finished: false,
 	};
 }
 
 function advanceCheckout(state, closedNow) {
+	state.checkoutAttempts += 1;
 	if (closedNow) {
 		state.closed += 1;
 	}
@@ -283,6 +285,8 @@ export function catch20Stats(session) {
 		}));
 	return {
 		closed: view.closed,
+		checkoutsClosed: view.closed,
+		checkoutAttempts: view.checkoutAttempts,
 		inputMode: catch20InputMode(session?.inputMode),
 		doubles,
 	};

@@ -143,6 +143,7 @@ export const AuthProvider = ({ children }) => {
 	const logout = useCallback(async () => {
 		const current = authRef.current;
 		const token = current?.accessToken;
+		const userId = current?.userId;
 
 		if (isTabletRefereeSession(current)) {
 			await clearTabletRefereeSession();
@@ -176,6 +177,14 @@ export const AuthProvider = ({ children }) => {
 			} catch {
 				// sieć opcjonalna — lokalnie i tak czyścimy sesję
 			}
+		}
+		try {
+			const { clearHangingPlan } = await import('../helpers/training/planSessionStore');
+			const { clearHistoryCache } = await import('../helpers/training/trainingHistoryCache');
+			await clearHangingPlan(userId);
+			await clearHistoryCache(userId);
+		} catch {
+			// lokalny wiszący plan / cache historii — best effort
 		}
 		await clearStoredSession();
 		setCurrentAccessToken(null);

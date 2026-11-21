@@ -55,15 +55,17 @@ export default function CheckoutBull81Board({
 				onUndo={onUndo}
 				undoDisabled={undoDisabled || disabled}
 			/>
-			<Pressable
-				accessibilityRole="button"
-				accessibilityLabel="Przerwij"
-				disabled={disabled}
-				onPress={onAbort}
-				style={[styles.ghost, disabled && styles.disabled]}
-			>
-				<Text style={styles.ghostText}>Przerwij</Text>
-			</Pressable>
+			{onAbort ? (
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Przerwij"
+					disabled={disabled}
+					onPress={onAbort}
+					style={[styles.ghost, disabled && styles.disabled]}
+				>
+					<Text style={styles.ghostText}>Przerwij</Text>
+				</Pressable>
+			) : null}
 		</View>
 	);
 }
@@ -211,8 +213,12 @@ const styles = StyleSheet.create({
 	},
 	ghost: {
 		minHeight: 48,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.textMuted,
 		alignItems: 'center',
 		justifyContent: 'center',
+		paddingHorizontal: 12,
 	},
 	ghostText: {
 		color: colors.textMuted,

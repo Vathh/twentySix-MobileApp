@@ -71,6 +71,8 @@ function blankView() {
 		dartsInVisit: 0,
 		openLabels: [],
 		highest: null,
+		checkoutsClosed: 0,
+		checkoutAttempts: 0,
 		doubles: [],
 		carousel: {
 			left: null,
@@ -93,6 +95,8 @@ function resetVisit(state) {
 }
 
 function succeed(state) {
+	state.checkoutAttempts += 1;
+	state.checkoutsClosed += 1;
 	state.highest = state.highest == null
 		? state.checkout
 		: Math.max(state.highest, state.checkout);
@@ -101,6 +105,7 @@ function succeed(state) {
 }
 
 function fail(state) {
+	state.checkoutAttempts += 1;
 	state.checkout = Math.max(CHECKOUT_41_FIRST, state.checkout - 1);
 	resetVisit(state);
 }
@@ -228,6 +233,8 @@ export function checkout41Stats(session) {
 		}));
 	return {
 		highest: view.highest,
+		checkoutsClosed: view.checkoutsClosed,
+		checkoutAttempts: view.checkoutAttempts,
 		inputMode: checkout41InputMode(session?.inputMode),
 		doubles,
 	};

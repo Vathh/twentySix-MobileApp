@@ -358,8 +358,10 @@ function completionFor(session, completedAt) {
 	return clockCompletion(session, completedAt);
 }
 
-const TrainingExerciseScreen = ({ navigation, route }) => {
-	const definition = route?.params?.definition;
+const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
+	const definition = planHost?.definition ?? route?.params?.definition;
+	const planMode = Boolean(planHost);
+	const planPaused = Boolean(planHost?.paused);
 	const { auth } = useAuth();
 	const userId = auth?.userId;
 	const accessToken = auth?.accessToken;
@@ -374,10 +376,12 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 	const leaving = useRef(false);
 	const userIdRef = useRef(userId);
 	const accessTokenRef = useRef(accessToken);
+	const pauseRemainRef = useRef(null);
 	userIdRef.current = userId;
 	accessTokenRef.current = accessToken;
 
 	const playing = session?.status === 'playing' && !summary;
+	const interactive = playing && !planPaused;
 	const started = useRef(false);
 
 	if (prompt && !sheetMounted) {
@@ -405,26 +409,33 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 	}));
 
 	const begin = (nextDefinition, nextUserId, inputMode, variant) => {
-		const next = startSession(
-			nextDefinition,
-			inputMode ?? route?.params?.inputMode,
-			variant ?? route?.params?.variant,
-		);
+		const restored = planHost?.initialSession;
+		const next = restored && restored.status === 'playing'
+			? restored
+			: startSession(
+				nextDefinition,
+				inputMode ?? planHost?.inputMode ?? route?.params?.inputMode,
+				variant ?? nextDefinition?.variant ?? route?.params?.variant,
+			);
 		sessionRef.current = next;
 		setPrompt(null);
 		setSummary(null);
 		summaryId.current = null;
 		setSession(next);
-		rememberRecentTraining(nextUserId, {
-			id: nextDefinition.id,
-			kind: 'exercise',
-			name: nextDefinition.name,
-		});
+		planHost?.onSessionChange?.(next);
+		if (!planMode) {
+			rememberRecentTraining(nextUserId, {
+				id: nextDefinition.id,
+				kind: 'exercise',
+				name: nextDefinition.name,
+			});
+		}
 	};
 
 	const applySession = (next) => {
 		sessionRef.current = next;
 		setSession(next);
+		planHost?.onSessionChange?.(next);
 		if (next?.status === 'completed') {
 			finish(next);
 		}
@@ -434,14 +445,17 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 	const headingVariant = exerciseVariantLabel(session);
 
 	useLayoutEffect(() => {
+		if (planMode) {
+			return;
+		}
 		navigation.setOptions({
 			title: headingVariant ? `${headingName}, ${headingVariant}` : headingName,
 		});
-	}, [navigation, headingName, headingVariant]);
+	}, [navigation, headingName, headingVariant, planMode]);
 
 	useEffect(() => {
 		const current = sessionRef.current;
-		if (!current || current.status !== 'playing' || !isTimed(current)) {
+		if (!current || current.status !== 'playing' || !isTimed(current) || planPaused) {
 			return undefined;
 		}
 		const runEndsAt = current.endsAt;
@@ -503,26 +517,64 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 			clearInterval(display);
 			stopTicking();
 		};
-	}, [session?.clientSessionId, session?.status, session?.endsAt]);
+	}, [session?.clientSessionId, session?.status, session?.endsAt, planPaused]);
+
+	useEffect(() => {
+		const current = sessionRef.current;
+		if (!current || current.status !== 'playing' || !isTimed(current) || !current.endsAt) {
+			return;
+		}
+		if (planPaused) {
+			if (pauseRemainRef.current == null) {
+				pauseRemainRef.current = Math.max(0, current.endsAt - Date.now());
+				stopTicking();
+				const frozen = { ...current, endsAt: null, remainingMs: pauseRemainRef.current };
+				sessionRef.current = frozen;
+				setSession(frozen);
+				planHost?.onSessionChange?.(frozen);
+			}
+			return;
+		}
+		if (pauseRemainRef.current != null) {
+			const remainingMs = pauseRemainRef.current;
+			pauseRemainRef.current = null;
+			const resumed = {
+				...current,
+				remainingMs,
+				endsAt: Date.now() + remainingMs,
+			};
+			sessionRef.current = resumed;
+			setSession(resumed);
+			planHost?.onSessionChange?.(resumed);
+		}
+	}, [planPaused, session?.clientSessionId]);
 
 	useEffect(() => {
 		if (started.current || !canPlay(definition)) {
 			return;
 		}
 		started.current = true;
-		begin(definition, userIdRef.current, route?.params?.inputMode, route?.params?.variant);
+		begin(
+			definition,
+			userIdRef.current,
+			planHost?.inputMode ?? route?.params?.inputMode,
+			definition?.variant ?? route?.params?.variant,
+		);
 	}, [definition]);
 
 	useEffect(() => {
+		if (planMode) {
+			return undefined;
+		}
 		const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-			if (leaving.current || !playing) {
+			if (leaving.current || !interactive) {
 				return;
 			}
 			event.preventDefault();
 			setPrompt('abort');
 		});
 		return unsubscribe;
-	}, [navigation, playing]);
+	}, [navigation, interactive, planMode]);
 
 	const leaveHome = () => {
 		leaving.current = true;
@@ -531,6 +583,10 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 
 	const finish = async (next) => {
 		const record = completionFor(next, new Date().toISOString());
+		if (planMode) {
+			planHost?.onComplete?.(record);
+			return;
+		}
 		summaryId.current = record.clientSessionId;
 		setSummary(record);
 		try {
@@ -546,9 +602,11 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 		}
 	};
 
+	const requestAbort = planMode ? undefined : () => setPrompt('abort');
+
 	const submit = (hit) => {
 		const current = sessionRef.current;
-		if (!current || current.status !== 'playing' || prompt) {
+		if (!current || current.status !== 'playing' || prompt || planPaused) {
 			return;
 		}
 		const record = isBob27Easy(current)
@@ -565,7 +623,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 
 	const undo = () => {
 		const current = sessionRef.current;
-		if (!current || prompt) {
+		if (!current || prompt || planPaused) {
 			return;
 		}
 		const revert = isCatch20(current)
@@ -706,19 +764,22 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 	const catch20 = isCatch20(session) ? catch20View(session) : null;
 	const checkout41 = isCheckout41(session) ? checkout41View(session) : null;
 	const checkoutBull81 = isCheckoutBull81(session) ? checkoutBull81View(session) : null;
-	const scoring65 = isScoring65(session) && playing ? scoring65View(session) : null;
+	const scoring65 = isScoring65(session) && interactive ? scoring65View(session) : null;
 	const showLooseClock = playing && loose;
+	const boardDisabled = Boolean(prompt) || planPaused;
 
 	return (
 		<View style={styles.screen}>
-			<View
-				accessibilityRole="header"
-				accessibilityLabel={headingVariant ? `${headingName}, wariant ${headingVariant}` : headingName}
-				style={styles.exerciseHeading}
-			>
-				<Text style={styles.exerciseTitle}>{headingName}</Text>
-				{headingVariant ? <Text style={styles.exerciseVariant}>{headingVariant}</Text> : null}
-			</View>
+			{planMode ? null : (
+				<View
+					accessibilityRole="header"
+					accessibilityLabel={headingVariant ? `${headingName}, wariant ${headingVariant}` : headingName}
+					style={styles.exerciseHeading}
+				>
+					<Text style={styles.exerciseTitle}>{headingName}</Text>
+					{headingVariant ? <Text style={styles.exerciseVariant}>{headingVariant}</Text> : null}
+				</View>
+			)}
 			{showClock ? (
 				<View
 					style={styles.clockBar}
@@ -758,22 +819,24 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 								/>
 							</View>
 						</View>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							disabled={Boolean(prompt)}
-							onPress={() => setPrompt('abort')}
-							style={styles.ghost}
-						>
-							<Text style={styles.ghostText}>Przerwij</Text>
-						</Pressable>
+						{requestAbort ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Przerwij"
+								disabled={boardDisabled}
+								onPress={requestAbort}
+								style={styles.ghost}
+							>
+								<Text style={styles.ghostText}>Przerwij</Text>
+							</Pressable>
+						) : null}
 					</View>
 				) : null}
 				{playing && aim ? (
 					<NineDartsBoard
 						aim={aim}
 						dartNumber={(session.darts.length % 3) + 1}
-						disabled={Boolean(prompt)}
+						disabled={boardDisabled}
 						undoDisabled={session.darts.length === 0}
 						onDart={(dart) => {
 							const current = sessionRef.current;
@@ -783,14 +846,14 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							applySession(recordNineDart(current, dart));
 						}}
 						onUndo={undo}
-						onAbort={() => setPrompt('abort')}
+						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && catch20 && !catch20.finished ? (
 					<Catch20Board
 						view={catch20}
 						inputMode={session.inputMode}
-						disabled={Boolean(prompt)}
+						disabled={boardDisabled}
 						undoDisabled={session.actions.length === 0}
 						onDart={(dart) => {
 							const current = sessionRef.current;
@@ -807,14 +870,14 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							applySession(recordCatch20Sum(current, points, checkout));
 						}}
 						onUndo={undo}
-						onAbort={() => setPrompt('abort')}
+						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && checkout41 ? (
 					<Checkout41Board
 						view={checkout41}
 						inputMode={session.inputMode}
-						disabled={Boolean(prompt)}
+						disabled={boardDisabled}
 						undoDisabled={session.actions.length === 0}
 						onDart={(dart) => {
 							const current = sessionRef.current;
@@ -838,13 +901,13 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							applySession(recordCheckout41Fail(current));
 						}}
 						onUndo={undo}
-						onAbort={() => setPrompt('abort')}
+						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && checkoutBull81 ? (
 					<CheckoutBull81Board
 						view={checkoutBull81}
-						disabled={Boolean(prompt)}
+						disabled={boardDisabled}
 						undoDisabled={session.actions.length === 0}
 						onDart={(dart) => {
 							const current = sessionRef.current;
@@ -854,14 +917,14 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							applySession(recordCheckoutBull81Dart(current, dart));
 						}}
 						onUndo={undo}
-						onAbort={() => setPrompt('abort')}
+						onAbort={requestAbort}
 					/>
 				) : null}
 				{scoring65 ? (
 					<Scoring65Board
 						view={scoring65}
 						inputMode={session.inputMode}
-						disabled={Boolean(prompt)}
+						disabled={boardDisabled}
 						undoDisabled={session.actions.length === 0}
 						onDart={(dart) => {
 							const current = sessionRef.current;
@@ -878,7 +941,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							applySession(recordScoring65Sum(current, points));
 						}}
 						onUndo={undo}
-						onAbort={() => setPrompt('abort')}
+						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && pressureAim ? (
@@ -895,7 +958,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							variant={session.variant}
 							aimNumber={pressureAim.number}
 							dartNumber={pressureAim.dartNumber}
-							disabled={Boolean(prompt)}
+							disabled={boardDisabled}
 							undoDisabled={session.darts.length === 0}
 							onDart={(dart) => {
 								const current = sessionRef.current;
@@ -905,7 +968,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 								applySession(recordScoringPressureDart(current, dart));
 							}}
 							onUndo={undo}
-							onAbort={() => setPrompt('abort')}
+							onAbort={requestAbort}
 						/>
 					</View>
 				) : null}
@@ -924,7 +987,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Inner"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => {
 									const current = sessionRef.current;
 									if (!current || current.status !== 'playing' || prompt) {
@@ -939,7 +1002,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Outer"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => {
 									const current = sessionRef.current;
 									if (!current || current.status !== 'playing' || prompt) {
@@ -954,7 +1017,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Pudło"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => {
 									const current = sessionRef.current;
 									if (!current || current.status !== 'playing' || prompt) {
@@ -976,15 +1039,17 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							disabled={Boolean(prompt)}
-							onPress={() => setPrompt('abort')}
-							style={styles.ghost}
-						>
-							<Text style={styles.ghostText}>Przerwij</Text>
-						</Pressable>
+						{requestAbort ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Przerwij"
+								disabled={boardDisabled}
+								onPress={requestAbort}
+								style={styles.ghost}
+							>
+								<Text style={styles.ghostText}>Przerwij</Text>
+							</Pressable>
+						) : null}
 					</View>
 				) : null}
 				{playing && bobVisit ? (
@@ -1018,7 +1083,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Pudło"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => submit(false)}
 								style={[styles.miss, prompt && styles.disabled]}
 							>
@@ -1027,7 +1092,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Trafiona"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => submit(true)}
 								style={[styles.hit, prompt && styles.disabled]}
 							>
@@ -1043,15 +1108,17 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							disabled={Boolean(prompt)}
-							onPress={() => setPrompt('abort')}
-							style={styles.ghost}
-						>
-							<Text style={styles.ghostText}>Przerwij</Text>
-						</Pressable>
+						{requestAbort ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Przerwij"
+								disabled={boardDisabled}
+								onPress={requestAbort}
+								style={styles.ghost}
+							>
+								<Text style={styles.ghostText}>Przerwij</Text>
+							</Pressable>
+						) : null}
 					</View>
 				) : null}
 				{playing && visit ? (
@@ -1068,7 +1135,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Pudło"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => submit(false)}
 								style={[styles.miss, prompt && styles.disabled]}
 							>
@@ -1077,7 +1144,7 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 							<Pressable
 								accessibilityRole="button"
 								accessibilityLabel="Trafiona"
-								disabled={Boolean(prompt)}
+								disabled={boardDisabled}
 								onPress={() => submit(true)}
 								style={[styles.hit, prompt && styles.disabled]}
 							>
@@ -1093,15 +1160,17 @@ const TrainingExerciseScreen = ({ navigation, route }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							disabled={Boolean(prompt)}
-							onPress={() => setPrompt('abort')}
-							style={styles.ghost}
-						>
-							<Text style={styles.ghostText}>Przerwij</Text>
-						</Pressable>
+						{requestAbort ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Przerwij"
+								disabled={boardDisabled}
+								onPress={requestAbort}
+								style={styles.ghost}
+							>
+								<Text style={styles.ghostText}>Przerwij</Text>
+							</Pressable>
+						) : null}
 					</View>
 				) : null}
 				{summary ? (
@@ -1520,8 +1589,12 @@ const styles = StyleSheet.create({
 	},
 	ghost: {
 		minHeight: 44,
+		borderRadius: 10,
+		borderWidth: 1,
+		borderColor: colors.textMuted,
 		alignItems: 'center',
 		justifyContent: 'center',
+		paddingHorizontal: 12,
 	},
 	ghostText: {
 		color: colors.textMuted,

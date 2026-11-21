@@ -58,7 +58,13 @@ export function startSectorClockSession(definition, clientSessionId, now = Date.
 
 /** Ile milisekund zostało do końca, obcięte do długości ćwiczenia. */
 export function visibleRemainingMs(session, now) {
-	if (!session?.endsAt || !session.durationMs) {
+	if (!session?.durationMs) {
+		return 0;
+	}
+	if (!session.endsAt && Number.isFinite(session.remainingMs)) {
+		return Math.min(session.durationMs, Math.max(0, session.remainingMs));
+	}
+	if (!session.endsAt) {
 		return 0;
 	}
 	const left = session.endsAt - now;

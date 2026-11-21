@@ -71,6 +71,8 @@ function blankView() {
 		dartsInVisit: 0,
 		openLabels: [],
 		score: 0,
+		checkoutsClosed: 0,
+		checkoutAttempts: 0,
 		inners: [],
 		carousel: {
 			left: null,
@@ -96,7 +98,9 @@ function settleThird(state, dart) {
 	const setupOk = state.remaining === 50;
 	const inner = isCheckoutBull81Inner(dart);
 	state.inners.push({ hit: inner });
+	state.checkoutAttempts += 1;
 	if (setupOk && inner) {
+		state.checkoutsClosed += 1;
 		state.score += CLOSE_POINTS;
 		state.pathIndex += 1;
 	} else if (!setupOk && inner) {
@@ -177,6 +181,8 @@ export function checkoutBull81Stats(session) {
 		: [];
 	return {
 		score: view.score,
+		checkoutsClosed: view.checkoutsClosed,
+		checkoutAttempts: view.checkoutAttempts,
 		aims,
 	};
 }

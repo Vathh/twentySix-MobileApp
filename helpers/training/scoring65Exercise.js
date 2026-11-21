@@ -61,6 +61,7 @@ function blankView() {
 		points: 0,
 		total: 0,
 		approaches: 0,
+		visitsAtLeast60: 0,
 		running: 0,
 		openLabels: [],
 		dartsInVisit: 0,
@@ -71,6 +72,9 @@ function blankView() {
 function settle(state, visitPoints, keepRunning = false) {
 	state.approaches += 1;
 	state.total += visitPoints;
+	if (visitPoints >= 60) {
+		state.visitsAtLeast60 += 1;
+	}
 	if (visitPoints >= POINT_LINE) {
 		state.points += 1;
 	}
@@ -178,6 +182,7 @@ export function scoring65Stats(session) {
 		inputMode: scoring65InputMode(session?.inputMode),
 		total: view.total,
 		approaches: view.approaches,
+		visitsAtLeast60: view.visitsAtLeast60,
 		average: scoring65Average(view.total, view.approaches),
 	};
 }

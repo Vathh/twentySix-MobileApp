@@ -40,6 +40,9 @@ export function sessionBody(record) {
 	} else {
 		body.definitionId = record.definitionId;
 	}
+	if (Array.isArray(record.items)) {
+		body.items = record.items;
+	}
 	return body;
 }
 

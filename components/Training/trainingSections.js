@@ -15,6 +15,11 @@ export const TRAINING_SECTIONS = {
 		empty: 'Brak wyzwań.',
 		icon: 'flag-outline',
 	},
+	events: {
+		title: 'Eventy',
+		empty: 'Brak eventów.',
+		icon: 'trophy-outline',
+	},
 	analysis: {
 		title: 'Analiza zawodnika',
 		empty: 'Brak danych.',

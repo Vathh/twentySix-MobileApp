@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { completeTrainingSession } from './trainingApi';
+import { rememberSyncedHistory } from './trainingHistoryCache';
+import { serverToHistoryItem } from './trainingHistoryMerge';
 import {
 	applySyncOutcome,
 	enqueueCompletion,
@@ -36,6 +38,13 @@ async function saveTrainingOutbox(userId, items) {
 	await AsyncStorage.setItem(trainingOutboxKey(userId), JSON.stringify(items));
 }
 
+export function clearTrainingOutbox(userId) {
+	return exclusive(async () => {
+		await AsyncStorage.removeItem(trainingOutboxKey(userId));
+		return [];
+	});
+}
+
 export function enqueueTrainingCompletion(userId, record) {
 	return exclusive(async () => {
 		const next = enqueueCompletion(await loadTrainingOutbox(userId), record);
@@ -60,7 +69,31 @@ async function sendPending(userId, accessToken) {
 			continue;
 		}
 		const response = await completeTrainingSession(accessToken, sessionBody(item));
-		next = applySyncOutcome(next, item.clientSessionId, syncOutcome(response));
+		const outcome = syncOutcome(response);
+		next = applySyncOutcome(next, item.clientSessionId, outcome);
+		if (outcome === 'synced') {
+			const serverId = response?.data?.id ?? item.id;
+			next = next.map((row) => (
+				row?.clientSessionId === item.clientSessionId
+					? { ...row, id: serverId, sync: 'synced' }
+					: row
+			));
+			const card = serverToHistoryItem({
+				id: serverId,
+				clientSessionId: item.clientSessionId,
+				kind: item.exerciseKey ? 'exercise' : (item.kind || 'plan'),
+				kindLabel: undefined,
+				name: item.name,
+				definitionId: item.definitionId ?? response?.data?.definitionId ?? null,
+				exerciseKey: item.exerciseKey ?? response?.data?.exerciseKey ?? null,
+				completedAt: item.completedAt,
+				score: item.score,
+				stats: item.stats,
+			});
+			if (card) {
+				await rememberSyncedHistory(userId, [card]);
+			}
+		}
 	}
 	await saveTrainingOutbox(userId, next);
 	return next;

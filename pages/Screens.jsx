@@ -29,6 +29,14 @@ import TrainingCatalogScreen from '../components/Training/TrainingCatalogScreen'
 import TrainingFavoritesScreen from '../components/Training/TrainingFavoritesScreen';
 import TrainingDefinitionScreen from '../components/Training/TrainingDefinitionScreen';
 import TrainingExerciseScreen from '../components/Training/TrainingExerciseScreen';
+import TrainingPlanScreen from '../components/Training/TrainingPlanScreen';
+import TrainingChallengeScreen from '../components/Training/TrainingChallengeScreen';
+import TrainingEventScreen from '../components/Training/TrainingEventScreen';
+import TrainingHistoryScreen from '../components/Training/TrainingHistoryScreen';
+import TrainingHistoryDetailScreen from '../components/Training/TrainingHistoryDetailScreen';
+import TrainingAnalysisScreen from '../components/Training/TrainingAnalysisScreen';
+import TrainingRecordsScreen from '../components/Training/TrainingRecordsScreen';
+import TrainingGoalsScreen from '../components/Training/TrainingGoalsScreen';
 import TrainingSessionSync from '../components/Training/TrainingSessionSync';
 import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
 import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
@@ -117,6 +125,14 @@ function GrajStack() {
 			<Stack.Screen name="TrainingFavorites" component={TrainingFavoritesScreen} />
 			<Stack.Screen name="TrainingDefinition" component={TrainingDefinitionScreen} />
 			<Stack.Screen name="TrainingExercise" component={TrainingExerciseScreen} />
+			<Stack.Screen name="TrainingChallenge" component={TrainingChallengeScreen} options={{ title: 'Wyzwanie' }} />
+			<Stack.Screen name="TrainingEvent" component={TrainingEventScreen} options={{ title: 'Event' }} />
+			<Stack.Screen name="TrainingPlan" component={TrainingPlanScreen} options={{ title: 'Plan' }} />
+			<Stack.Screen name="TrainingHistory" component={TrainingHistoryScreen} options={{ title: 'Moje treningi' }} />
+			<Stack.Screen name="TrainingHistoryDetail" component={TrainingHistoryDetailScreen} options={{ title: 'Szczegóły' }} />
+			<Stack.Screen name="TrainingAnalysis" component={TrainingAnalysisScreen} options={{ title: 'Analiza zawodnika' }} />
+			<Stack.Screen name="TrainingRecords" component={TrainingRecordsScreen} options={{ title: 'Moje rekordy' }} />
+			<Stack.Screen name="TrainingGoals" component={TrainingGoalsScreen} options={{ title: 'Moje cele' }} />
 			<Stack.Screen name="TrainingMatchSetup" component={TrainingMatchSetup} />
 			<Stack.Screen name="QuickGameLobby" component={QuickGameLobby} />
 			<Stack.Screen

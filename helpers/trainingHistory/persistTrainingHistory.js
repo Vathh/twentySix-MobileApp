@@ -32,3 +32,12 @@ export async function saveTrainingGame(game) {
 		console.warn('trainingHistory save failed', e);
 	}
 }
+
+/** Czyści lokalną historię Wolnej gry (Moje treningi). Nie rusza kariery. */
+export async function clearTrainingHistory() {
+	try {
+		await AsyncStorage.removeItem(STORAGE_KEY);
+	} catch (e) {
+		console.warn('trainingHistory clear failed', e);
+	}
+}

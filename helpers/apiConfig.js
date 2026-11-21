@@ -204,11 +204,25 @@ export const PRIVACY_URL = LARAVEL_BASE_URL + '/polityka-prywatnosci';
 
 export const TRAINING_FAVORITES_URL = API_BASE_URL + '/training/favorites';
 export const TRAINING_SESSIONS_URL = API_BASE_URL + '/training/sessions';
+export const TRAINING_HISTORY_URL = API_BASE_URL + '/training/history';
+export const TRAINING_RECORDS_URL = API_BASE_URL + '/training/records';
+export const TRAINING_GOALS_URL = API_BASE_URL + '/training/goals';
+export const TRAINING_ANALYSIS_URL = API_BASE_URL + '/training/analysis';
 export const trainingCatalogUrl = (kind) => `${API_BASE_URL}/training/catalog/${kind}`;
 export const trainingDefinitionUrl = (id) => `${API_BASE_URL}/training/definitions/${id}`;
 export const trainingExerciseUrl = (key) => `${API_BASE_URL}/training/exercises/${key}`;
 export const trainingFavoriteUrl = (id) => `${API_BASE_URL}/training/favorites/${id}`;
 export const trainingExerciseFavoriteUrl = (key) => `${API_BASE_URL}/training/favorites/exercises/${key}`;
+export const trainingChallengeUrl = (keyOrId) => `${API_BASE_URL}/training/challenges/${keyOrId}`;
+export const trainingChallengeRankingUrl = (id) => `${API_BASE_URL}/training/challenges/${id}/ranking`;
+export const trainingChallengeAttemptsUrl = (id) => `${API_BASE_URL}/training/challenges/${id}/attempts`;
+export const trainingChallengePublicationUrl = (id) => `${API_BASE_URL}/training/challenges/${id}/publication`;
+export const trainingSessionPublishUrl = (id) => `${API_BASE_URL}/training/sessions/${id}/publish`;
+export const trainingEventAttemptsUrl = (id) => `${API_BASE_URL}/training/events/${id}/attempts`;
+export const trainingEventCurrentAttemptUrl = (id) => `${API_BASE_URL}/training/events/${id}/attempts/current`;
+export const trainingEventCompleteUrl = (id, clientAttemptId) => `${API_BASE_URL}/training/events/${id}/attempts/${clientAttemptId}/complete`;
+export const trainingEventAbortUrl = (id, clientAttemptId) => `${API_BASE_URL}/training/events/${id}/attempts/${clientAttemptId}/abort`;
+export const trainingEventClassificationUrl = (id) => `${API_BASE_URL}/training/events/${id}/classification`;
 
 export const ACTIVE_GAMES_API_URL =
 	API_BASE_URL + GAME_ENDPOINT + ACTIVE_ENDPOINT;
