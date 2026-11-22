@@ -415,7 +415,14 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 				</View>
 			) : null}
 
-			<Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+			<Modal
+				visible={menuOpen}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setMenuOpen(false)}
+			>
 				<Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
 					<View style={styles.menuSheet}>
 						<Pressable accessibilityRole="button" onPress={togglePause} style={styles.menuItem}>

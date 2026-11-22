@@ -383,6 +383,8 @@ const GameList = ({ navigation }) => {
         visible={isModalVisible}
         transparent
         animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={closeGroupModal}
       >
         <Pressable style={styles.modalOverlay} onPress={closeGroupModal}>

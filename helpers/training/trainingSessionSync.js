@@ -5,7 +5,6 @@
 const ALREADY_STORED = 'training_session_already_stored';
 
 const REJECTED_REASONS = new Set([
-	'training_definition_not_active',
 	'training_definition_not_found',
 	'training_exercise_not_found',
 	'training_dart_log_rejected',

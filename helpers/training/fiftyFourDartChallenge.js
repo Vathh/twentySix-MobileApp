@@ -152,6 +152,20 @@ export function startFiftyFourSession(definition, clientSessionId) {
  * Aktualny cel i licznik lotki w wizycie UI (1–3).
  * Doubles: jedna lotka na cel, ale licznik UI i dźwięk co 3 wpisy.
  */
+/** Krótka wskazówka nad celem w trakcie próby. */
+export function fiftyFourAimText(target) {
+	if (!target) {
+		return '';
+	}
+	if (target.stageType === 'shanghai') {
+		return `Celuj w sektor ${target.targetLabel}`;
+	}
+	if (target.isBull) {
+		return 'Celuj w Inner Bull';
+	}
+	return `Celuj w ${target.targetLabel}`;
+}
+
 export function currentTarget(session) {
 	if (!session || session.status !== 'playing') {
 		return null;

@@ -6,9 +6,18 @@ import {
 	FAVORITE_ADDED,
 	FAVORITE_REMOVED,
 	addTrainingFavorite,
-	fetchTrainingCatalog,
 	removeTrainingFavorite,
 } from '../../helpers/training/trainingApi';
+import {
+	loadCachedCatalog,
+	refreshCatalogKind,
+	saveCachedCatalog,
+} from '../../helpers/training/catalogCache';
+import {
+	applyFavoriteCreated,
+	applyFavoriteRemoved,
+} from '../../helpers/training/favoritesCache';
+import { groupBobsCatalog } from '../../helpers/training/bobs27Group';
 import { groupClockCatalog } from '../../helpers/training/clockGroup';
 import { colors } from '../../theme/colors';
 import { TRAINING_SECTIONS } from './trainingSections';
@@ -16,14 +25,25 @@ import TrainingCard from './TrainingCard';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
 
 const TITLES = {
-	plans: 'Plany',
-	exercises: 'Biblioteka ćwiczeń',
+	plans: 'Plany treningowe',
+	exercises: 'Biblioteka',
 	challenges: 'Wyzwania',
 };
 
+function presentExercises(exerciseRows, challengeRows = []) {
+	return [
+		...groupBobsCatalog(groupClockCatalog(exerciseRows)),
+		...(Array.isArray(challengeRows) ? challengeRows : []),
+	];
+}
+
+function present(kind, rows, challengeRows) {
+	return kind === 'exercises' ? presentExercises(rows, challengeRows) : rows;
+}
+
 /**
- * Lista aktywnych definicji, żeby gwiazdka miała gdzie stać.
- * Wyszukiwarka i filtr trudności dochodzą z katalogiem ćwiczeń.
+ * Lista z lokalnego cache; odświeżenie w tle podmienia, gdy serwer ma coś innego.
+ * Biblioteka łączy ćwiczenia z wyzwaniami (np. 54-Dart).
  */
 const TrainingCatalogScreen = ({ navigation, route }) => {
 	const kind = route?.params?.kind;
@@ -32,6 +52,8 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 	const { auth } = useAuth();
 	const { text, show } = useTrainingNotice();
 	const [items, setItems] = useState([]);
+	const [rawItems, setRawItems] = useState([]);
+	const [challengeItems, setChallengeItems] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -41,17 +63,42 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 			setError('Zaloguj się, żeby zobaczyć tę listę.');
 			return;
 		}
-		const result = await fetchTrainingCatalog(auth.accessToken, kind);
-		if (!result.ok) {
-			setError(result.data?.message || 'Nie udało się wczytać listy.');
+		const cached = await loadCachedCatalog(auth.userId, kind);
+		const cachedChallenges = kind === 'exercises'
+			? await loadCachedCatalog(auth.userId, 'challenges')
+			: null;
+		const hasCachedLibrary = Boolean(
+			(cached && cached.length > 0)
+			|| (kind === 'exercises' && cachedChallenges && cachedChallenges.length > 0),
+		);
+		if (hasCachedLibrary) {
+			setRawItems(cached ?? []);
+			setChallengeItems(cachedChallenges ?? []);
+			setItems(present(kind, cached ?? [], cachedChallenges));
+			setError(null);
+			setLoading(false);
+		} else {
+			setLoading(true);
+		}
+
+		const refreshed = await refreshCatalogKind(auth.userId, auth.accessToken, kind);
+		const refreshedChallenges = kind === 'exercises'
+			? await refreshCatalogKind(auth.userId, auth.accessToken, 'challenges')
+			: null;
+		if (!refreshed) {
+			if (!hasCachedLibrary) {
+				setError('Nie udało się wczytać listy.');
+			}
 			setLoading(false);
 			return;
 		}
-		const rows = Array.isArray(result.data?.items) ? result.data.items : [];
-		setItems(kind === 'exercises' ? groupClockCatalog(rows) : rows);
+		const nextChallenges = refreshedChallenges?.items ?? cachedChallenges ?? [];
+		setRawItems(refreshed.items);
+		setChallengeItems(nextChallenges);
+		setItems(present(kind, refreshed.items, nextChallenges));
 		setError(null);
 		setLoading(false);
-	}, [auth?.accessToken, kind]);
+	}, [auth?.accessToken, auth?.userId, kind]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -77,9 +124,24 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 			show(FAVORITE_REMOVED);
 		}
 		const favorite = item.favorite ? result.data?.removed === false : true;
-		setItems((current) =>
-			current.map((row) => (row.id === item.id ? { ...row, favorite } : row)),
-		);
+		if (favorite) {
+			await applyFavoriteCreated(auth.userId, item.kind, result.data?.item ?? { ...item, favorite: true });
+		} else {
+			await applyFavoriteRemoved(auth.userId, item.kind, item.id);
+		}
+		if (kind === 'exercises' && item.kind === 'challenge') {
+			const nextChallenges = challengeItems.map((row) => (
+				row.id === item.id ? { ...row, favorite } : row
+			));
+			setChallengeItems(nextChallenges);
+			setItems(present(kind, rawItems, nextChallenges));
+			await saveCachedCatalog(auth.userId, 'challenges', nextChallenges);
+			return;
+		}
+		const nextRaw = rawItems.map((row) => (row.id === item.id ? { ...row, favorite } : row));
+		setRawItems(nextRaw);
+		setItems(present(kind, nextRaw, challengeItems));
+		await saveCachedCatalog(auth.userId, kind, nextRaw);
 	};
 
 	return (
@@ -87,7 +149,7 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 			<TrainingNotice text={text} />
 			<FlatList
 				data={items}
-				keyExtractor={(item) => String(item.id)}
+				keyExtractor={(item) => `${item.kind}:${item.id}`}
 				contentContainerStyle={styles.content}
 				ListHeaderComponent={
 					<View>

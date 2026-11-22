@@ -264,7 +264,14 @@ const TrainingEventScreen = ({ navigation, route }) => {
 			<Pressable style={styles.abort} onPress={() => setPrompt('abort')}>
 				<Text style={styles.abortText}>Przerwij</Text>
 			</Pressable>
-			<Modal visible={prompt === 'abort'} transparent animationType="fade" onRequestClose={() => setPrompt(null)}>
+			<Modal
+				visible={prompt === 'abort'}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setPrompt(null)}
+			>
 				<View style={styles.modalBackdrop}>
 					<View style={styles.modalCard}>
 						<Text style={styles.modalText}>{ABORT_TEXT}</Text>

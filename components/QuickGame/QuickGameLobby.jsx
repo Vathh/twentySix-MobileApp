@@ -597,6 +597,8 @@ const QuickGameLobby = ({ navigation, route }) => {
           visible={inviteModalVisible}
           transparent
           animationType="fade"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
           onRequestClose={() => setInviteModalVisible(false)}
         >
           <Pressable style={styles.modalOverlay} onPress={() => setInviteModalVisible(false)}>
@@ -638,6 +640,8 @@ const QuickGameLobby = ({ navigation, route }) => {
           visible={guestModalVisible}
           transparent
           animationType="fade"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
           onRequestClose={() => setGuestModalVisible(false)}
         >
           <Pressable style={styles.modalOverlay} onPress={() => setGuestModalVisible(false)}>

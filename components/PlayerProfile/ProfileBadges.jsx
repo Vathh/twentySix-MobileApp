@@ -237,8 +237,9 @@ function BadgeHelp({ id, text }) {
 						transparent
 						visible
 						animationType="none"
-						onRequestClose={() => setHelpId(null)}
+						presentationStyle="overFullScreen"
 						statusBarTranslucent
+						onRequestClose={() => setHelpId(null)}
 					>
 						<Pressable
 							style={styles.helpDismiss}

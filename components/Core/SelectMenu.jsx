@@ -49,6 +49,8 @@ export default function SelectMenu({
 				visible={open}
 				transparent
 				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
 				onRequestClose={close}
 			>
 				<View style={styles.overlay}>

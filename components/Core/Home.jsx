@@ -84,7 +84,7 @@ const Home = ({ navigation }) => {
           <ModeTile
             icon="barbell-outline"
             title="Trening"
-            hint="Plany, ćwiczenia i wolna gra"
+            hint="Plany treningowe, ćwiczenia i wolna gra"
             onPress={() => navigation.navigate('TrainingHome')}
           />
         ) : (

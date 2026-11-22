@@ -3,6 +3,10 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { loadCachedDefinition, saveCachedDefinition } from '../../helpers/training/definitionCache';
+import {
+	applyFavoriteCreated,
+	applyFavoriteRemoved,
+} from '../../helpers/training/favoritesCache';
 import { canPlayCatch20 } from '../../helpers/training/catch20Exercise';
 import { canPlayCheckout41 } from '../../helpers/training/checkout41Exercise';
 import { canPlayCheckoutBull81 } from '../../helpers/training/checkoutBull81Exercise';
@@ -12,6 +16,13 @@ import {
 	canPlayScoringPressure,
 } from '../../helpers/training/scoringUnderPressureExercise';
 import { canPlayClock } from '../../helpers/training/clockExercise';
+import {
+	BOBS_NAME,
+	BOBS_VARIANTS,
+	bobsPlayDefinition,
+	bobsVariantId,
+	isBobsKey,
+} from '../../helpers/training/bobs27Group';
 import {
 	CLOCK_NAME,
 	CLOCK_VARIANTS,
@@ -39,6 +50,7 @@ import {
 } from '../../helpers/training/trainingApi';
 import { loadTrainingInputMode, saveTrainingInputMode } from '../../helpers/training/trainingInputMode';
 import { trainingInitials } from '../../helpers/training/trainingInitials';
+import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryInstructions';
 import { trainingMeta } from '../../helpers/training/trainingMeta';
 import { SCORING_MODES } from '../../hooks/useGameSettings';
 import { colors } from '../../theme/colors';
@@ -56,6 +68,7 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const [variant, setVariant] = useState('20');
 	const [dartVariant, setDartVariant] = useState('9');
 	const [clockVariant, setClockVariant] = useState('fast');
+	const [bobsVariant, setBobsVariant] = useState('easy');
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const [previewRows, setPreviewRows] = useState(() => new Set());
 	const [challengeTab, setChallengeTab] = useState('info');
@@ -63,35 +76,43 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const [attempts, setAttempts] = useState(null);
 	const [rankingLoading, setRankingLoading] = useState(false);
 
+	const applyDefinition = (definition) => {
+		setItem(definition);
+		if (isClockKey(definition?.exerciseKey)) {
+			setClockVariant(clockVariantId(definition.exerciseKey));
+		}
+		if (isBobsKey(definition?.exerciseKey)) {
+			setBobsVariant(bobsVariantId(definition.exerciseKey));
+		}
+		setError(null);
+		setImageFailed(false);
+	};
+
 	const load = useCallback(async () => {
-		if (!auth?.accessToken || !id) {
-			setError('Zaloguj się, żeby zobaczyć tę treść.');
+		if (!id) {
+			setError('Nie ma takiej treści.');
+			return;
+		}
+		const cached = await loadCachedDefinition(auth?.userId, id);
+		if (cached) {
+			applyDefinition(cached);
+		}
+		if (!auth?.accessToken) {
+			if (!cached) {
+				setError('Zaloguj się, żeby zobaczyć tę treść.');
+			}
 			return;
 		}
 		const result = await fetchTrainingDefinition(auth.accessToken, id);
 		if (!result.ok) {
-			if (result.status !== 404 && result.status !== 401) {
-				const cached = await loadCachedDefinition(auth.userId, id);
-				if (cached) {
-					setItem(cached);
-					if (isClockKey(cached?.exerciseKey)) {
-						setClockVariant(clockVariantId(cached.exerciseKey));
-					}
-					setError(null);
-					setImageFailed(false);
-					return;
-				}
+			if (cached) {
+				return;
 			}
 			setItem(null);
 			setError(result.data?.message || 'Nie ma takiej treści.');
 			return;
 		}
-		setItem(result.data);
-		if (isClockKey(result.data?.exerciseKey)) {
-			setClockVariant(clockVariantId(result.data.exerciseKey));
-		}
-		setError(null);
-		setImageFailed(false);
+		applyDefinition(result.data);
 		await saveCachedDefinition(auth.userId, result.data);
 	}, [auth?.accessToken, auth?.userId, id]);
 
@@ -141,6 +162,11 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		};
 		setItem(next);
 		await saveCachedDefinition(auth.userId, next);
+		if (next.favorite) {
+			await applyFavoriteCreated(auth.userId, next.kind, result.data?.item ?? next);
+		} else {
+			await applyFavoriteRemoved(auth.userId, item.kind, item.id);
+		}
 	};
 
 	const meta = trainingMeta(item);
@@ -148,6 +174,13 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const isPlan = item?.kind === 'plan';
 	const planItems = Array.isArray(item?.items) ? item.items : [];
 	const scoreInput = Boolean(item && (canPlayCatch20(item) || canPlayCheckout41(item) || canPlayScoring65(item)));
+	const libraryGuide = libraryInstructionsFor(item, {
+		clockVariant,
+		dartVariant,
+		pressureVariant: variant,
+		bobsVariant,
+	});
+	const guideNoun = item?.kind === 'challenge' ? 'wyzwania' : 'ćwiczenia';
 	const playable = Boolean(
 		item
 		&& !isPlan
@@ -249,7 +282,13 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 							</View>
 						)}
 						<View style={styles.copy}>
-							<Text style={styles.title}>{isClockKey(item.exerciseKey) ? CLOCK_NAME : item.name}</Text>
+							<Text style={styles.title}>
+								{isClockKey(item.exerciseKey)
+									? CLOCK_NAME
+									: isBobsKey(item.exerciseKey)
+										? BOBS_NAME
+										: item.name}
+							</Text>
 							{meta ? <Text style={styles.meta}>{meta}</Text> : null}
 						</View>
 						<TrainingStar
@@ -465,6 +504,26 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 							})}
 						</View>
 					) : null}
+					{isBobsKey(item.exerciseKey) ? (
+						<View style={styles.modes}>
+							<Text style={styles.variantCaption}>Wariant</Text>
+							{BOBS_VARIANTS.map((option) => {
+								const selected = bobsVariant === option.id;
+								return (
+									<Pressable
+										key={option.id}
+										accessibilityRole="button"
+										accessibilityLabel={option.label}
+										accessibilityState={{ selected }}
+										onPress={() => setBobsVariant(option.id)}
+										style={[styles.mode, styles.variant, selected && styles.variantOn]}
+									>
+										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{option.label}</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+					) : null}
 					{canPlayScoringPressure(item) ? (
 						<View style={styles.modes}>
 							<Text style={styles.variantCaption}>Wariant</Text>
@@ -485,13 +544,33 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 							})}
 						</View>
 					) : null}
+					{libraryGuide && (item.kind !== 'challenge' || challengeTab === 'info') ? (
+						<View style={styles.guide}>
+							<Text style={styles.guideHeading}>Cel {guideNoun}</Text>
+							<Text style={styles.guideBody}>{libraryGuide.goal}</Text>
+							<Text style={styles.guideHeading}>Jak wykonywać ćwiczenia?</Text>
+							{libraryGuide.how.map((line, index) => (
+								<Text key={`how-${index}`} style={styles.guideBody}>{line}</Text>
+							))}
+							<Text style={styles.guideHeading}>Zasady punktacji</Text>
+							{libraryGuide.scoring.map((line, index) => (
+								<Text key={`score-${index}`} style={styles.guideBody}>{line}</Text>
+							))}
+							<Text style={styles.guideHeading}>Czas / liczba lotek</Text>
+							<Text style={styles.guideBody}>{libraryGuide.limit}</Text>
+						</View>
+					) : null}
 					{playable ? (
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Rozpocznij"
 							style={styles.start}
 							onPress={() => navigation.navigate('TrainingExercise', {
-								definition: isClockKey(item.exerciseKey) ? clockPlayDefinition(item, clockVariant) : item,
+								definition: isClockKey(item.exerciseKey)
+									? clockPlayDefinition(item, clockVariant)
+									: isBobsKey(item.exerciseKey)
+										? bobsPlayDefinition(item, bobsVariant)
+										: item,
 								inputMode: scoreInput ? inputMode : undefined,
 								variant: canPlayScoringPressure(item) ? variant : canPlayNineDarts(item) ? dartVariant : undefined,
 							})}
@@ -603,6 +682,21 @@ const styles = StyleSheet.create({
 		color: colors.textSecondary,
 		fontSize: 15,
 		lineHeight: 22,
+	},
+	guide: {
+		marginTop: 20,
+		gap: 6,
+	},
+	guideHeading: {
+		marginTop: 10,
+		color: colors.text,
+		fontSize: 15,
+		fontWeight: '700',
+	},
+	guideBody: {
+		color: colors.textSecondary,
+		fontSize: 14,
+		lineHeight: 21,
 	},
 	modes: {
 		marginTop: 24,

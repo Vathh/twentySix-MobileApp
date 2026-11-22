@@ -304,6 +304,8 @@ const TrainingMatchSetup = ({ navigation, route }) => {
 			visible={playerModalVisible}
 			transparent
 			animationType="fade"
+			presentationStyle="overFullScreen"
+			statusBarTranslucent
 			onRequestClose={() => setPlayerModalVisible(false)}
 		>
 			<View style={styles.modalOverlay}>

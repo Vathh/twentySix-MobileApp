@@ -1,14 +1,19 @@
 /** Tytuły i puste stany sekcji Trening. Analiza, rekordy, cele i historia czekają na swoje numery. */
 export const TRAINING_SECTIONS = {
 	plans: {
-		title: 'Plany',
-		empty: 'Brak planów.',
+		title: 'Plany treningowe',
+		empty: 'Brak planów treningowych.',
 		icon: 'list-outline',
 	},
 	exercises: {
-		title: 'Biblioteka ćwiczeń',
-		empty: 'Brak ćwiczeń.',
+		title: 'Biblioteka',
+		empty: 'Brak pozycji.',
 		icon: 'library-outline',
+	},
+	progress: {
+		title: 'Postępy',
+		empty: 'Brak danych.',
+		icon: 'analytics-outline',
 	},
 	challenges: {
 		title: 'Wyzwania',

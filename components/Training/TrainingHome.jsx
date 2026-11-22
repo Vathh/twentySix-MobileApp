@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import ModeTile from '../Common/ModeTile';
 import useAuth from '../../hooks/useAuth';
+import { prefetchTrainingCatalogs } from '../../helpers/training/catalogCache';
 import { clearHangingPlan, loadHangingPlan } from '../../helpers/training/planSessionStore';
 import { loadHangingEvent } from '../../helpers/training/eventAttemptStore';
 import { TRAINING_SECTIONS } from './trainingSections';
@@ -15,11 +16,7 @@ const TILES = [
 	{ key: 'events', section: 'events' },
 	{ key: 'exercises', section: 'exercises' },
 	{ key: 'free', title: 'Wolna gra', icon: 'barbell-outline' },
-	{ key: 'analysis', section: 'analysis' },
-	{ key: 'records', section: 'records' },
-	{ key: 'goals', section: 'goals' },
-	{ key: 'favorites', section: 'favorites' },
-	{ key: 'history', section: 'history' },
+	{ key: 'progress', section: 'progress' },
 ];
 
 /**
@@ -43,10 +40,13 @@ const TrainingHome = ({ navigation }) => {
 				setHanging(hang?.phase === 'running' ? hang : null);
 				setHangingEvent(eventHang?.phase === 'running' ? eventHang : null);
 			});
+			if (auth?.accessToken) {
+				prefetchTrainingCatalogs(auth.userId, auth.accessToken);
+			}
 			return () => {
 				live = false;
 			};
-		}, [auth?.userId]),
+		}, [auth?.userId, auth?.accessToken]),
 	);
 
 	const open = (tile) => {
@@ -58,28 +58,12 @@ const TrainingHome = ({ navigation }) => {
 			navigation.navigate('TrainingMatchSetup');
 			return;
 		}
-		if (tile.section === 'favorites') {
-			navigation.navigate('TrainingFavorites');
+		if (tile.section === 'progress') {
+			navigation.navigate('TrainingProgress');
 			return;
 		}
 		if (tile.section === 'plans' || tile.section === 'exercises' || tile.section === 'challenges' || tile.section === 'events') {
 			navigation.navigate('TrainingCatalog', { kind: tile.section });
-			return;
-		}
-		if (tile.section === 'history') {
-			navigation.navigate('TrainingHistory');
-			return;
-		}
-		if (tile.section === 'analysis') {
-			navigation.navigate('TrainingAnalysis');
-			return;
-		}
-		if (tile.section === 'records') {
-			navigation.navigate('TrainingRecords');
-			return;
-		}
-		if (tile.section === 'goals') {
-			navigation.navigate('TrainingGoals');
 			return;
 		}
 		navigation.navigate('TrainingSection', { section: tile.section });

@@ -172,7 +172,7 @@ export function recordExerciseResult(hang, item, completion, status = 'completed
 		position: item.position ?? hang.index + 1,
 		kind: 'exercise',
 		exerciseKey: item.exerciseKey,
-		name: item.name || item.exerciseKey,
+		name: planSlotTitle(item),
 		status,
 		scored,
 		score: status === 'skipped' ? null : (completion?.score ?? null),
@@ -193,7 +193,7 @@ export function recordBreakResult(hang, item, status = 'completed') {
 		position: item.position ?? hang.index + 1,
 		kind: 'break',
 		exerciseKey: null,
-		name: 'Przerwa',
+		name: planSlotTitle({ ...item, kind: 'break' }),
 		status,
 		scored: false,
 		score: null,
@@ -266,13 +266,74 @@ export function finalizeHang(hang, completedAt = new Date().toISOString()) {
 	};
 }
 
+function formatPlanDuration(seconds) {
+	const value = Number(seconds);
+	if (!Number.isFinite(value) || value <= 0) {
+		return '';
+	}
+	if (value % 60 === 0) {
+		return `${value / 60} min`;
+	}
+	return `${value} s`;
+}
+
+const PLAN_EXERCISE_TITLES = {
+	loose_throws: 'Luźne rzuty',
+	clock_1_20_bull: 'Zegar szybki',
+	clock_sdt: 'Zegar sektory',
+	doubles_clock: 'Zegar doubli',
+	bobs_27_easy: "Bob's 27 easy",
+	bobs_27_hard: "Bob's 27 hard",
+	catch_20: 'Catch20',
+	scoring_under_pressure: 'Scoring z presją',
+	scoring_65: 'Scoring 65',
+	singles_under_pressure: 'Singielki z presją',
+	checkout_41: 'Checkout 41+',
+	checkout_bull_81: 'Checkout Bull 81+',
+	bull_counter: 'Walka o licznik',
+};
+
+/** Czytelny tytuł slotu w trakcie planu — z wariantem, nie gołą nazwą katalogu. */
+export function planSlotTitle(item) {
+	if (!item) {
+		return 'Ćwiczenie';
+	}
+	if (item.kind === 'break') {
+		return 'Przerwa';
+	}
+	const key = item.exerciseKey;
+	if (key === 'nine_darts') {
+		return slotVariant(item) === '18' ? '18 lotek' : '9 lotek';
+	}
+	if (key === 'scoring_under_pressure') {
+		return `Scoring z presją — ${slotVariant(item) || '20'}`;
+	}
+	const base = PLAN_EXERCISE_TITLES[key] || item.name || key || 'Ćwiczenie';
+	const duration = formatPlanDuration(item.durationSeconds);
+	if (duration && (
+		key === 'loose_throws'
+		|| key === 'catch_20'
+		|| key === 'scoring_65'
+		|| key === 'singles_under_pressure'
+		|| key === 'checkout_41'
+		|| key === 'checkout_bull_81'
+		|| key === 'bull_counter'
+		|| key === 'bobs_27_easy'
+		|| key === 'bobs_27_hard'
+		|| key === 'clock_sdt'
+	)) {
+		return `${base} — ${duration}`;
+	}
+	if ((key === 'clock_1_20_bull' || key === 'doubles_clock') && item.dartCount) {
+		return `${base} — ${item.dartCount} lotek`;
+	}
+	return base;
+}
+
 export function currentTitle(hang) {
 	const item = planItemAt(hang?.plan, hang?.index);
 	if (!item) {
 		return hang?.plan?.name || 'Plan';
 	}
-	if (item.kind === 'break') {
-		return 'Przerwa';
-	}
-	return item.name || item.exerciseKey || 'Ćwiczenie';
+	return planSlotTitle(item);
 }

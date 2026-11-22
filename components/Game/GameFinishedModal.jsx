@@ -28,7 +28,13 @@ export default function GameFinishedModal({
 	const waiting = phase === 'waiting_host';
 
 	return (
-		<Modal visible={visible} transparent animationType="fade">
+		<Modal
+			visible={visible}
+			transparent
+			animationType="fade"
+			presentationStyle="overFullScreen"
+			statusBarTranslucent
+		>
 			<View style={styles.backdrop}>
 				<View style={styles.card}>
 					<Text style={styles.title}>{title}</Text>

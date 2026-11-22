@@ -292,6 +292,12 @@ export function catch20Stats(session) {
 	};
 }
 
+/** Za każde zamknięcie 2 punkty. */
+export function catch20Score(closed) {
+	const count = Number(closed);
+	return Number.isFinite(count) && count > 0 ? count * 2 : 0;
+}
+
 export function catch20Completion(session, completedAt) {
 	const stats = catch20Stats(session);
 	return {
@@ -299,7 +305,7 @@ export function catch20Completion(session, completedAt) {
 		exerciseKey: session.exerciseKey,
 		name: session.name,
 		completedAt,
-		score: stats.closed,
+		score: catch20Score(stats.closed),
 		inputMode: stats.inputMode,
 		stats,
 		sync: 'pending',

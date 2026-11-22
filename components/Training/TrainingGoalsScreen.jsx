@@ -138,7 +138,14 @@ const TrainingGoalsScreen = () => {
 				) : null}
 			</ScrollView>
 
-			<Modal visible={Boolean(rule)} transparent animationType="fade" onRequestClose={() => setRule(null)}>
+			<Modal
+				visible={Boolean(rule)}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setRule(null)}
+			>
 				<Pressable style={styles.modalBackdrop} onPress={() => setRule(null)}>
 					<View style={styles.modalCard}>
 						<Text style={styles.modalTitle}>{rule?.name}</Text>

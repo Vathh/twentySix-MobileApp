@@ -5,29 +5,76 @@ import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import {
 	FAVORITE_REMOVED,
-	fetchTrainingFavorites,
 	removeTrainingFavorite,
 	reorderTrainingFavorites,
 } from '../../helpers/training/trainingApi';
 import {
-	expandClockFavoriteIds,
-	expandClockFavoriteItems,
+	groupBobsFavorites,
+	isBobsKey,
+} from '../../helpers/training/bobs27Group';
+import {
 	groupClockFavorites,
+	isClockKey,
 } from '../../helpers/training/clockGroup';
+import {
+	EMPTY_FAVORITES,
+	applyFavoriteRemoved,
+	loadCachedFavorites,
+	refreshFavorites,
+	replaceFavoriteList,
+} from '../../helpers/training/favoritesCache';
 import { colors } from '../../theme/colors';
 import TrainingCard from './TrainingCard';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
 
 const TABS = [
 	{ key: 'challenges', label: 'Wyzwania' },
-	{ key: 'plans', label: 'Plany' },
+	{ key: 'plans', label: 'Plany treningowe' },
 	{ key: 'exercises', label: 'Ćwiczenia' },
 ];
 
-const EMPTY = { challenges: [], plans: [], exercises: [] };
+const EMPTY = EMPTY_FAVORITES;
 
 const sameOrder = (left, right) =>
 	left.length === right.length && left.every((item, index) => item.id === right[index]?.id);
+
+function groupExerciseFavorites(items) {
+	return groupBobsFavorites(groupClockFavorites(items));
+}
+
+function expandExerciseFavoriteItems(displayItems, storedItems) {
+	const stored = Array.isArray(storedItems) ? storedItems : [];
+	const next = [];
+	for (const item of displayItems ?? []) {
+		if (Array.isArray(item?.clockKeys)) {
+			next.push(...stored.filter((row) => isClockKey(row?.exerciseKey)));
+			continue;
+		}
+		if (Array.isArray(item?.bobsKeys)) {
+			next.push(...stored.filter((row) => isBobsKey(row?.exerciseKey)));
+			continue;
+		}
+		const raw = stored.find((row) => row.id === item?.id);
+		if (raw) {
+			next.push(raw);
+		}
+	}
+	return next;
+}
+
+function expandExerciseFavoriteIds(displayItems) {
+	const ids = [];
+	for (const item of displayItems ?? []) {
+		if (Array.isArray(item?.clockKeys) && item.clockKeys.length > 0) {
+			ids.push(...item.clockKeys);
+		} else if (Array.isArray(item?.bobsKeys) && item.bobsKeys.length > 0) {
+			ids.push(...item.bobsKeys);
+		} else if (item?.id != null) {
+			ids.push(item.id);
+		}
+	}
+	return ids;
+}
 
 /**
  * Zakładka startuje od Wyzwań przy każdym wejściu. Aplikacja jej nie zapamiętuje.
@@ -46,20 +93,26 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 			setError('Zaloguj się, żeby zobaczyć ulubione.');
 			return;
 		}
-		const result = await fetchTrainingFavorites(auth.accessToken);
-		if (!result.ok) {
-			setError(result.data?.message || 'Nie udało się wczytać ulubionych.');
+		const cached = await loadCachedFavorites(auth.userId);
+		if (cached) {
+			setLists(cached);
+			setError(null);
+			setLoading(false);
+		} else {
+			setLoading(true);
+		}
+		const refreshed = await refreshFavorites(auth.userId, auth.accessToken);
+		if (!refreshed) {
+			if (!cached) {
+				setError('Nie udało się wczytać ulubionych.');
+			}
 			setLoading(false);
 			return;
 		}
-		setLists({
-			challenges: result.data?.challenges ?? [],
-			plans: result.data?.plans ?? [],
-			exercises: result.data?.exercises ?? [],
-		});
+		setLists(refreshed);
 		setError(null);
 		setLoading(false);
-	}, [auth?.accessToken]);
+	}, [auth?.accessToken, auth?.userId]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -69,13 +122,13 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 	);
 
 	const stored = lists[tab] ?? [];
-	const items = tab === 'exercises' ? groupClockFavorites(stored) : stored;
+	const items = tab === 'exercises' ? groupExerciseFavorites(stored) : stored;
 
 	const remove = async (item) => {
 		if (!auth?.accessToken) {
 			return;
 		}
-		const keys = item.clockKeys ?? [item.id];
+		const keys = item.clockKeys ?? item.bobsKeys ?? [item.id];
 		let removed = false;
 		for (const key of keys) {
 			const result = await removeTrainingFavorite(auth.accessToken, key, item.kind);
@@ -88,11 +141,10 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 		}
 		if (removed) {
 			show(FAVORITE_REMOVED);
-			const gone = new Set(keys);
-			setLists((current) => ({
-				...current,
-				[tab]: (current[tab] ?? []).filter((row) => !gone.has(row.id) && !gone.has(row.exerciseKey)),
-			}));
+			const next = await applyFavoriteRemoved(auth.userId, item.kind, keys);
+			if (next) {
+				setLists(next);
+			}
 		}
 	};
 
@@ -100,14 +152,16 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 		if (!auth?.accessToken || sameOrder(items, next)) {
 			return;
 		}
+		const localList = tab === 'exercises' ? expandExerciseFavoriteItems(next, lists[tab]) : next;
 		setLists((current) => ({
 			...current,
-			[tab]: tab === 'exercises' ? expandClockFavoriteItems(next, current[tab]) : next,
+			[tab]: localList,
 		}));
+		await replaceFavoriteList(auth.userId, tab, localList);
 		const result = await reorderTrainingFavorites(
 			auth.accessToken,
 			tab,
-			tab === 'exercises' ? expandClockFavoriteIds(next) : next.map((item) => item.id),
+			tab === 'exercises' ? expandExerciseFavoriteIds(next) : next.map((item) => item.id),
 		);
 		if (!result.ok) {
 			show(result.data?.message || 'Nie udało się zapisać kolejności.');
@@ -116,6 +170,7 @@ const TrainingFavoritesScreen = ({ navigation }) => {
 		}
 		if (Array.isArray(result.data?.items)) {
 			setLists((current) => ({ ...current, [tab]: result.data.items }));
+			await replaceFavoriteList(auth.userId, tab, result.data.items);
 		}
 	};
 

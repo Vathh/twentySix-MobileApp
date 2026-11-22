@@ -142,7 +142,18 @@ export function runClockExerciseTests() {
 	assert(clockScore(finished) === 21, 'zegar szybki daje 1 punkt za trafienie');
 	assert(clockScore(oneMiss) === 20, 'pudło w zegarze szybkim nie daje punktu');
 	const doubleRecord = clockCompletion(doubleHit, '2026-11-19T18:00:00.000Z');
-	assert(doubleRecord.score === 3, 'zegar doubli daje 3 punkty za trafienie');
+	assert(doubleRecord.score === 3, 'zegar doubli daje 3 punkty za double');
+	let doublesBull = startClockSession(doubles, 'doubles-bull');
+	for (let number = 1; number <= 20; number += 1) {
+		doublesBull = recordOutcome(doublesBull, true);
+	}
+	assert(currentTarget(doublesBull)?.kind === 'bull', 'po D20 jest bull');
+	const outerBull = recordOutcome(doublesBull, true, 'outer');
+	assert(outerBull.darts[20].ring === 'outer', 'outer bull zapisuje outer');
+	assert(clockScore(outerBull) === 20 * 3 + 3, 'outer bull daje 3 punkty');
+	const innerBull = recordOutcome(doublesBull, true, 'inner');
+	assert(innerBull.darts[20].ring === 'inner', 'inner bull zapisuje inner');
+	assert(clockScore(innerBull) === 20 * 3 + 6, 'inner bull daje 6 punktów');
 
 	const record = clockCompletion(finished, '2026-11-19T18:00:00.000Z');
 	assert(record.score === 21, 'zapis szybkiego zegara ma sumę punktów');
@@ -166,7 +177,8 @@ export function runClockExerciseTests() {
 	}));
 	assert(synced[0].sync === 'synced', '409 jest tym samym wpisem');
 	assert(syncOutcome({ ok: true, status: 201, data: {} }) === 'synced', '201 zapisuje');
-	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_active' } }) === 'rejected', 'nieaktywna treść odpada');
+	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_found' } }) === 'rejected', 'brak definicji odpada');
+	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_active' } }) === 'pending', 'wyłączona treść zostaje do ponowienia');
 	assert(syncOutcome({ ok: false, status: 0, data: { message: 'offline' } }) === 'pending', 'brak sieci zostawia sesję');
 	assert(syncLabel('pending') === 'Zapisze się po połączeniu.', 'komunikat oczekiwania');
 

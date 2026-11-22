@@ -22,6 +22,7 @@ import { runUserFacingErrorTests } from '../../__tests__/userFacingError.test.js
 import { runRecentTrainingTests } from '../../training/__tests__/recentTraining.test.js';
 import { runClockExerciseTests } from '../../training/__tests__/clockExercise.test.js';
 import { runClockGroupTests } from '../../training/__tests__/clockGroup.test.js';
+import { runBobs27GroupTests } from '../../training/__tests__/bobs27Group.test.js';
 import { runSectorClockExerciseTests } from '../../training/__tests__/sectorClockExercise.test.js';
 import { runLooseThrowsExerciseTests } from '../../training/__tests__/looseThrowsExercise.test.js';
 import { runNineDartsExerciseTests } from '../../training/__tests__/nineDartsExercise.test.js';
@@ -1029,6 +1030,7 @@ const tests = [
 	['recent training', runRecentTrainingTests],
 	['clock exercise', runClockExerciseTests],
 	['clock group', runClockGroupTests],
+	['bobs 27 group', runBobs27GroupTests],
 	['sector clock exercise', runSectorClockExerciseTests],
 	['loose throws exercise', runLooseThrowsExerciseTests],
 	['nine darts exercise', runNineDartsExerciseTests],

@@ -5,6 +5,7 @@ import {
 	finalizeHang,
 	mergeAims,
 	planProgressLabel,
+	planSlotTitle,
 	recordBreakResult,
 	recordExerciseResult,
 	slotToExerciseDefinition,
@@ -22,6 +23,27 @@ const plan = {
 };
 
 assert.strictEqual(planProgressLabel(2, 8), '3/8');
+
+assert.strictEqual(
+	planSlotTitle({ kind: 'exercise', exerciseKey: 'nine_darts', dartCount: 36, name: '9/18 lotek' }),
+	'9 lotek',
+);
+assert.strictEqual(
+	planSlotTitle({ kind: 'exercise', exerciseKey: 'nine_darts', dartCount: 72, name: '9/18 lotek' }),
+	'18 lotek',
+);
+assert.strictEqual(
+	planSlotTitle({ kind: 'exercise', exerciseKey: 'scoring_under_pressure', variant: '19', name: 'Scoring z presją' }),
+	'Scoring z presją — 19',
+);
+assert.strictEqual(
+	planSlotTitle({ kind: 'exercise', exerciseKey: 'loose_throws', durationSeconds: 180, name: 'Luźne rzuty' }),
+	'Luźne rzuty — 3 min',
+);
+assert.strictEqual(
+	planSlotTitle({ kind: 'exercise', exerciseKey: 'clock_1_20_bull', dartCount: 21, name: 'Zegar' }),
+	'Zegar szybki — 21 lotek',
+);
 
 const def = slotToExerciseDefinition(plan, plan.items[0]);
 assert.strictEqual(def.exerciseKey, 'loose_throws');

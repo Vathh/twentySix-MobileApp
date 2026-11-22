@@ -47,7 +47,14 @@ const ReportModal = ({ visible, title, onClose, onSubmit }) => {
 	};
 
 	return (
-		<Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+		<Modal
+			visible={visible}
+			transparent
+			animationType="fade"
+			presentationStyle="overFullScreen"
+			statusBarTranslucent
+			onRequestClose={onClose}
+		>
 			<KeyboardAvoidingView
 				style={styles.backdrop}
 				behavior={Platform.OS === 'ios' ? 'padding' : undefined}

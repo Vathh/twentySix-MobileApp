@@ -5,6 +5,7 @@ import { createClientSessionId } from '../../helpers/training/clientSessionId';
 import {
 	canPlayFiftyFourDart,
 	currentTarget,
+	fiftyFourAimText,
 	fiftyFourCompletion,
 	recordFiftyFourDart,
 	startFiftyFourSession,
@@ -255,6 +256,7 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 			<Text accessibilityRole="header" style={styles.header}>{definition?.name}</Text>
 			{target ? (
 				<>
+					<Text style={styles.aim}>{fiftyFourAimText(target)}</Text>
 					<Text style={styles.target}>{target.targetLabel}</Text>
 					<Text style={styles.dartCounter}>Lotka {target.dartNumber} z {target.visitSize}</Text>
 					{target.stageType === 'shanghai' ? (
@@ -314,7 +316,14 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 				<Text style={styles.empty}>Ładowanie…</Text>
 			)}
 
-			<Modal visible={prompt === 'abort'} transparent animationType="fade" onRequestClose={() => setPrompt(null)}>
+			<Modal
+				visible={prompt === 'abort'}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setPrompt(null)}
+			>
 				<View style={styles.modalBackdrop}>
 					<View style={styles.modalCard}>
 						<Text style={styles.modalText}>{ABORT_TEXT}</Text>
@@ -351,12 +360,19 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		marginBottom: 16,
 	},
+	aim: {
+		marginTop: 16,
+		fontSize: 18,
+		fontWeight: '600',
+		color: colors.textSecondary,
+		textAlign: 'center',
+	},
 	target: {
 		fontSize: 64,
 		fontWeight: '800',
 		color: colors.accent,
 		textAlign: 'center',
-		marginTop: 24,
+		marginTop: 8,
 	},
 	dartCounter: {
 		fontSize: 16,

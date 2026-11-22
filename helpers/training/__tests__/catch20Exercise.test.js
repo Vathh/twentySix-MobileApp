@@ -112,11 +112,12 @@ export function runCatch20ExerciseTests() {
 		last = recordCatch20Sum(last, checkout, true);
 	}
 	assert(last.status === 'completed', 'zamknięcie 60 kończy ćwiczenie');
-	assert(catch20View(last).closed === 20, 'dwadzieścia zamknięć to wynik 20');
+	assert(catch20View(last).closed === 20, 'dwadzieścia zamknięć');
+	assert(catch20Completion(last, '2026-11-20T16:00:00.000Z').score === 40, 'każde zamknięcie daje 2 punkty');
 
 	const body = sessionBody(catch20Completion(doubled, '2026-11-20T16:00:00.000Z'));
 	assert(body.exerciseKey === 'catch_20', 'zapis wskazuje ćwiczenie');
-	assert(body.score === 1, 'wynik to liczba zamknięć');
+	assert(body.score === 2, 'jedno zamknięcie to 2 punkty');
 	assert(body.stats.doubles[0].label === 'D13', 'na serwer idzie skuteczność dubla');
 	assert(body.stats.darts === undefined, 'lista lotek nie idzie na serwer');
 }

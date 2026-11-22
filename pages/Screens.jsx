@@ -37,6 +37,7 @@ import TrainingHistoryDetailScreen from '../components/Training/TrainingHistoryD
 import TrainingAnalysisScreen from '../components/Training/TrainingAnalysisScreen';
 import TrainingRecordsScreen from '../components/Training/TrainingRecordsScreen';
 import TrainingGoalsScreen from '../components/Training/TrainingGoalsScreen';
+import TrainingProgressScreen from '../components/Training/TrainingProgressScreen';
 import TrainingSessionSync from '../components/Training/TrainingSessionSync';
 import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
 import CreateTournamentScreen from '../components/Tournament/CreateTournamentScreen';
@@ -119,7 +120,7 @@ function GrajStack() {
 		<Stack.Navigator screenOptions={stackScreenOptions}>
 			<Stack.Screen name="GrajHome" component={Home} />
 			<Stack.Screen name="TrainingHome" component={TrainingHome} />
-			<Stack.Screen name="TrainingStart" component={TrainingStartScreen} />
+			<Stack.Screen name="TrainingStart" component={TrainingStartScreen} options={{ title: 'Rozpocznij trening' }} />
 			<Stack.Screen name="TrainingSection" component={TrainingSectionScreen} />
 			<Stack.Screen name="TrainingCatalog" component={TrainingCatalogScreen} />
 			<Stack.Screen name="TrainingFavorites" component={TrainingFavoritesScreen} />
@@ -128,6 +129,7 @@ function GrajStack() {
 			<Stack.Screen name="TrainingChallenge" component={TrainingChallengeScreen} options={{ title: 'Wyzwanie' }} />
 			<Stack.Screen name="TrainingEvent" component={TrainingEventScreen} options={{ title: 'Event' }} />
 			<Stack.Screen name="TrainingPlan" component={TrainingPlanScreen} options={{ title: 'Plan' }} />
+			<Stack.Screen name="TrainingProgress" component={TrainingProgressScreen} options={{ title: 'Postępy' }} />
 			<Stack.Screen name="TrainingHistory" component={TrainingHistoryScreen} options={{ title: 'Moje treningi' }} />
 			<Stack.Screen name="TrainingHistoryDetail" component={TrainingHistoryDetailScreen} options={{ title: 'Szczegóły' }} />
 			<Stack.Screen name="TrainingAnalysis" component={TrainingAnalysisScreen} options={{ title: 'Analiza zawodnika' }} />

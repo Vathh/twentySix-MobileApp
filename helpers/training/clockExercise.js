@@ -1,6 +1,7 @@
 /**
  * Zegar szybki i zegar doubli. Jedna lotka na sektor, pudło przechodzi dalej.
- * Szybki: 1 punkt za trafienie. Double: 3 punkty za trafienie.
+ * Szybki: 1 punkt za trafienie.
+ * Double: D1–D20 = 3, Outer Bull = 3, Inner Bull = 6.
  */
 
 export const CLOCK_MECHANIC = 'clock_1_20_bull';
@@ -119,24 +120,30 @@ export function currentVisit(session) {
 	};
 }
 
-/** Lotka zgodna z celem albo pudło. W zegarze doubli trafienie sektora jest doublem. */
-export function outcomeDart(target, hit, session) {
+/**
+ * Lotka zgodna z celem albo pudło. W zegarze doubli trafienie sektora jest doublem.
+ * Przy Bullu w doubli: bullRing = 'inner' | 'outer'.
+ */
+export function outcomeDart(target, hit, session, bullRing = 'outer') {
 	if (!hit) {
 		return { number: 0, ring: 'miss' };
 	}
 	if (target?.kind === 'bull') {
-		return { number: 25, ring: 'outer' };
+		const ring = session?.exerciseKey === DOUBLES_CLOCK_MECHANIC && bullRing === 'inner'
+			? 'inner'
+			: 'outer';
+		return { number: 25, ring };
 	}
 	const ring = session?.exerciseKey === DOUBLES_CLOCK_MECHANIC ? 'double' : 'single';
 	return { number: target.number, ring };
 }
 
-export function recordOutcome(session, hit) {
+export function recordOutcome(session, hit, bullRing = 'outer') {
 	const target = currentTarget(session);
 	if (!target) {
 		return session;
 	}
-	return throwDart(session, outcomeDart(target, hit, session));
+	return throwDart(session, outcomeDart(target, hit, session, bullRing));
 }
 
 /**
@@ -156,10 +163,29 @@ export function clockStats(session) {
 	return { hits, attempts, percent };
 }
 
-/** Szybki daje 1 punkt za trafienie, doubli 3. */
+/** Punkty jednej lotki w zegarze doubli. */
+export function doublesClockDartPoints(target, dart) {
+	if (!dartHitsTarget(target, dart)) {
+		return 0;
+	}
+	if (target?.kind === 'bull') {
+		return dart?.ring === 'inner' ? 6 : 3;
+	}
+	return 3;
+}
+
+/** Szybki: 1 punkt za trafienie. Doubli: D1–D20 i Outer = 3, Inner = 6. */
 export function clockScore(session) {
-	const { hits } = clockStats(session);
-	return session?.exerciseKey === DOUBLES_CLOCK_MECHANIC ? hits * 3 : hits;
+	if (session?.exerciseKey !== DOUBLES_CLOCK_MECHANIC) {
+		return clockStats(session).hits;
+	}
+	const darts = session?.darts ?? [];
+	const targets = session?.targets ?? [];
+	let score = 0;
+	for (let index = 0; index < darts.length; index += 1) {
+		score += doublesClockDartPoints(targets[index], darts[index]);
+	}
+	return score;
 }
 
 /** Zapis ukończenia. Bez lotek. */

@@ -50,7 +50,11 @@ export default function GameScoringModals({
 
 	return (
 		<>
-			<Modal visible={isOpenerModalVisible}>
+			<Modal
+				visible={isOpenerModalVisible}
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+			>
 				<View style={styles.modalContainer}>
 					{onLeaveScoring ? (
 						<View style={[styles.leaveButtonWrap, { top: Math.max(insets.top, 8) }]}>
@@ -80,7 +84,11 @@ export default function GameScoringModals({
 			</Modal>
 
 			{checkoutModalPlayer && (
-				<Modal visible={isCheckoutModalVisible}>
+				<Modal
+					visible={isCheckoutModalVisible}
+					presentationStyle="overFullScreen"
+					statusBarTranslucent
+				>
 					<View style={styles.modalContainer}>
 						<Text style={styles.modalText}>
 							{checkoutPrompt
@@ -103,7 +111,12 @@ export default function GameScoringModals({
 				</Modal>
 			)}
 
-			<Modal visible={!!lossThresholdNotice} onRequestClose={onDismissLossThreshold}>
+			<Modal
+				visible={!!lossThresholdNotice}
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={onDismissLossThreshold}
+			>
 				<View style={styles.modalContainer}>
 					<Text style={styles.modalText}>
 						{lossThresholdNotice ?? ''}
@@ -117,7 +130,12 @@ export default function GameScoringModals({
 				</View>
 			</Modal>
 
-			<Modal visible={bullOffRequired && !lossThresholdNotice} onRequestClose={() => {}}>
+			<Modal
+				visible={bullOffRequired && !lossThresholdNotice}
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => {}}
+			>
 				<View style={styles.modalContainer}>
 					<Text style={styles.modalText}>
 						Rzut do bulla, kto trafił bliżej?

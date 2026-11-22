@@ -3,7 +3,7 @@
  */
 
 export const HISTORY_KINDS = [
-	{ key: 'plan', label: 'Plany' },
+	{ key: 'plan', label: 'Plany treningowe' },
 	{ key: 'exercise', label: 'Ćwiczenia' },
 	{ key: 'challenge', label: 'Wyzwania' },
 	{ key: 'event', label: 'Eventy' },

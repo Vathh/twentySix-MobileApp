@@ -17,6 +17,7 @@ import {
 	canPlayClock,
 	clockCompletion,
 	currentVisit,
+	currentTarget,
 	recordOutcome,
 	startClockSession,
 	undoDart,
@@ -28,6 +29,7 @@ import {
 	looseThrowsCompletion,
 	startLooseThrowsSession,
 } from '../../helpers/training/looseThrowsExercise';
+import { LOOSE_THROWS_AIM_TEXT } from '../../helpers/training/exerciseLibraryInstructions';
 import {
 	NINE_DARTS_MECHANIC,
 	canPlayNineDarts,
@@ -261,6 +263,12 @@ function exerciseVariantLabel(session) {
 	if (session?.exerciseKey === CLOCK_MECHANIC) {
 		return 'Szybki';
 	}
+	if (isBob27Hard(session)) {
+		return 'Hard';
+	}
+	if (isBob27Easy(session)) {
+		return 'Easy';
+	}
 	return null;
 }
 
@@ -459,6 +467,9 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 			return undefined;
 		}
 		const runEndsAt = current.endsAt;
+		if (!runEndsAt) {
+			return undefined;
+		}
 		const cues = scheduleCues(runEndsAt, Date.now());
 		let ended = false;
 		const timeUp = () => {
@@ -521,11 +532,11 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 
 	useEffect(() => {
 		const current = sessionRef.current;
-		if (!current || current.status !== 'playing' || !isTimed(current) || !current.endsAt) {
+		if (!current || current.status !== 'playing' || !isTimed(current)) {
 			return;
 		}
 		if (planPaused) {
-			if (pauseRemainRef.current == null) {
+			if (pauseRemainRef.current == null && current.endsAt) {
 				pauseRemainRef.current = Math.max(0, current.endsAt - Date.now());
 				stopTicking();
 				const frozen = { ...current, endsAt: null, remainingMs: pauseRemainRef.current };
@@ -604,21 +615,28 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 
 	const requestAbort = planMode ? undefined : () => setPrompt('abort');
 
-	const submit = (hit) => {
+	const submit = (hit, bullRing = 'outer') => {
 		const current = sessionRef.current;
 		if (!current || current.status !== 'playing' || prompt || planPaused) {
 			return;
 		}
-		const record = isBob27Easy(current)
-			? recordBob27EasyDart
-			: isBob27Hard(current)
-				? recordBob27HardDart
-				: isSingles(current)
-					? recordSinglesOutcome
-					: isSectorClock(current)
-						? recordSectorOutcome
-						: recordOutcome;
-		applySession(record(current, hit));
+		if (isBob27Easy(current)) {
+			applySession(recordBob27EasyDart(current, hit));
+			return;
+		}
+		if (isBob27Hard(current)) {
+			applySession(recordBob27HardDart(current, hit));
+			return;
+		}
+		if (isSingles(current)) {
+			applySession(recordSinglesOutcome(current, hit));
+			return;
+		}
+		if (isSectorClock(current)) {
+			applySession(recordSectorOutcome(current, hit));
+			return;
+		}
+		applySession(recordOutcome(current, hit, bullRing));
 	};
 
 	const undo = () => {
@@ -802,6 +820,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 			<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 				{showLooseClock ? (
 					<View style={styles.looseClock}>
+						<Text style={styles.instruction}>{LOOSE_THROWS_AIM_TEXT}</Text>
 						<View
 							accessibilityRole="text"
 							accessibilityLabel={`Zostało ${clockLabel}`}
@@ -1131,26 +1150,58 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							activeOffset={visit.activeOffset}
 						/>
 						<Text style={styles.dartLabel} accessibilityRole="text">{dartLabel}</Text>
-						<View style={styles.outcomeRow}>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Pudło"
-								disabled={boardDisabled}
-								onPress={() => submit(false)}
-								style={[styles.miss, prompt && styles.disabled]}
-							>
-								<Text style={styles.missText}>Pudło</Text>
-							</Pressable>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Trafiona"
-								disabled={boardDisabled}
-								onPress={() => submit(true)}
-								style={[styles.hit, prompt && styles.disabled]}
-							>
-								<Text style={styles.hitText}>Trafiona</Text>
-							</Pressable>
-						</View>
+						{isDoublesClock(session) && currentTarget(session)?.kind === 'bull' ? (
+							<View style={styles.bullOutcomeRow}>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Inner"
+									disabled={boardDisabled}
+									onPress={() => submit(true, 'inner')}
+									style={[styles.bullInner, prompt && styles.disabled]}
+								>
+									<Text style={styles.bullInnerText}>Inner</Text>
+								</Pressable>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Outer"
+									disabled={boardDisabled}
+									onPress={() => submit(true, 'outer')}
+									style={[styles.bullOuter, prompt && styles.disabled]}
+								>
+									<Text style={styles.bullOuterText}>Outer</Text>
+								</Pressable>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Pudło"
+									disabled={boardDisabled}
+									onPress={() => submit(false)}
+									style={[styles.miss, prompt && styles.disabled]}
+								>
+									<Text style={styles.missText}>Pudło</Text>
+								</Pressable>
+							</View>
+						) : (
+							<View style={styles.outcomeRow}>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Pudło"
+									disabled={boardDisabled}
+									onPress={() => submit(false)}
+									style={[styles.miss, prompt && styles.disabled]}
+								>
+									<Text style={styles.missText}>Pudło</Text>
+								</Pressable>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Trafiona"
+									disabled={boardDisabled}
+									onPress={() => submit(true)}
+									style={[styles.hit, prompt && styles.disabled]}
+								>
+									<Text style={styles.hitText}>Trafiona</Text>
+								</Pressable>
+							</View>
+						)}
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Cofnij"
