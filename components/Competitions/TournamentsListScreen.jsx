@@ -16,9 +16,11 @@ const TournamentsListScreen = ({ navigation }) => (
 			{ key: 'finished', label: 'Zakończone' },
 		]}
 		sortOptions={[
+			{ key: 'date', label: 'Data' },
 			{ key: 'activity', label: 'Aktywność' },
 			{ key: 'members', label: 'Uczestnicy' },
 		]}
+		defaultSort="date"
 		buildUrl={getTournamentsUrl}
 		detailRoute="TournamentDetail"
 		navigation={navigation}

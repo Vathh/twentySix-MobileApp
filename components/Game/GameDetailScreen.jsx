@@ -443,7 +443,7 @@ function HeadToHead({ game, navigation, accessToken }) {
 			zeroText="Pierwsze spotkanie tych zawodników."
 			listEmptyText="Brak wcześniejszych spotkań poza tym meczem."
 			onOpenMeeting={(meeting) =>
-				navigation.navigate('GameDetail', {
+				navigation.push('GameDetail', {
 					type: meeting.kind,
 					gameId: meeting.id,
 				})

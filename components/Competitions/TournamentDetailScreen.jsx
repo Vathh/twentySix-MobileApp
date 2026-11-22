@@ -259,8 +259,17 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 						statusVariant={tournament.statusVariant}
 						eyebrow={data?.season ? null : 'Turniej jednorazowy'}
 						breadcrumb={breadcrumb}
-						meta={[{ label: 'Data rozgrywek', value: tournament.date || '—' }]}
+						meta={[
+							{ label: 'Data rozgrywek', value: tournament.date || '—' },
+							...(hasAverage(tournament.tournamentAverage)
+								? [{ label: 'Średnia turnieju', value: formatAverage(tournament.tournamentAverage) }]
+								: []),
+						]}
 					/>
+
+					{tournament.description ? (
+						<Text style={styles.description}>{tournament.description}</Text>
+					) : null}
 
 					{data?.canManage ? (
 						<ManageLinks
@@ -271,6 +280,7 @@ const TournamentDetailScreen = ({ navigation, route }) => {
 										tournamentId,
 										name: tournament.name,
 										date: tournament.date || '',
+										description: tournament.description || '',
 										canEditDate: !tournament.isStarted,
 									}),
 								}] : []),
@@ -515,6 +525,13 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	error: { color: colors.dangerText, marginBottom: 16, fontSize: 14 },
+	description: {
+		marginTop: -8,
+		marginBottom: 16,
+		color: colors.textSecondary,
+		fontSize: 14,
+		lineHeight: 20,
+	},
 	inviteList: { marginTop: 12, gap: 8 },
 	inviteNote: { color: colors.textMuted, fontSize: 14 },
 	inviteAction: { color: colors.accent, fontWeight: '700', fontSize: 14 },

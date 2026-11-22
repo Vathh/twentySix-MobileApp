@@ -62,6 +62,7 @@ function ChipRow({ options, value, onChange }) {
  *   searchPlaceholder?: string,
  *   sortOptions?: Array<{ key: string, label: string }>,
  *   statusOptions?: Array<{ key: string, label: string }>,
+ *   defaultSort?: string,
  *   buildUrl: (page: number, filters?: { q?: string, sort?: string, status?: string }) => string,
  *   detailRoute: string,
  *   navigation: object,
@@ -77,6 +78,7 @@ const CompetitionList = ({
 	searchPlaceholder = 'Szukaj',
 	sortOptions = [],
 	statusOptions = [],
+	defaultSort = 'activity',
 	buildUrl,
 	detailRoute,
 	navigation,
@@ -95,7 +97,7 @@ const CompetitionList = ({
 	const [error, setError] = useState('');
 	const [draft, setDraft] = useState('');
 	const [query, setQuery] = useState('');
-	const [sort, setSort] = useState('activity');
+	const [sort, setSort] = useState(defaultSort);
 	const [status, setStatus] = useState('');
 	const requestSeqRef = useRef(0);
 	const hasLoadedRef = useRef(false);

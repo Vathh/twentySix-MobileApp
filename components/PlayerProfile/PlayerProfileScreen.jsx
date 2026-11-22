@@ -323,7 +323,7 @@ const PlayerProfileScreen = ({ navigation, route }) => {
 								zeroText="Nie rozegraliście jeszcze wspólnego meczu."
 								listEmptyText="Nie rozegraliście jeszcze wspólnego meczu."
 								onOpenMeeting={(meeting) =>
-									navigation.navigate('GameDetail', {
+									navigation.push('GameDetail', {
 										type: meeting.kind,
 										gameId: meeting.id,
 									})

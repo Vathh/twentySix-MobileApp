@@ -24,6 +24,7 @@ const CreateTournamentScreen = ({ navigation, route }) => {
 	const canEditDate = !editing || route.params?.canEditDate !== false;
 	const [name, setName] = useState(route.params?.name ?? '');
 	const [date, setDate] = useState(route.params?.date ?? '');
+	const [description, setDescription] = useState(route.params?.description ?? '');
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
 
@@ -48,7 +49,12 @@ const CreateTournamentScreen = ({ navigation, route }) => {
 
 		setLoading(true);
 		setError('');
-		const body = canEditDate ? { name: trimmed, date: date.trim() } : { name: trimmed };
+		const desc = description.trim();
+		const body = {
+			name: trimmed,
+			description: desc === '' ? null : desc,
+			...(canEditDate ? { date: date.trim() } : {}),
+		};
 		const result = editing
 			? await updateTournament(auth?.accessToken, tournamentId, body)
 			: seasonId
@@ -71,8 +77,8 @@ const CreateTournamentScreen = ({ navigation, route }) => {
 			<Text style={styles.lead}>
 				{editing
 					? (canEditDate
-						? 'Nazwa i data rozgrywek.'
-						: 'Po starcie można zmienić tylko nazwę. Datę zmienisz po anulowaniu rozgrywek.')
+						? 'Nazwa, opis i data rozgrywek.'
+						: 'Po starcie można zmienić nazwę i opis. Datę zmienisz po anulowaniu rozgrywek.')
 					: seasonId
 						? 'Turniej zostanie dodany do tego sezonu.'
 						: 'Turniej jednorazowy. Nie wchodzi do żadnego sezonu.'}
@@ -99,6 +105,17 @@ const CreateTournamentScreen = ({ navigation, route }) => {
 			) : (
 				<Text style={styles.lockedDate}>Data rozgrywek: {date || '—'}</Text>
 			)}
+			<TextInput
+				style={[styles.input, styles.descriptionInput]}
+				placeholder="Opis (np. link do transmisji)"
+				placeholderTextColor={colors.placeholder}
+				value={description}
+				onChangeText={setDescription}
+				maxLength={2000}
+				multiline
+				textAlignVertical="top"
+				editable={!loading}
+			/>
 			{error ? <Text style={styles.error}>{error}</Text> : null}
 			<Pressable style={styles.button} onPress={submit} disabled={loading}>
 				{loading ? (
@@ -114,6 +131,10 @@ const CreateTournamentScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: colors.bg, padding: 24 },
 	lead: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 16 },
+	descriptionInput: {
+		minHeight: 96,
+		paddingTop: 12,
+	},
 	input: {
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
