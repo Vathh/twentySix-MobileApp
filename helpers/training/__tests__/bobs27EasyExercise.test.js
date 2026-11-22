@@ -92,11 +92,15 @@ export function runBob27EasyExerciseTests() {
 	const record = bob27EasyCompletion(perfect, '2026-11-20T15:00:00.000Z');
 	assert(record.score === 1287, 'wynik to stan licznika');
 	assert(record.stats.hits === 60 && record.stats.percent === 100, 'pełne trafienia');
+	assert(record.stats.aims.length === 20, 'easy zbiera skuteczność D1–D20');
+	assert(record.stats.aims[0].aim === 'D1' && record.stats.aims[0].hits === 3, 'D1 ma trzy trafienia');
+	assert(record.stats.aims[19].aim === 'D20' && record.stats.aims[19].attempts === 3, 'D20 ma trzy lotki');
 	assert(!Object.prototype.hasOwnProperty.call(record.stats, 'darts'), 'statystyki nie mają listy lotek');
 	const body = sessionBody(record);
 	assert(body.exerciseKey === 'bobs_27_easy', 'zapis wskazuje ćwiczenie');
 	assert(body.score === 1287, 'na serwer idzie wynik');
 	assert(body.stats.attempts === 60, 'na serwer idą lotki domkniętych trójek');
+	assert(body.stats.aims.length === 20, 'na serwer idą cele dubli');
 }
 
 function playHits(session, hits) {

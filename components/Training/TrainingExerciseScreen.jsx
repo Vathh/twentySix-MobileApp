@@ -1,12 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-	Easing,
-	runOnJS,
-	useAnimatedStyle,
-	useSharedValue,
-	withTiming,
-} from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import useAuth from '../../hooks/useAuth';
 import { createClientSessionId } from '../../helpers/training/clientSessionId';
@@ -163,17 +156,132 @@ import {
 import { formatAverage } from '../../helpers/formatAverage';
 import { playFinalBell, playTicking, stopTicking } from '../../helpers/gameSounds/playGameSound';
 import SectorTargetReel from './SectorTargetReel';
+import TrainingPlayChrome from './TrainingPlayChrome';
+import TrainingPlayScore from './TrainingPlayScore';
+import TrainingPlayTimer from './TrainingPlayTimer';
+import TrainingSessionResult from './TrainingSessionResult';
 import { rememberRecentTraining } from '../../helpers/training/recentTrainingStore';
+import { aimsFromCompletion } from '../../helpers/training/planSession';
 import { syncLabel } from '../../helpers/training/trainingSessionSync';
+import TrainingAimRings from './TrainingAimRings';
 import {
 	enqueueTrainingCompletion,
 	flushTrainingOutbox,
 } from '../../helpers/training/trainingSessionStore';
+import { exerciseDisplayName } from '../../helpers/training/exerciseVariantFavorites';
 import { colors } from '../../theme/colors';
 
 const ABORT_TEXT = 'Przerwać ćwiczenie? Ta sesja przepadnie.';
 const AIM_TEXT = 'Celuj kolejno po jednej lotce w te sektory';
-const SHEET_HIDDEN = 320;
+
+function summaryPresentation(summary) {
+	if (!summary) {
+		return { hero: null, rows: [] };
+	}
+	if (isLooseThrows(summary)) {
+		return {
+			hero: { label: 'Czas', value: formatRemaining((summary.stats.elapsedSeconds ?? 0) * 1000) },
+			rows: [],
+		};
+	}
+	if (isScoring65(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: [
+				{ label: 'Średnia', value: formatAverage(summary.stats.average) },
+				{ label: 'Podejścia', value: summary.stats.approaches },
+			],
+		};
+	}
+	if (isCatch20(summary)) {
+		return {
+			hero: { label: 'Zamknięte checkouty', value: summary.score },
+			rows: (summary.stats.aims ?? []).map((row) => ({
+				label: row.aim,
+				value: `${row.hits} z ${row.attempts}`,
+			})),
+		};
+	}
+	if (isCheckout41(summary)) {
+		const rows = (summary.stats.aims ?? []).map((row) => ({
+			label: row.aim,
+			value: `${row.hits} z ${row.attempts}`,
+		}));
+		if (summary.stats.highest != null) {
+			rows.unshift({ label: 'Najwyższy checkout', value: summary.stats.highest });
+		}
+		return { hero: { label: 'Wynik', value: summary.score }, rows };
+	}
+	if (isCheckoutBull81(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: (summary.stats.aims ?? []).map((row) => ({
+				label: row.aim,
+				value: `${row.hits} z ${row.attempts}`,
+			})),
+		};
+	}
+	if (isScoringPressure(summary)) {
+		const rows = [
+			{ label: 'Trafienia', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
+			{ label: 'Procent', value: `${summary.stats.percent}%` },
+		];
+		if ((summary.stats.aims ?? []).length > 1) {
+			summary.stats.aims.forEach((row) => {
+				rows.push({
+					label: row.aim,
+					value: `${row.hits} z ${row.attempts} · ${row.percent}%`,
+				});
+			});
+		}
+		return { hero: { label: 'Wynik', value: summary.score }, rows };
+	}
+	if (isSingles(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: (summary.stats.aims ?? []).map((row) => ({
+				label: row.aim,
+				value: `${row.hits} z ${row.attempts}`,
+			})),
+		};
+	}
+	if (isBob27(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: [
+				{ label: 'Trafienia', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
+				{ label: 'Procent', value: `${summary.stats.percent}%` },
+			],
+		};
+	}
+	if (isBullCounter(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: [
+				{ label: 'Bull', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
+				{ label: 'Procent', value: `${summary.stats.percent}%` },
+			],
+		};
+	}
+	if (isNineDarts(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: [
+				{ label: 'Wariant', value: summary.stats.variant === '18' ? '18 lotek' : '9 lotek' },
+				{ label: 'Łącznie', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
+				{ label: 'Procent', value: `${summary.stats.percent}%` },
+			],
+		};
+	}
+	const rows = [
+		{ label: 'Trafienia', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
+		{ label: 'Procent', value: `${summary.stats.percent}%` },
+	];
+	return {
+		hero: summary.score != null ? { label: 'Wynik', value: summary.score } : null,
+		rows,
+	};
+}
 
 function canPlay(definition) {
 	return canPlayClock(definition)
@@ -377,8 +485,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const [now, setNow] = useState(() => Date.now());
 	const sessionRef = useRef(null);
 	const [prompt, setPrompt] = useState(null);
-	const [sheetMounted, setSheetMounted] = useState(false);
-	const sheetY = useSharedValue(SHEET_HIDDEN);
 	const [summary, setSummary] = useState(null);
 	const summaryId = useRef(null);
 	const leaving = useRef(false);
@@ -391,30 +497,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const playing = session?.status === 'playing' && !summary;
 	const interactive = playing && !planPaused;
 	const started = useRef(false);
-
-	if (prompt && !sheetMounted) {
-		setSheetMounted(true);
-	}
-
-	useEffect(() => {
-		if (!sheetMounted) {
-			return undefined;
-		}
-		const open = Boolean(prompt);
-		sheetY.value = withTiming(open ? 0 : SHEET_HIDDEN, {
-			duration: open ? 280 : 200,
-			easing: open ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-		}, (finished) => {
-			if (finished && !open) {
-				runOnJS(setSheetMounted)(false);
-			}
-		});
-		return undefined;
-	}, [prompt, sheetMounted, sheetY]);
-
-	const sheetStyle = useAnimatedStyle(() => ({
-		transform: [{ translateY: sheetY.value }],
-	}));
 
 	const begin = (nextDefinition, nextUserId, inputMode, variant) => {
 		const restored = planHost?.initialSession;
@@ -432,10 +514,17 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		setSession(next);
 		planHost?.onSessionChange?.(next);
 		if (!planMode) {
+			const exerciseKey = nextDefinition.exerciseKey || nextDefinition.id;
+			const playVariant = variant ?? nextDefinition?.variant ?? route?.params?.variant ?? null;
+			const recentVariant = (exerciseKey === 'nine_darts' || exerciseKey === 'scoring_under_pressure')
+				? playVariant
+				: null;
 			rememberRecentTraining(nextUserId, {
-				id: nextDefinition.id,
+				id: exerciseKey,
+				exerciseKey,
 				kind: 'exercise',
-				name: nextDefinition.name,
+				name: exerciseDisplayName(exerciseKey, recentVariant, nextDefinition.name),
+				variant: recentVariant,
 			});
 		}
 	};
@@ -724,7 +813,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	}
 
 	if (!session) {
-		return <View style={styles.screen} />;
+		return <View style={styles.fallback} />;
 	}
 
 	const loose = isLooseThrows(session);
@@ -785,70 +874,37 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const scoring65 = isScoring65(session) && interactive ? scoring65View(session) : null;
 	const showLooseClock = playing && loose;
 	const boardDisabled = Boolean(prompt) || planPaused;
+	const resultView = summary ? summaryPresentation(summary) : null;
+	const summaryAims = summary ? aimsFromCompletion(summary) : [];
 
 	return (
-		<View style={styles.screen}>
-			{planMode ? null : (
-				<View
-					accessibilityRole="header"
-					accessibilityLabel={headingVariant ? `${headingName}, wariant ${headingVariant}` : headingName}
-					style={styles.exerciseHeading}
-				>
-					<Text style={styles.exerciseTitle}>{headingName}</Text>
-					{headingVariant ? <Text style={styles.exerciseVariant}>{headingVariant}</Text> : null}
-				</View>
-			)}
-			{showClock ? (
-				<View
-					style={styles.clockBar}
-					accessibilityRole="text"
-					accessibilityLabel={`Zostało ${clockLabel}`}
-				>
-					<Text style={styles.clockCaption}>Zostało</Text>
-					<Text style={[styles.clockValue, clockUrgent && styles.clockUrgent]}>{clockLabel}</Text>
-					<View style={styles.clockTrack}>
-						<View
-							style={[
-								styles.clockFill,
-								clockUrgent && styles.clockFillUrgent,
-								{ width: `${progress * 100}%` },
-							]}
-						/>
-					</View>
-				</View>
+		<TrainingPlayChrome
+			title={headingName}
+			subtitle={headingVariant || undefined}
+			hideHeader={planMode || Boolean(summary)}
+			onAbort={playing ? requestAbort : undefined}
+			abortDisabled={boardDisabled}
+			timer={showClock ? (
+				<TrainingPlayTimer
+					value={clockLabel}
+					progress={progress}
+					urgent={clockUrgent}
+				/>
 			) : null}
-			<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+			abortVisible={prompt === 'abort'}
+			abortText={ABORT_TEXT}
+			onAbortCancel={() => setPrompt(null)}
+			onAbortConfirm={confirmPrompt}
+		>
 				{showLooseClock ? (
 					<View style={styles.looseClock}>
 						<Text style={styles.instruction}>{LOOSE_THROWS_AIM_TEXT}</Text>
-						<View
-							accessibilityRole="text"
-							accessibilityLabel={`Zostało ${clockLabel}`}
-							style={styles.looseClockFace}
-						>
-							<Text style={styles.looseCaption}>Zostało</Text>
-							<Text style={[styles.looseValue, clockUrgent && styles.clockUrgent]}>{clockLabel}</Text>
-							<View style={styles.clockTrack}>
-								<View
-									style={[
-										styles.clockFill,
-										clockUrgent && styles.clockFillUrgent,
-										{ width: `${progress * 100}%` },
-									]}
-								/>
-							</View>
-						</View>
-						{requestAbort ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Przerwij"
-								disabled={boardDisabled}
-								onPress={requestAbort}
-								style={styles.ghost}
-							>
-								<Text style={styles.ghostText}>Przerwij</Text>
-							</Pressable>
-						) : null}
+						<TrainingPlayTimer
+							value={clockLabel}
+							progress={progress}
+							urgent={clockUrgent}
+							compact
+						/>
 					</View>
 				) : null}
 				{playing && aim ? (
@@ -865,7 +921,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordNineDart(current, dart));
 						}}
 						onUndo={undo}
-						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && catch20 && !catch20.finished ? (
@@ -889,7 +944,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordCatch20Sum(current, points, checkout));
 						}}
 						onUndo={undo}
-						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && checkout41 ? (
@@ -920,7 +974,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordCheckout41Fail(current));
 						}}
 						onUndo={undo}
-						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && checkoutBull81 ? (
@@ -936,7 +989,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordCheckoutBull81Dart(current, dart));
 						}}
 						onUndo={undo}
-						onAbort={requestAbort}
 					/>
 				) : null}
 				{scoring65 ? (
@@ -960,19 +1012,11 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordScoring65Sum(current, points));
 						}}
 						onUndo={undo}
-						onAbort={requestAbort}
 					/>
 				) : null}
 				{playing && pressureAim ? (
 					<View>
-						<View
-							accessibilityRole="text"
-							accessibilityLabel={`Wynik ${scoringPressureStreak(session.darts)}`}
-							style={styles.liveScore}
-						>
-							<Text style={styles.liveScoreCaption}>Wynik</Text>
-							<Text style={styles.liveScoreValue}>{scoringPressureStreak(session.darts)}</Text>
-						</View>
+						<TrainingPlayScore value={scoringPressureStreak(session.darts)} />
 						<ScoringPressureBoard
 							variant={session.variant}
 							aimNumber={pressureAim.number}
@@ -987,20 +1031,12 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 								applySession(recordScoringPressureDart(current, dart));
 							}}
 							onUndo={undo}
-							onAbort={requestAbort}
 						/>
 					</View>
 				) : null}
 				{playing && bullCounter ? (
 					<View>
-						<View
-							accessibilityRole="text"
-							accessibilityLabel={`Wynik ${bullCounterScore(session.darts)}`}
-							style={styles.liveScore}
-						>
-							<Text style={styles.liveScoreCaption}>Wynik</Text>
-							<Text style={styles.liveScoreValue}>{bullCounterScore(session.darts)}</Text>
-						</View>
+						<TrainingPlayScore value={bullCounterScore(session.darts)} />
 						<Text style={styles.instruction}>{BULL_COUNTER_AIM_TEXT}</Text>
 						<View style={styles.bullOutcomeRow}>
 							<Pressable
@@ -1058,30 +1094,12 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						{requestAbort ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Przerwij"
-								disabled={boardDisabled}
-								onPress={requestAbort}
-								style={styles.ghost}
-							>
-								<Text style={styles.ghostText}>Przerwij</Text>
-							</Pressable>
-						) : null}
 					</View>
 				) : null}
 				{playing && bobVisit ? (
 					<View>
 						{isBob27Hard(session) ? (
-							<View
-								accessibilityRole="text"
-								accessibilityLabel={`Wynik ${bob27HardScore(session.darts)}`}
-								style={styles.liveScore}
-							>
-								<Text style={styles.liveScoreCaption}>Wynik</Text>
-								<Text style={styles.liveScoreValue}>{bob27HardScore(session.darts)}</Text>
-							</View>
+							<TrainingPlayScore value={bob27HardScore(session.darts)} />
 						) : null}
 						<Text style={styles.instruction}>{instruction}</Text>
 						<View style={styles.singleTarget}>
@@ -1127,17 +1145,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						{requestAbort ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Przerwij"
-								disabled={boardDisabled}
-								onPress={requestAbort}
-								style={styles.ghost}
-							>
-								<Text style={styles.ghostText}>Przerwij</Text>
-							</Pressable>
-						) : null}
 					</View>
 				) : null}
 				{playing && visit ? (
@@ -1211,322 +1218,43 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
 						</Pressable>
-						{requestAbort ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Przerwij"
-								disabled={boardDisabled}
-								onPress={requestAbort}
-								style={styles.ghost}
-							>
-								<Text style={styles.ghostText}>Przerwij</Text>
-							</Pressable>
-						) : null}
 					</View>
 				) : null}
-				{summary ? (
-					<View>
-						{isLooseThrows(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Czas</Text>
-								<Text style={styles.statValue}>{formatRemaining((summary.stats.elapsedSeconds ?? 0) * 1000)}</Text>
-							</View>
-						) : isScoring65(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								<Text style={styles.statLabel}>Średnia</Text>
-								<Text style={styles.statValue}>{formatAverage(summary.stats.average)}</Text>
-								<Text style={styles.statLabel}>Podejścia</Text>
-								<Text style={styles.statValue}>{summary.stats.approaches}</Text>
-							</View>
-						) : isCatch20(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Zamknięte checkouty</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								{(summary.stats.doubles ?? []).map((row) => (
-									<View key={row.label}>
-										<Text style={styles.statLabel}>{row.label}</Text>
-										<Text style={styles.stageValue}>{row.hits} z {row.attempts}</Text>
-									</View>
-								))}
-							</View>
-						) : isCheckout41(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								{summary.stats.highest != null ? (
-									<>
-										<Text style={styles.statLabel}>Najwyższy checkout</Text>
-										<Text style={styles.statValue}>{summary.stats.highest}</Text>
-									</>
-								) : null}
-								{(summary.stats.doubles ?? []).map((row) => (
-									<View key={row.label}>
-										<Text style={styles.statLabel}>{row.label}</Text>
-										<Text style={styles.stageValue}>{row.hits} z {row.attempts}</Text>
-									</View>
-								))}
-							</View>
-						) : isCheckoutBull81(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								{(summary.stats.aims ?? []).map((row) => (
-									<View key={row.aim}>
-										<Text style={styles.statLabel}>{row.aim}</Text>
-										<Text style={styles.stageValue}>{row.hits} z {row.attempts}</Text>
-									</View>
-								))}
-							</View>
-						) : isScoringPressure(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								<Text style={styles.statLabel}>Trafienia</Text>
-								<Text style={styles.statValue}>{summary.stats.hits} z {summary.stats.attempts}</Text>
-								<Text style={styles.statLabel}>Procent</Text>
-								<Text style={styles.statValue}>{summary.stats.percent}%</Text>
-								{(summary.stats.aims ?? []).length > 1 ? summary.stats.aims.map((row) => (
-									<View key={row.aim}>
-										<Text style={styles.statLabel}>{row.aim}</Text>
-										<Text style={styles.stageValue}>{row.hits} z {row.attempts} · {row.percent}%</Text>
-									</View>
-								)) : null}
-							</View>
-						) : isSingles(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								{(summary.stats.aims ?? []).map((row) => (
-									<View key={row.aim}>
-										<Text style={styles.statLabel}>{row.aim}</Text>
-										<Text style={styles.stageValue}>{row.hits} z {row.attempts}</Text>
-									</View>
-								))}
-							</View>
-						) : isBob27(summary) || isBullCounter(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								<Text style={styles.statLabel}>Trafienia</Text>
-								<Text style={styles.statValue}>{summary.stats.hits} z {summary.stats.attempts}</Text>
-								<Text style={styles.statLabel}>Procent</Text>
-								<Text style={styles.statValue}>{summary.stats.percent}%</Text>
-							</View>
-						) : isNineDarts(summary) ? (
-							<View>
-								<Text style={styles.statLabel}>Wynik</Text>
-								<Text style={styles.statValue}>{summary.score}</Text>
-								<Text style={styles.statLabel}>Wariant</Text>
-								<Text style={styles.stageValue}>{summary.stats.variant === '18' ? '18 lotek' : '9 lotek'}</Text>
-								{summary.stats.stages.map((stage) => (
-									<View key={stage.label}>
-										<Text style={styles.statLabel}>{stage.label}</Text>
-										<Text style={styles.stageValue}>{stage.hits} z {stage.attempts} · {stage.percent}%</Text>
-									</View>
-								))}
-								<Text style={styles.statLabel}>Łącznie</Text>
-								<Text style={styles.statValue}>{summary.stats.hits} z {summary.stats.attempts}</Text>
-								<Text style={styles.statLabel}>Procent</Text>
-								<Text style={styles.statValue}>{summary.stats.percent}%</Text>
-							</View>
-						) : (
-							<View>
-								{summary.score != null ? (
-									<View>
-										<Text style={styles.statLabel}>Wynik</Text>
-										<Text style={styles.statValue}>{summary.score}</Text>
-									</View>
-								) : null}
-								<Text style={styles.statLabel}>Trafienia</Text>
-								<Text style={styles.statValue}>{summary.stats.hits} z {summary.stats.attempts}</Text>
-								<Text style={styles.statLabel}>Procent</Text>
-								<Text style={styles.statValue}>{summary.stats.percent}%</Text>
-							</View>
-						)}
-						<Text style={styles.sync}>{syncLabel(summary.sync)}</Text>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Powtórz ćwiczenie"
-							onPress={repeat}
-							style={styles.primary}
-						>
-							<Text style={styles.primaryText}>Powtórz ćwiczenie</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Powrót do ekranu treningu"
-							onPress={leaveHome}
-							style={styles.secondary}
-						>
-							<Text style={styles.secondaryText}>Powrót do ekranu treningu</Text>
-						</Pressable>
-					</View>
+				{summary && resultView ? (
+					<TrainingSessionResult
+						hero={resultView.hero}
+						rows={resultView.rows}
+						syncLabel={syncLabel(summary.sync, summary.syncReason)}
+						primaryLabel="Powtórz ćwiczenie"
+						onPrimary={repeat}
+						secondaryLabel="Powrót do ekranu treningu"
+						onSecondary={leaveHome}
+					>
+						{summaryAims.length > 0 ? <TrainingAimRings aims={summaryAims} /> : null}
+					</TrainingSessionResult>
 				) : null}
-			</ScrollView>
-			{sheetMounted ? (
-				<Animated.View pointerEvents={prompt ? 'auto' : 'none'} style={[styles.prompt, sheetStyle]}>
-					<Text style={styles.promptText}>{ABORT_TEXT}</Text>
-					<View style={styles.promptRow}>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Anuluj"
-							onPress={() => setPrompt(null)}
-							style={[styles.secondary, styles.promptButton]}
-						>
-							<Text style={styles.secondaryText}>Anuluj</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							onPress={confirmPrompt}
-							style={[styles.primary, styles.promptButton]}
-						>
-							<Text style={styles.primaryText}>Przerwij</Text>
-						</Pressable>
-					</View>
-				</Animated.View>
-			) : null}
-		</View>
+		</TrainingPlayChrome>
 	);
 };
 
 const styles = StyleSheet.create({
-	screen: {
-		flex: 1,
-		backgroundColor: colors.bg,
-		overflow: 'hidden',
-	},
-	exerciseHeading: {
-		alignItems: 'center',
-		paddingHorizontal: 24,
-		paddingTop: 12,
-		paddingBottom: 8,
-	},
-	exerciseTitle: {
-		color: colors.text,
-		fontSize: 18,
-		lineHeight: 24,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-	exerciseVariant: {
-		marginTop: 2,
-		color: colors.textSecondary,
-		fontSize: 15,
-		lineHeight: 20,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-	scroll: {
-		flex: 1,
-	},
-	content: {
-		flexGrow: 1,
-		justifyContent: 'center',
-		paddingHorizontal: 24,
-		paddingVertical: 24,
-		width: '100%',
-		maxWidth: 480,
-		alignSelf: 'center',
-	},
-	clockBar: {
-		alignItems: 'center',
-		paddingHorizontal: 24,
-		paddingTop: 16,
-		paddingBottom: 12,
-		borderBottomWidth: 1,
-		borderBottomColor: colors.border,
-		backgroundColor: colors.bg,
-	},
-	clockCaption: {
-		color: colors.textMuted,
-		fontSize: 13,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-	clockValue: {
-		marginTop: 2,
-		marginBottom: 10,
-		color: colors.text,
-		fontSize: 28,
-		lineHeight: 34,
-		fontWeight: '700',
-		fontVariant: ['tabular-nums'],
-		textAlign: 'center',
-	},
-	clockUrgent: {
-		color: colors.warning,
-	},
-	clockTrack: {
-		alignSelf: 'stretch',
-		height: 8,
-		borderRadius: 4,
-		backgroundColor: colors.bgElevated,
-		overflow: 'hidden',
-	},
-	clockFill: {
-		height: '100%',
-		borderRadius: 4,
-		backgroundColor: colors.accent,
-	},
-	clockFillUrgent: {
-		backgroundColor: colors.warning,
-	},
 	looseClock: {
 		alignItems: 'center',
 		width: '100%',
-	},
-	looseClockFace: {
-		alignSelf: 'stretch',
-		alignItems: 'center',
-		marginBottom: 28,
-	},
-	looseCaption: {
-		color: colors.textMuted,
-		fontSize: 16,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-	looseValue: {
-		marginTop: 8,
-		marginBottom: 28,
-		color: colors.text,
-		fontSize: 72,
-		lineHeight: 80,
-		fontWeight: '700',
-		fontVariant: ['tabular-nums'],
-		textAlign: 'center',
+		gap: 20,
 	},
 	instruction: {
 		textAlign: 'center',
-		color: colors.textSecondary,
-		fontSize: 22,
-		lineHeight: 30,
-		fontWeight: '600',
-		marginBottom: 20,
+		color: colors.text,
+		fontSize: 20,
+		lineHeight: 28,
+		fontWeight: '700',
+		letterSpacing: -0.2,
+		marginBottom: 18,
 	},
 	singleTarget: {
 		alignItems: 'center',
 		marginBottom: 16,
-	},
-	liveScore: {
-		alignItems: 'center',
-		marginBottom: 16,
-	},
-	liveScoreCaption: {
-		color: colors.textMuted,
-		fontSize: 13,
-		fontWeight: '700',
-	},
-	liveScoreValue: {
-		marginTop: 2,
-		color: colors.text,
-		fontSize: 40,
-		lineHeight: 46,
-		fontWeight: '700',
-		fontVariant: ['tabular-nums'],
 	},
 	bobTarget: {
 		width: 148,
@@ -1534,11 +1262,13 @@ const styles = StyleSheet.create({
 	},
 	dartLabel: {
 		textAlign: 'center',
-		color: colors.text,
-		fontSize: 20,
-		lineHeight: 26,
+		color: colors.textMuted,
+		fontSize: 14,
+		lineHeight: 20,
 		fontWeight: '700',
-		marginBottom: 20,
+		letterSpacing: 0.4,
+		textTransform: 'uppercase',
+		marginBottom: 16,
 	},
 	targetCell: {
 		flex: 1,
@@ -1564,70 +1294,73 @@ const styles = StyleSheet.create({
 		color: colors.onAccent,
 		fontSize: 48,
 	},
-	targetTextLong: {
-		fontSize: 28,
-	},
 	targetTextLongActive: {
 		fontSize: 32,
 	},
 	outcomeRow: {
 		flexDirection: 'row',
 		gap: 12,
-		marginBottom: 20,
+		marginBottom: 16,
 	},
 	bullOutcomeRow: {
 		flexDirection: 'row',
 		gap: 8,
-		marginBottom: 20,
+		marginBottom: 16,
 	},
 	bullInner: {
 		flex: 1,
 		minHeight: 88,
-		borderRadius: 12,
-		backgroundColor: colors.danger,
+		borderRadius: 14,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1.5,
+		borderColor: colors.accentBorder,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 8,
 	},
 	bullInnerText: {
 		color: colors.text,
-		fontSize: 20,
-		fontWeight: '700',
+		fontSize: 18,
+		fontWeight: '800',
 	},
 	bullOuter: {
 		flex: 1,
 		minHeight: 88,
-		borderRadius: 12,
-		backgroundColor: colors.success,
+		borderRadius: 14,
+		backgroundColor: colors.accentMuted,
+		borderWidth: 1.5,
+		borderColor: colors.accentBorder,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 8,
 	},
 	bullOuterText: {
-		color: colors.onSuccess,
-		fontSize: 20,
-		fontWeight: '700',
+		color: colors.accent,
+		fontSize: 18,
+		fontWeight: '800',
 	},
 	hit: {
 		flex: 1,
 		minHeight: 88,
-		borderRadius: 12,
-		backgroundColor: colors.success,
+		borderRadius: 14,
+		backgroundColor: colors.accent,
+		borderWidth: 1.5,
+		borderColor: colors.accent,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 8,
 	},
 	hitText: {
-		color: colors.onSuccess,
-		fontSize: 20,
-		fontWeight: '700',
+		color: colors.onAccent,
+		fontSize: 18,
+		fontWeight: '800',
 	},
 	miss: {
 		flex: 1,
 		minHeight: 88,
-		borderRadius: 12,
+		borderRadius: 14,
 		backgroundColor: colors.bgElevated,
-		borderWidth: 1,
+		borderWidth: 1.5,
 		borderColor: colors.borderStrong,
 		alignItems: 'center',
 		justifyContent: 'center',
@@ -1635,53 +1368,15 @@ const styles = StyleSheet.create({
 	},
 	missText: {
 		color: colors.text,
-		fontSize: 20,
-		fontWeight: '700',
-	},
-	ghost: {
-		minHeight: 44,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.textMuted,
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingHorizontal: 12,
-	},
-	ghostText: {
-		color: colors.textMuted,
-		fontSize: 15,
-		fontWeight: '700',
+		fontSize: 18,
+		fontWeight: '800',
 	},
 	disabled: {
 		opacity: 0.4,
 	},
-	statLabel: {
-		color: colors.textMuted,
-		fontSize: 13,
-		fontWeight: '700',
-	},
-	statValue: {
-		marginTop: 4,
-		marginBottom: 16,
-		color: colors.text,
-		fontSize: 32,
-		fontWeight: '700',
-	},
-	stageValue: {
-		marginTop: 4,
-		marginBottom: 16,
-		color: colors.text,
-		fontSize: 22,
-		fontWeight: '700',
-	},
-	sync: {
-		marginBottom: 20,
-		color: colors.textSecondary,
-		fontSize: 15,
-	},
 	primary: {
-		minHeight: 48,
-		borderRadius: 10,
+		minHeight: 52,
+		borderRadius: 12,
 		backgroundColor: colors.accent,
 		alignItems: 'center',
 		justifyContent: 'center',
@@ -1695,7 +1390,7 @@ const styles = StyleSheet.create({
 	},
 	secondary: {
 		minHeight: 48,
-		borderRadius: 10,
+		borderRadius: 12,
 		borderWidth: 1,
 		borderColor: colors.borderStrong,
 		alignItems: 'center',
@@ -1707,34 +1402,6 @@ const styles = StyleSheet.create({
 		color: colors.text,
 		fontSize: 16,
 		fontWeight: '700',
-	},
-	prompt: {
-		position: 'absolute',
-		left: 0,
-		right: 0,
-		bottom: 0,
-		zIndex: 2,
-		elevation: 8,
-		paddingHorizontal: 24,
-		paddingTop: 16,
-		paddingBottom: 24,
-		borderTopWidth: 1,
-		borderTopColor: colors.border,
-		backgroundColor: colors.bgElevated,
-	},
-	promptText: {
-		color: colors.text,
-		fontSize: 16,
-		lineHeight: 22,
-		marginBottom: 12,
-	},
-	promptRow: {
-		flexDirection: 'row',
-		gap: 8,
-	},
-	promptButton: {
-		flex: 1,
-		marginBottom: 0,
 	},
 	fallback: {
 		flex: 1,

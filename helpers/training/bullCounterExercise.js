@@ -1,7 +1,7 @@
 /**
  * Walka o licznik. Jedna lotka, inner 4, outer 2, pudło 0.
  * Czas z definicji (domyślnie 3 minuty). Wynik to suma punktów.
- * Lista lotek zostaje na telefonie. Na serwer idzie wynik, trafienia i procent.
+ * Lista lotek zostaje na telefonie. Na serwer: wynik, trafienia, aims (Bull/Inner/Outer).
  */
 
 export const BULL_COUNTER_MECHANIC = 'bull_counter';
@@ -100,19 +100,36 @@ export function expireBullCounter(session) {
 }
 
 /**
- * @returns {{ hits: number, attempts: number, percent: number }}
+ * Skuteczność: cały Bull + Inner i Outer osobno (każda lotka = próba).
+ *
+ * @returns {{ hits: number, attempts: number, percent: number, aims: Array<{ aim: string, attempts: number, hits: number, percent: number }> }}
  */
 export function bullCounterStats(session) {
 	const darts = session?.darts ?? [];
-	let hits = 0;
+	const attempts = darts.length;
+	let bullHits = 0;
+	let innerHits = 0;
+	let outerHits = 0;
 	for (const dart of darts) {
-		if (dartHits(dart)) {
-			hits += 1;
+		if (dart?.ring === 'inner') {
+			innerHits += 1;
+			bullHits += 1;
+		} else if (dart?.ring === 'outer') {
+			outerHits += 1;
+			bullHits += 1;
 		}
 	}
-	const attempts = darts.length;
-	const percent = attempts === 0 ? 0 : Math.round((hits * 100) / attempts);
-	return { hits, attempts, percent };
+	const percent = attempts === 0 ? 0 : Math.round((bullHits * 100) / attempts);
+	const row = (aim, hits) => ({
+		aim,
+		attempts,
+		hits,
+		percent: attempts === 0 ? 0 : Math.round((hits * 100) / attempts),
+	});
+	const aims = attempts > 0
+		? [row('Bull', bullHits), row('Inner', innerHits), row('Outer', outerHits)]
+		: [];
+	return { hits: bullHits, attempts, percent, aims };
 }
 
 export function bullCounterCompletion(session, completedAt) {

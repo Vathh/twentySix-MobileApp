@@ -19,6 +19,7 @@ import {
 import { syncLabel } from '../../helpers/training/trainingSessionSync';
 import {
 	advanceHang,
+	aimsFromCompletion,
 	currentTitle,
 	emptyPlanHang,
 	extendBreak,
@@ -505,26 +506,32 @@ function SummaryView({ summary, plan, onHome, onRepeat, prompt, onCancelPrompt, 
 	const dateLabel = summary.completedAt
 		? new Date(summary.completedAt).toLocaleDateString('pl-PL')
 		: '';
+	const summaryAims = aimsFromCompletion(summary);
 
 	return (
 		<View style={styles.screen}>
 			<ScrollView contentContainerStyle={styles.summaryContent}>
 				<Text style={styles.summaryName}>{summary.name || plan?.name}</Text>
 				{dateLabel ? <Text style={styles.summaryMeta}>{dateLabel}</Text> : null}
-				<Text style={styles.statLabel}>Łączna punktacja</Text>
-				<Text style={styles.statValue}>{summary.score ?? 0}</Text>
-				<Text style={styles.sync}>{syncLabel(summary.sync)}</Text>
+				<View style={styles.summaryHero}>
+					<Text style={styles.statLabel}>Łączna punktacja</Text>
+					<Text style={styles.statValue}>{summary.score ?? 0}</Text>
+				</View>
+				<Text style={styles.sync}>{syncLabel(summary.sync, summary.syncReason)}</Text>
 
-				{(summary.stats?.aims?.length > 0) ? (
+				{summaryAims.length > 0 ? (
 					<>
 						<Text style={styles.sectionLabel}>Skuteczność</Text>
-						<TrainingAimRings aims={summary.stats.aims} />
+						<TrainingAimRings aims={summaryAims} />
 					</>
 				) : null}
 
 				<Text style={styles.sectionLabel}>Ćwiczenia</Text>
 				{(summary.results || []).filter((row) => row.kind === 'exercise').map((row) => {
 					const expanded = open.has(row.position);
+					const rowAims = row.aims?.length
+						? row.aims
+						: aimsFromCompletion({ stats: row.stats });
 					return (
 						<View key={`${row.position}-${row.exerciseKey}`} style={styles.rowCard}>
 							<Pressable accessibilityRole="button" onPress={() => toggle(row.position)} style={styles.rowHead}>
@@ -543,7 +550,9 @@ function SummaryView({ summary, plan, onHome, onRepeat, prompt, onCancelPrompt, 
 							</Pressable>
 							{expanded && row.status !== 'skipped' ? (
 								<View style={styles.rowBody}>
-									{row.aims?.length ? <TrainingAimRings aims={row.aims} /> : (
+									{rowAims.length ? (
+										<TrainingAimRings aims={rowAims} />
+									) : (
 										<Text style={styles.summaryMeta}>Bez celów lotek.</Text>
 									)}
 								</View>
@@ -591,22 +600,26 @@ const styles = StyleSheet.create({
 	chrome: {
 		paddingHorizontal: 20,
 		paddingTop: 12,
-		paddingBottom: 8,
-		borderBottomWidth: StyleSheet.hairlineWidth,
+		paddingBottom: 10,
+		borderBottomWidth: 1,
 		borderBottomColor: colors.border,
+		backgroundColor: colors.bgDeep,
 	},
 	progress: {
 		textAlign: 'center',
 		color: colors.textMuted,
-		fontSize: 14,
+		fontSize: 12,
 		fontWeight: '700',
+		letterSpacing: 0.4,
+		textTransform: 'uppercase',
 	},
 	title: {
 		marginTop: 4,
 		textAlign: 'center',
 		color: colors.text,
-		fontSize: 22,
-		fontWeight: '700',
+		fontSize: 18,
+		fontWeight: '800',
+		letterSpacing: -0.2,
 	},
 	paused: {
 		marginTop: 4,
@@ -761,17 +774,31 @@ const styles = StyleSheet.create({
 		color: colors.textMuted,
 		fontSize: 14,
 	},
+	summaryHero: {
+		marginTop: 16,
+		marginBottom: 8,
+		alignItems: 'center',
+		paddingVertical: 18,
+		paddingHorizontal: 16,
+		borderRadius: 18,
+		backgroundColor: colors.accentMuted,
+		borderWidth: 1,
+		borderColor: colors.accentBorder,
+	},
 	statLabel: {
 		color: colors.textMuted,
-		fontSize: 13,
+		fontSize: 12,
 		fontWeight: '700',
+		letterSpacing: 0.5,
+		textTransform: 'uppercase',
 	},
 	statValue: {
-		marginTop: 4,
-		marginBottom: 8,
-		color: colors.text,
-		fontSize: 36,
-		fontWeight: '700',
+		marginTop: 6,
+		color: colors.accent,
+		fontSize: 44,
+		fontWeight: '800',
+		fontVariant: ['tabular-nums'],
+		letterSpacing: -0.6,
 	},
 	sync: {
 		marginBottom: 16,

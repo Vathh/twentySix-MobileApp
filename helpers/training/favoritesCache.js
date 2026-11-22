@@ -74,6 +74,15 @@ export async function refreshFavorites(userId, accessToken) {
 	return saveCachedFavorites(userId, result.data);
 }
 
+function favoriteMatchKey(row) {
+	const exerciseKey = row?.exerciseKey || row?.id;
+	const variant = row?.variant != null && row.variant !== '' ? String(row.variant) : '';
+	if (row?.kind === 'exercise' || (!row?.kind && exerciseKey)) {
+		return variant ? `exercise:${exerciseKey}:${variant}` : `exercise:${exerciseKey}`;
+	}
+	return `${row?.kind}:${row?.id}`;
+}
+
 /** Po dodaniu gwiazdki — dopisz kartę do lokalnej listy ulubionych. */
 export async function applyFavoriteCreated(userId, kind, item) {
 	const key = listKeyForKind(kind);
@@ -81,28 +90,34 @@ export async function applyFavoriteCreated(userId, kind, item) {
 		return loadCachedFavorites(userId);
 	}
 	const current = (await loadCachedFavorites(userId)) ?? EMPTY_FAVORITES;
-	const rows = (current[key] ?? []).filter((row) => (
-		row?.id !== item.id && row?.exerciseKey !== item.exerciseKey
-	));
+	const nextKey = favoriteMatchKey({ ...item, kind: item.kind || kind });
+	const rows = (current[key] ?? []).filter((row) => favoriteMatchKey({ ...row, kind }) !== nextKey);
 	return saveCachedFavorites(userId, {
 		...current,
 		[key]: [...rows, { ...item, favorite: true }],
 	});
 }
 
-/** Po zdjęciu gwiazdki — usuń po id / exerciseKey. */
+/**
+ * Po zdjęciu gwiazdki — usuń po id / exerciseKey / wariancie.
+ * @param {string|number|Array| { exerciseKey?: string, id?: string, variant?: string }} ids
+ */
 export async function applyFavoriteRemoved(userId, kind, ids) {
 	const key = listKeyForKind(kind);
 	if (!key) {
 		return loadCachedFavorites(userId);
 	}
-	const gone = new Set(Array.isArray(ids) ? ids : [ids]);
+	const list = Array.isArray(ids) ? ids : [ids];
+	const gone = new Set(list.map((row) => {
+		if (row && typeof row === 'object') {
+			return favoriteMatchKey({ ...row, kind: row.kind || kind });
+		}
+		return kind === 'exercise' ? `exercise:${row}` : `${kind}:${row}`;
+	}));
 	const current = (await loadCachedFavorites(userId)) ?? EMPTY_FAVORITES;
 	return saveCachedFavorites(userId, {
 		...current,
-		[key]: (current[key] ?? []).filter((row) => (
-			!gone.has(row?.id) && !gone.has(row?.exerciseKey)
-		)),
+		[key]: (current[key] ?? []).filter((row) => !gone.has(favoriteMatchKey({ ...row, kind }))),
 	});
 }
 

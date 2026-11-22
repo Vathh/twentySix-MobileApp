@@ -112,9 +112,15 @@ export function runSectorClockExerciseTests() {
 	assert(finished.darts[finished.darts.length - 1].ring === 'outer', 'bull zapisuje się jako środek');
 	assert(currentSectorVisit(finished) === null, 'po końcu nie ma okna');
 	assert(recordSectorOutcome(finished, true) === finished, 'po końcu lotka nie dochodzi');
-	assert(sectorClockStats(finished).hits === 21, 'dwadzieścia sektorów i bull');
-	assert(sectorClockStats(finished).attempts === 22, 'jedno pudło dochodzi do lotek');
-	assert(sectorClockStats(finished).percent === 95, '21 z 22 to 95 procent');
+	const finishedStats = sectorClockStats(finished);
+	assert(finishedStats.hits === 21, 'dwadzieścia sektorów i bull');
+	assert(finishedStats.attempts === 22, 'jedno pudło dochodzi do lotek');
+	assert(finishedStats.percent === 95, '21 z 22 to 95 procent');
+	assert(finishedStats.aims.length === 21, 'sektory zbierają skuteczność per cel');
+	assert(finishedStats.aims.some((row) => row.aim === 'Bull' && row.attempts === 2 && row.hits === 1), 'pudło zostaje przy Bullu');
+	assert(finishedStats.aims[0].aim === '1' && finishedStats.aims[0].attempts === 1, 'sektor 1 ma jedną lotkę');
+	const stuckAims = sectorClockStats(play(definition, [false, false, true])).aims;
+	assert(stuckAims[0].aim === '1' && stuckAims[0].attempts === 3 && stuckAims[0].hits === 1, 'pudła sektora 1 doliczają się do 1');
 
 	const reopened = undoSectorDart(finished);
 	assert(reopened.status === 'playing', 'cofnięcie otwiera domknięte ćwiczenie');

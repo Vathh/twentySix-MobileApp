@@ -131,6 +131,13 @@ export function runNineDartsExerciseTests() {
 	assert(stats.attempts === 36, 'łącznie 36 lotek');
 	assert(stats.hits === 33, 'trzy pudła schodzą z łącznych trafień');
 	assert(!Object.prototype.hasOwnProperty.call(stats, 'darts'), 'statystyki nie mają listy lotek');
+	const aim20 = stats.aims.find((row) => row.aim === '20');
+	const aim19 = stats.aims.find((row) => row.aim === '19');
+	const aim18 = stats.aims.find((row) => row.aim === '18');
+	assert(aim20 && aim20.attempts === stats.stages[1].attempts + 3, 'etap 4 dolicza lotki 20 do sektora 20');
+	assert(aim19 && aim19.attempts === stats.stages[2].attempts + 3, 'etap 4 dolicza lotki 19 do sektora 19');
+	assert(aim18 && aim18.attempts === 3 && aim18.hits === 2, 'etap 4 ma trzy lotki w 18');
+	assert(!stats.aims.some((row) => /19 i 18|Sektor/.test(row.aim)), 'brak zbiorczego / „Sektor …” pierścienia');
 
 	const record = nineDartsCompletion(finished, '2026-11-20T12:00:00.000Z');
 	assert(record.score === 33, 'każde trafienie daje 1 punkt');

@@ -1,6 +1,7 @@
 import assert from 'assert';
 import {
 	advanceHang,
+	aimsFromCompletion,
 	emptyPlanHang,
 	finalizeHang,
 	mergeAims,
@@ -69,15 +70,16 @@ hang = advanceHang(hang);
 assert.strictEqual(hang.phase, 'summary');
 assert.strictEqual(hang.summary.score, 0, 'rozgrzewka nie wchodzi do sumy; luźne dały 0');
 assert.strictEqual(hang.summary.items.length, 3);
+assert.strictEqual(hang.summary.items[0].stats, undefined, 'item planu nie wysyła surowych stats');
 assert.deepStrictEqual(
-	hang.summary.items[0].stats,
-	{ aims: [{ aim: '20', attempts: 3, hits: 1 }] },
-	'item planu niesie stats ćwiczenia',
+	hang.summary.items[0].aims,
+	[{ aim: '20', attempts: 3, hits: 1 }],
+	'item planu niesie aims',
 );
+assert.strictEqual(hang.summary.items[2].stats, undefined);
 assert.deepStrictEqual(
-	hang.summary.items[2].stats,
-	{ aims: [{ aim: 'Inner', attempts: 4, hits: 2 }] },
-	'drugie ćwiczenie też ma stats',
+	hang.summary.items[2].aims,
+	[{ aim: 'Inner', attempts: 4, hits: 2 }],
 );
 
 const aims = mergeAims([
@@ -92,5 +94,28 @@ const early = finalizeHang({
 	results: [],
 });
 assert.strictEqual(early.summary.score, 0);
+
+assert.deepStrictEqual(
+	aimsFromCompletion({
+		score: 4,
+		stats: { doubles: [{ label: 'D13', attempts: 2, hits: 1 }] },
+	}),
+	[{ aim: 'D13', attempts: 2, hits: 1, percent: 50 }],
+	'doubles mapping',
+);
+
+assert.deepStrictEqual(
+	aimsFromCompletion({
+		stats: {
+			stages: [
+				{ label: 'Sektor 20', attempts: 9, hits: 8 },
+				{ label: 'Sektor 19', attempts: 9, hits: 7 },
+				{ label: '20, 19 i 18', attempts: 9, hits: 6 },
+			],
+		},
+	}).map((row) => row.aim).sort(),
+	['19', '20'],
+	'stare etapy: Sektor N → N, bez zbiorczego 20/19/18',
+);
 
 console.log('planSession.test.js ok');

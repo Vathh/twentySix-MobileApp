@@ -2,7 +2,7 @@
  * Bob's 27 easy. D1–D20, bez bulla, trzy lotki na cel.
  * Trafienie dodaje wartość dubla, trzy pudła odejmują ją raz.
  * Wynik może zejść poniżej zera. Liczenie wizyty jest wspólne z wolną grą.
- * Lotki żyją tylko w trakcie. Na serwer idzie wynik, trafienia i procent.
+ * Lotki żyją tylko w trakcie. Na serwer idzie wynik, trafienia, procent i aims (D1–D20).
  */
 
 import { BOB27_STARTING_SCORE, applyBob27Visit } from '../bob27/bob27Rules.js';
@@ -129,20 +129,44 @@ export function expireBob27Easy(session) {
 
 /**
  * Procent zaokrąglony do całości. Liczą się tylko domknięte trójki.
+ * aims: skuteczność per dubel (D1–D20).
  *
- * @returns {{ hits: number, attempts: number, percent: number }}
+ * @returns {{ hits: number, attempts: number, percent: number, aims: Array<{ aim: string, attempts: number, hits: number, percent: number }> }}
  */
 export function bob27EasyStats(session) {
 	const darts = session?.darts ?? [];
 	const attempts = settledCount(darts);
+	const byAim = new Map();
+	const aims = [];
 	let hits = 0;
 	for (let index = 0; index < attempts; index += 1) {
-		if (darts[index]?.ring !== 'miss') {
+		const number = Math.floor(index / VISIT_SIZE) + 1;
+		const aim = `D${number}`;
+		const hit = darts[index]?.ring !== 'miss';
+		if (hit) {
 			hits += 1;
+		}
+		let row = byAim.get(aim);
+		if (!row) {
+			row = { aim, attempts: 0, hits: 0 };
+			byAim.set(aim, row);
+			aims.push(row);
+		}
+		row.attempts += 1;
+		if (hit) {
+			row.hits += 1;
 		}
 	}
 	const percent = attempts === 0 ? 0 : Math.round((hits * 100) / attempts);
-	return { hits, attempts, percent };
+	return {
+		hits,
+		attempts,
+		percent,
+		aims: aims.map((row) => ({
+			...row,
+			percent: row.attempts === 0 ? 0 : Math.round((row.hits * 100) / row.attempts),
+		})),
+	};
 }
 
 export function bob27EasyCompletion(session, completedAt) {

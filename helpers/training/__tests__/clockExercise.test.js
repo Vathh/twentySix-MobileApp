@@ -131,6 +131,11 @@ export function runClockExerciseTests() {
 	assert(currentTarget(undone).kind === 'bull', 'wraca bull');
 
 	const summary = clockStats(finished);
+	assert(summary.aims.length === 21, 'zegar szybki zbiera skuteczność każdego sektora');
+	assert(summary.aims[0].aim === '1' && summary.aims[0].attempts === 1, 'pierwszy cel to sektor 1');
+	assert(summary.aims[20].aim === 'Bull' && summary.aims[20].hits === 1, 'ostatni cel to Bull');
+	const doubleStats = clockStats(doubleHit);
+	assert(doubleStats.aims[0].aim === 'D1', 'zegar doubli oznacza cele jako D1…');
 	assert(summary.hits === 21 && summary.attempts === 21 && summary.percent === 100, 'pełne trafienia');
 	const oneMiss = play(definition, [
 		{ number: 20, ring: 'single' },
@@ -178,7 +183,7 @@ export function runClockExerciseTests() {
 	assert(synced[0].sync === 'synced', '409 jest tym samym wpisem');
 	assert(syncOutcome({ ok: true, status: 201, data: {} }) === 'synced', '201 zapisuje');
 	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_found' } }) === 'rejected', 'brak definicji odpada');
-	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_active' } }) === 'pending', 'wyłączona treść zostaje do ponowienia');
+	assert(syncOutcome({ ok: false, status: 422, data: { reason: 'training_definition_not_active' } }) === 'rejected', 'wyłączona treść odpada');
 	assert(syncOutcome({ ok: false, status: 0, data: { message: 'offline' } }) === 'pending', 'brak sieci zostawia sesję');
 	assert(syncLabel('pending') === 'Zapisze się po połączeniu.', 'komunikat oczekiwania');
 

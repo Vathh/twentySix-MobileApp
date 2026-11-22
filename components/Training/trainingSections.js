@@ -2,26 +2,31 @@
 export const TRAINING_SECTIONS = {
 	plans: {
 		title: 'Plany treningowe',
+		hint: 'Gotowe sesje od A do Z',
 		empty: 'Brak planów treningowych.',
 		icon: 'list-outline',
 	},
 	exercises: {
 		title: 'Biblioteka',
+		hint: 'Ćwiczenia i wyzwania',
 		empty: 'Brak pozycji.',
 		icon: 'library-outline',
 	},
 	progress: {
 		title: 'Postępy',
+		hint: 'Historia, rekordy, cele',
 		empty: 'Brak danych.',
 		icon: 'analytics-outline',
 	},
 	challenges: {
 		title: 'Wyzwania',
+		hint: 'Rywalizacja i ranking',
 		empty: 'Brak wyzwań.',
 		icon: 'flag-outline',
 	},
 	events: {
 		title: 'Eventy',
+		hint: 'Rywalizuj o odznaczenia',
 		empty: 'Brak eventów.',
 		icon: 'trophy-outline',
 	},

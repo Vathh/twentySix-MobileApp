@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import {
@@ -19,35 +19,55 @@ import {
 } from '../../helpers/training/favoritesCache';
 import { groupBobsCatalog } from '../../helpers/training/bobs27Group';
 import { groupClockCatalog } from '../../helpers/training/clockGroup';
+import { hasDetailVariantFavorites } from '../../helpers/training/exerciseVariantFavorites';
 import { colors } from '../../theme/colors';
 import { TRAINING_SECTIONS } from './trainingSections';
 import TrainingCard from './TrainingCard';
+import TrainingEmptyState from './TrainingEmptyState';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
 
 const TITLES = {
 	plans: 'Plany treningowe',
 	exercises: 'Biblioteka',
 	challenges: 'Wyzwania',
+	events: 'Eventy',
 };
 
+function byNamePl(left, right) {
+	return String(left?.name ?? '').localeCompare(String(right?.name ?? ''), 'pl', {
+		sensitivity: 'base',
+	});
+}
+
 function presentExercises(exerciseRows, challengeRows = []) {
-	return [
+	const grouped = [
 		...groupBobsCatalog(groupClockCatalog(exerciseRows)),
 		...(Array.isArray(challengeRows) ? challengeRows : []),
 	];
+	return grouped.slice().sort(byNamePl);
 }
 
 function present(kind, rows, challengeRows) {
 	return kind === 'exercises' ? presentExercises(rows, challengeRows) : rows;
 }
 
+function countLabel(count) {
+	if (count === 1) {
+		return '1 pozycja';
+	}
+	if (count > 1 && count < 5) {
+		return `${count} pozycje`;
+	}
+	return `${count} pozycji`;
+}
+
 /**
  * Lista z lokalnego cache; odświeżenie w tle podmienia, gdy serwer ma coś innego.
- * Biblioteka łączy ćwiczenia z wyzwaniami (np. 54-Dart).
+ * Biblioteka łączy ćwiczenia z wyzwaniami (np. 54-Dart), sort A–Z i lokalne wyszukiwanie.
  */
 const TrainingCatalogScreen = ({ navigation, route }) => {
 	const kind = route?.params?.kind;
-	const section = TRAINING_SECTIONS[kind] ?? { empty: 'Brak pozycji.' };
+	const section = TRAINING_SECTIONS[kind] ?? { empty: 'Brak pozycji.', icon: 'library-outline' };
 	const title = route?.params?.title || TITLES[kind] || 'Trening';
 	const { auth } = useAuth();
 	const { text, show } = useTrainingNotice();
@@ -56,6 +76,7 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 	const [challengeItems, setChallengeItems] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const [query, setQuery] = useState('');
 
 	const load = useCallback(async () => {
 		if (!auth?.accessToken || !kind) {
@@ -106,6 +127,14 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 		}, [load]),
 	);
 
+	const filteredItems = useMemo(() => {
+		const needle = query.trim().toLocaleLowerCase('pl');
+		if (!needle || kind !== 'exercises') {
+			return items;
+		}
+		return items.filter((item) => String(item?.name ?? '').toLocaleLowerCase('pl').includes(needle));
+	}, [items, kind, query]);
+
 	const toggle = async (item) => {
 		if (!auth?.accessToken || (item.inactive && !item.favorite)) {
 			return;
@@ -144,20 +173,54 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 		await saveCachedCatalog(auth.userId, kind, nextRaw);
 	};
 
+	const showSearch = kind === 'exercises';
+	const needle = query.trim();
+	const listEmpty = !loading && !error && items.length === 0;
+	const filterEmpty = !loading && !error && items.length > 0 && filteredItems.length === 0;
+
 	return (
 		<View style={styles.container}>
 			<TrainingNotice text={text} />
 			<FlatList
-				data={items}
+				data={filteredItems}
 				keyExtractor={(item) => `${item.kind}:${item.id}`}
 				contentContainerStyle={styles.content}
+				keyboardShouldPersistTaps="handled"
 				ListHeaderComponent={
-					<View>
+					<View style={styles.header}>
+						<Text style={styles.eyebrow}>Katalog</Text>
 						<Text style={styles.title}>{title}</Text>
-						{error ? <Text style={styles.empty}>{error}</Text> : null}
-						{loading && items.length === 0 ? <Text style={styles.empty}>Ładowanie…</Text> : null}
-						{!loading && !error && items.length === 0 ? (
-							<Text style={styles.empty}>{section.empty}</Text>
+						{section.hint ? <Text style={styles.subtitle}>{section.hint}</Text> : null}
+						{showSearch ? (
+							<TextInput
+								style={styles.search}
+								value={query}
+								onChangeText={setQuery}
+								placeholder="Szukaj ćwiczenia"
+								placeholderTextColor={colors.placeholder}
+								autoCapitalize="none"
+								autoCorrect={false}
+								clearButtonMode="while-editing"
+							/>
+						) : null}
+						{!loading && !error && filteredItems.length > 0 ? (
+							<Text style={styles.count}>{countLabel(filteredItems.length)}</Text>
+						) : null}
+						{error ? <Text style={styles.error}>{error}</Text> : null}
+						{loading && items.length === 0 ? <Text style={styles.loading}>Ładowanie…</Text> : null}
+						{listEmpty ? (
+							<TrainingEmptyState
+								icon={section.icon}
+								title={section.empty}
+								body="Sprawdź później albo wybierz inną sekcję z hubu Trening."
+							/>
+						) : null}
+						{filterEmpty ? (
+							<TrainingEmptyState
+								icon="search-outline"
+								title="Brak wyników"
+								body={`Nic nie pasuje do „${needle}”. Spróbuj innej frazy.`}
+							/>
 						) : null}
 					</View>
 				}
@@ -165,7 +228,11 @@ const TrainingCatalogScreen = ({ navigation, route }) => {
 					<TrainingCard
 						item={item}
 						onPress={() => navigation.navigate('TrainingDefinition', { id: item.id })}
-						onToggleFavorite={() => toggle(item)}
+						onToggleFavorite={
+							item.kind === 'exercise' && hasDetailVariantFavorites(item)
+								? undefined
+								: () => toggle(item)
+						}
 					/>
 				)}
 			/>
@@ -185,16 +252,61 @@ const styles = StyleSheet.create({
 		maxWidth: 480,
 		alignSelf: 'center',
 	},
-	title: {
-		fontSize: 22,
-		fontWeight: '600',
-		color: colors.text,
-		marginBottom: 16,
+	header: {
+		marginBottom: 8,
 	},
-	empty: {
+	eyebrow: {
+		color: colors.accent,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.6,
+		textTransform: 'uppercase',
+		marginBottom: 6,
+	},
+	title: {
+		fontSize: 26,
+		fontWeight: '800',
+		color: colors.text,
+		letterSpacing: -0.3,
+	},
+	subtitle: {
+		marginTop: 6,
+		color: colors.textMuted,
+		fontSize: 14,
+		lineHeight: 20,
+		marginBottom: 4,
+	},
+	search: {
+		marginTop: 14,
+		marginBottom: 4,
+		paddingHorizontal: 14,
+		paddingVertical: 12,
+		borderRadius: 10,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
+		color: colors.text,
+		fontSize: 15,
+	},
+	count: {
+		marginTop: 10,
+		marginBottom: 8,
+		color: colors.textDim,
+		fontSize: 13,
+		fontWeight: '700',
+	},
+	error: {
+		fontSize: 15,
+		lineHeight: 22,
+		color: colors.dangerText,
+		marginTop: 8,
+		marginBottom: 8,
+	},
+	loading: {
 		fontSize: 15,
 		lineHeight: 22,
 		color: colors.textMuted,
+		marginTop: 8,
 		marginBottom: 8,
 	},
 });

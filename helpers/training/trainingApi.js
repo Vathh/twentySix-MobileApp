@@ -45,18 +45,27 @@ export function fetchTrainingDefinition(accessToken, id) {
 	return apiRequest(trainingExerciseUrl(id), { accessToken });
 }
 
-export function addTrainingFavorite(accessToken, id, kind) {
+export function addTrainingFavorite(accessToken, id, kind, variant = null) {
+	const body = kind === 'exercise'
+		? {
+			exerciseKey: id,
+			...(variant != null && variant !== '' ? { variant: String(variant) } : {}),
+		}
+		: { definitionId: id };
 	return apiRequest(TRAINING_FAVORITES_URL, {
 		method: 'POST',
 		accessToken,
 		json: true,
-		body: kind === 'exercise' ? { exerciseKey: id } : { definitionId: id },
+		body,
 	});
 }
 
-export function removeTrainingFavorite(accessToken, id, kind) {
+export function removeTrainingFavorite(accessToken, id, kind, variant = null) {
 	const url = kind === 'exercise' ? trainingExerciseFavoriteUrl(id) : trainingFavoriteUrl(id);
-	return apiRequest(url, {
+	const withVariant = kind === 'exercise' && variant != null && variant !== ''
+		? `${url}?variant=${encodeURIComponent(String(variant))}`
+		: url;
+	return apiRequest(withVariant, {
 		method: 'DELETE',
 		accessToken,
 	});
@@ -190,10 +199,23 @@ export function fetchEventClassification(accessToken, definitionId) {
 }
 
 export function reorderTrainingFavorites(accessToken, kind, ids) {
+	const body = kind === 'exercises'
+		? {
+			kind,
+			items: (Array.isArray(ids) ? ids : []).map((row) => (
+				typeof row === 'string'
+					? { exerciseKey: row, variant: '' }
+					: {
+						exerciseKey: row?.exerciseKey || row?.id,
+						variant: row?.variant != null && row?.variant !== '' ? String(row.variant) : '',
+					}
+			)),
+		}
+		: { kind, definitionIds: ids };
 	return apiRequest(TRAINING_FAVORITES_URL, {
 		method: 'PUT',
 		accessToken,
 		json: true,
-		body: kind === 'exercises' ? { kind, exerciseKeys: ids } : { kind, definitionIds: ids },
+		body,
 	});
 }

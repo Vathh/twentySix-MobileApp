@@ -183,14 +183,50 @@ export function expireSectorClock(session) {
 
 /**
  * Procent zaokrąglony do całości. Pusta sesja ma 0.
+ * aims: skuteczność per sektor — pudła zostają przy tym samym celu.
  *
- * @returns {{ hits: number, attempts: number, percent: number }}
+ * @returns {{ hits: number, attempts: number, percent: number, aims: Array<{ aim: string, attempts: number, hits: number, percent: number }> }}
  */
 export function sectorClockStats(session) {
-	const attempts = session?.darts?.length ?? 0;
-	const hits = clearedCount(session);
+	const darts = session?.darts ?? [];
+	const targets = session?.targets ?? [];
+	const attempts = darts.length;
+	const byAim = new Map();
+	const aims = [];
+	let cleared = 0;
+	for (let index = 0; index < attempts; index += 1) {
+		const target = targets[cleared];
+		const hit = darts[index]?.ring !== 'miss';
+		const aim = target?.kind === 'bull'
+			? 'Bull'
+			: (target?.number != null ? String(target.number) : '');
+		if (aim) {
+			let row = byAim.get(aim);
+			if (!row) {
+				row = { aim, attempts: 0, hits: 0 };
+				byAim.set(aim, row);
+				aims.push(row);
+			}
+			row.attempts += 1;
+			if (hit) {
+				row.hits += 1;
+			}
+		}
+		if (hit) {
+			cleared += 1;
+		}
+	}
+	const hits = cleared;
 	const percent = attempts === 0 ? 0 : Math.round((hits * 100) / attempts);
-	return { hits, attempts, percent };
+	return {
+		hits,
+		attempts,
+		percent,
+		aims: aims.map((row) => ({
+			...row,
+			percent: row.attempts === 0 ? 0 : Math.round((row.hits * 100) / row.attempts),
+		})),
+	};
 }
 
 /**

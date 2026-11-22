@@ -29,6 +29,22 @@ export function runRecentTrainingTests() {
 	assert(sameNumber[0].key === 'exercise:4', 'inny rodzaj o tym samym id jest osobną pozycją');
 	assert(sameNumber.some((item) => item.key === 'plan:4'), 'plan o tym id zostaje');
 
+	const withVariant = placeRecent([], {
+		id: 'nine_darts',
+		kind: 'exercise',
+		name: '9/18 lotek — 9 lotek',
+		variant: '9',
+	});
+	const bothVariants = placeRecent(withVariant, {
+		id: 'nine_darts',
+		kind: 'exercise',
+		name: '9/18 lotek — 18 lotek',
+		variant: '18',
+	});
+	assert(bothVariants.length === 2, 'warianty to osobne ostatnie');
+	assert(bothVariants[0].key === 'exercise:nine_darts:18', 'klucz wariantu 18');
+	assert(bothVariants[1].key === 'exercise:nine_darts:9', 'klucz wariantu 9');
+
 	assert(trainingInitials('Luźne rzuty') === 'LR', 'dwa słowa');
 	assert(trainingInitials('Luźne rzuty sprawdzenie') === 'LS', 'pierwsze i ostatnie słowo');
 	assert(trainingInitials('Zegar') === 'ZE', 'jedno słowo');

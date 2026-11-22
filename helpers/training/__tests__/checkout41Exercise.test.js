@@ -59,13 +59,13 @@ export function runCheckout41ExerciseTests() {
 	assert(afterDouble.checkout === 42 && afterDouble.highest === 41, 'zamknięcie 41 otwiera 42');
 	assert(afterDouble.remaining === 42 && afterDouble.dartsInVisit === 0, 'nowa wizyta od 42');
 	assert(afterDouble.carousel.left === 41 && afterDouble.carousel.center === 42, 'karuzela po sukcesie');
-	assert(checkout41Stats(doubled).doubles[0].label === 'D13', 'cel lotki z 26 to D13');
-	assert(checkout41Stats(doubled).doubles[0].attempts === 2, 'pudło i trafienie to dwie próby');
-	assert(checkout41Stats(doubled).doubles[0].hits === 1, 'tylko D13 jest trafieniem');
+	assert(checkout41Stats(doubled).aims[0].aim === 'D13', 'cel lotki z 26 to D13');
+	assert(checkout41Stats(doubled).aims[0].attempts === 2, 'pudło i trafienie to dwie próby');
+	assert(checkout41Stats(doubled).aims[0].hits === 1, 'tylko D13 jest trafieniem');
 
 	let miss = dart(prepared, 20, null);
 	assert(checkout41View(miss).remaining === 6, 'inna lotka z dubla schodzi z licznika');
-	assert(checkout41Stats(miss).doubles[0].hits === 0, 'S20 przy 26 jest pudłem na D13');
+	assert(checkout41Stats(miss).aims[0].hits === 0, 'S20 przy 26 jest pudłem na D13');
 
 	let bust = startCheckout41Session(definition(), 'id', 1_000, 'sum');
 	bust = recordCheckout41Fail(bust);
@@ -114,7 +114,7 @@ export function runCheckout41ExerciseTests() {
 	const cut = expireCheckout41(open);
 	assert(cut.status === 'completed', 'koniec czasu zamyka ćwiczenie');
 	assert(cut.actions.length === 0, 'urwana wizyta nie zostawia lotek');
-	assert(checkout41Stats(cut).doubles.length === 0, 'urwana próba dubla nie wchodzi do statystyk');
+	assert(checkout41Stats(cut).aims.length === 0, 'urwana próba dubla nie wchodzi do statystyk');
 	assert(checkout41Stats(cut).highest == null, 'urwana wizyta nie zamyka checkoutu');
 
 	const kept = expireCheckout41(climb);
@@ -125,7 +125,7 @@ export function runCheckout41ExerciseTests() {
 	assert(body.exerciseKey === 'checkout_41', 'zapis wskazuje ćwiczenie');
 	assert(body.score === 1, 'wynik z zamknięcia 41');
 	assert(body.stats.highest === 41, 'na serwer idzie najwyższy checkout');
-	assert(body.stats.doubles[0].label === 'D13', 'na serwer idzie skuteczność dubla');
+	assert(body.stats.aims[0].aim === 'D13', 'na serwer idzie skuteczność dubla');
 	assert(body.stats.darts === undefined, 'lista lotek nie idzie na serwer');
 	assert(CHECKOUT_41_FIRST === 41, 'start od 41');
 }

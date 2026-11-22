@@ -224,10 +224,10 @@ export function checkout41Stats(session) {
 		}
 		buckets.set(row.number, current);
 	});
-	const doubles = [...buckets.entries()]
+	const aims = [...buckets.entries()]
 		.sort((left, right) => left[0] - right[0])
 		.map(([number, bucket]) => ({
-			label: `D${number}`,
+			aim: `D${number}`,
 			attempts: bucket.attempts,
 			hits: bucket.hits,
 		}));
@@ -236,7 +236,7 @@ export function checkout41Stats(session) {
 		checkoutsClosed: view.checkoutsClosed,
 		checkoutAttempts: view.checkoutAttempts,
 		inputMode: checkout41InputMode(session?.inputMode),
-		doubles,
+		aims,
 	};
 }
 

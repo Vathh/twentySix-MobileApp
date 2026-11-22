@@ -146,21 +146,60 @@ export function recordOutcome(session, hit, bullRing = 'outer') {
 	return throwDart(session, outcomeDart(target, hit, session, bullRing));
 }
 
+function clockAimLabel(target, doubles) {
+	if (!target) {
+		return '';
+	}
+	if (target.kind === 'bull') {
+		return 'Bull';
+	}
+	return doubles ? `D${target.number}` : String(target.number);
+}
+
 /**
  * Procent zaokrąglony do całości. Pusta sesja ma 0.
+ * aims: skuteczność per sektor (1 lotka = 1 próba).
  *
- * @returns {{ hits: number, attempts: number, percent: number }}
+ * @returns {{ hits: number, attempts: number, percent: number, aims: Array<{ aim: string, attempts: number, hits: number, percent: number }> }}
  */
 export function clockStats(session) {
 	const attempts = session?.darts?.length ?? 0;
+	const doubles = session?.exerciseKey === DOUBLES_CLOCK_MECHANIC;
+	const byAim = new Map();
+	const aims = [];
 	let hits = 0;
 	for (let index = 0; index < attempts; index += 1) {
-		if (dartHitsTarget(session.targets[index], session.darts[index])) {
+		const target = session.targets[index];
+		const dart = session.darts[index];
+		const hit = dartHitsTarget(target, dart);
+		if (hit) {
 			hits += 1;
+		}
+		const aim = clockAimLabel(target, doubles);
+		if (!aim) {
+			continue;
+		}
+		let row = byAim.get(aim);
+		if (!row) {
+			row = { aim, attempts: 0, hits: 0 };
+			byAim.set(aim, row);
+			aims.push(row);
+		}
+		row.attempts += 1;
+		if (hit) {
+			row.hits += 1;
 		}
 	}
 	const percent = attempts === 0 ? 0 : Math.round((hits * 100) / attempts);
-	return { hits, attempts, percent };
+	return {
+		hits,
+		attempts,
+		percent,
+		aims: aims.map((row) => ({
+			...row,
+			percent: row.attempts === 0 ? 0 : Math.round((row.hits * 100) / row.attempts),
+		})),
+	};
 }
 
 /** Punkty jednej lotki w zegarze doubli. */

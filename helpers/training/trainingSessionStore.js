@@ -7,6 +7,7 @@ import {
 	enqueueCompletion,
 	sessionBody,
 	syncOutcome,
+	syncReason,
 } from './trainingSessionSync';
 
 let tail = Promise.resolve();
@@ -70,12 +71,13 @@ async function sendPending(userId, accessToken) {
 		}
 		const response = await completeTrainingSession(accessToken, sessionBody(item));
 		const outcome = syncOutcome(response);
-		next = applySyncOutcome(next, item.clientSessionId, outcome);
+		const reason = syncReason(response);
+		next = applySyncOutcome(next, item.clientSessionId, outcome, reason);
 		if (outcome === 'synced') {
 			const serverId = response?.data?.id ?? item.id;
 			next = next.map((row) => (
 				row?.clientSessionId === item.clientSessionId
-					? { ...row, id: serverId, sync: 'synced' }
+					? { ...row, id: serverId, sync: 'synced', syncReason: null }
 					: row
 			));
 			const card = serverToHistoryItem({

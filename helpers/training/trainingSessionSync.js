@@ -6,6 +6,7 @@ const ALREADY_STORED = 'training_session_already_stored';
 
 const REJECTED_REASONS = new Set([
 	'training_definition_not_found',
+	'training_definition_not_active',
 	'training_exercise_not_found',
 	'training_dart_log_rejected',
 	'training_session_invalid',
@@ -21,18 +22,68 @@ export function enqueueCompletion(items, record) {
 	return [...list, record];
 }
 
-export function applySyncOutcome(items, clientSessionId, sync) {
+export function applySyncOutcome(items, clientSessionId, sync, syncReason = null) {
 	return (Array.isArray(items) ? items : []).map((item) => (
-		item?.clientSessionId === clientSessionId ? { ...item, sync } : item
+		item?.clientSessionId === clientSessionId
+			? { ...item, sync, syncReason: sync === 'rejected' ? syncReason : null }
+			: item
 	));
+}
+
+function sanitizeAimRows(aims) {
+	if (!Array.isArray(aims)) {
+		return [];
+	}
+	return aims
+		.filter((row) => row && typeof row.aim === 'string' && row.aim !== '')
+		.map((row) => {
+			const attempts = Math.max(0, Math.trunc(Number(row.attempts) || 0));
+			const hits = Math.min(attempts, Math.max(0, Math.trunc(Number(row.hits) || 0)));
+			return { aim: row.aim, attempts, hits };
+		})
+		.filter((row) => row.attempts > 0);
+}
+
+/** Payload planu na serwer: bez surowych stats ćwiczeń (unikamy odrzucenia). */
+export function sanitizePlanItems(items) {
+	if (!Array.isArray(items)) {
+		return [];
+	}
+	return items.map((row) => {
+		const rawScore = row?.score;
+		const score = rawScore == null || rawScore === ''
+			? null
+			: Math.trunc(Number(rawScore));
+		const item = {
+			position: row.position,
+			kind: row.kind,
+			status: row.status,
+			scored: Boolean(row.scored),
+			score: Number.isFinite(score) ? score : null,
+			aims: sanitizeAimRows(row.aims),
+		};
+		if (row.kind === 'exercise') {
+			item.exerciseKey = row.exerciseKey ?? null;
+		}
+		return item;
+	});
 }
 
 export function sessionBody(record) {
 	const body = {
 		clientSessionId: record.clientSessionId,
 		completedAt: record.completedAt,
-		score: record.score,
-		stats: record.stats,
+		score: record.score == null || record.score === ''
+			? null
+			: (Number.isFinite(Math.trunc(Number(record.score)))
+				? Math.trunc(Number(record.score))
+				: record.score),
+		stats: record.stats && typeof record.stats === 'object'
+			? {
+				...record.stats,
+				aims: sanitizeAimRows(record.stats.aims),
+			}
+			: record.stats,
 	};
 	if (record.exerciseKey) {
 		body.exerciseKey = record.exerciseKey;
@@ -40,7 +91,7 @@ export function sessionBody(record) {
 		body.definitionId = record.definitionId;
 	}
 	if (Array.isArray(record.items)) {
-		body.items = record.items;
+		body.items = sanitizePlanItems(record.items);
 	}
 	return body;
 }
@@ -63,11 +114,28 @@ export function syncOutcome(response) {
 	return 'pending';
 }
 
-export function syncLabel(sync) {
+export function syncReason(response) {
+	return response?.data?.reason || (response?.status === 404 ? 'not_found' : null);
+}
+
+export function syncLabel(sync, reason = null) {
 	if (sync === 'synced') {
 		return 'Zapisano.';
 	}
 	if (sync === 'rejected') {
+		if (reason === 'training_dart_log_rejected') {
+			return 'Nie zapisano. Serwer odrzucił szczegóły lotek.';
+		}
+		if (
+			reason === 'training_session_invalid'
+			|| reason === 'training_stats_invalid'
+			|| reason === 'training_unexpected_field'
+		) {
+			return 'Nie zapisano. Dane sesji zostały odrzucone.';
+		}
+		if (reason === 'training_exercise_not_found') {
+			return 'Nie zapisano. Nieznane ćwiczenie w planie.';
+		}
 		return 'Nie zapisano. Ta treść nie jest już dostępna.';
 	}
 	return 'Zapisze się po połączeniu.';

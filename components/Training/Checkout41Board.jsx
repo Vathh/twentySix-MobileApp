@@ -190,12 +190,13 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 const styles = StyleSheet.create({
 	remaining: {
 		textAlign: 'center',
-		marginTop: 2,
-		color: colors.text,
+		marginTop: 4,
+		color: colors.accent,
 		fontSize: 56,
 		lineHeight: 64,
-		fontWeight: '700',
+		fontWeight: '800',
 		fontVariant: ['tabular-nums'],
+		letterSpacing: -0.8,
 	},
 	thrown: {
 		textAlign: 'center',

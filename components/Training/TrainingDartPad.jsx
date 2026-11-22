@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
 	key: {
 		flex: 1,
 		minHeight: 48,
-		borderRadius: 10,
+		borderRadius: 12,
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
 		borderColor: colors.border,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
 	choice: {
 		flex: 1,
 		minHeight: 44,
-		borderRadius: 10,
+		borderRadius: 12,
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1,
 		borderColor: colors.border,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
 	},
 	secondary: {
 		minHeight: 48,
-		borderRadius: 10,
+		borderRadius: 12,
 		borderWidth: 1,
 		borderColor: colors.borderStrong,
 		alignItems: 'center',
@@ -165,9 +165,9 @@ const styles = StyleSheet.create({
 	},
 	ghost: {
 		minHeight: 44,
-		borderRadius: 10,
+		borderRadius: 12,
 		borderWidth: 1,
-		borderColor: colors.textMuted,
+		borderColor: colors.border,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 12,

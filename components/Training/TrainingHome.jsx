@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import ModeTile from '../Common/ModeTile';
 import useAuth from '../../hooks/useAuth';
@@ -7,20 +7,20 @@ import { prefetchTrainingCatalogs } from '../../helpers/training/catalogCache';
 import { clearHangingPlan, loadHangingPlan } from '../../helpers/training/planSessionStore';
 import { loadHangingEvent } from '../../helpers/training/eventAttemptStore';
 import { TRAINING_SECTIONS } from './trainingSections';
+import TrainingGridTile from './TrainingGridTile';
+import TrainingHeroCta from './TrainingHeroCta';
+import TrainingResumeBanner from './TrainingResumeBanner';
 import { colors } from '../../theme/colors';
 
-const TILES = [
-	{ key: 'start', title: 'Rozpocznij trening', icon: 'play-outline', variant: 'primary' },
+const CATALOG_GRID = [
 	{ key: 'plans', section: 'plans' },
+	{ key: 'exercises', section: 'exercises' },
 	{ key: 'challenges', section: 'challenges' },
 	{ key: 'events', section: 'events' },
-	{ key: 'exercises', section: 'exercises' },
-	{ key: 'free', title: 'Wolna gra', icon: 'barbell-outline' },
-	{ key: 'progress', section: 'progress' },
 ];
 
 /**
- * Ekran główny Trening. Baner wiszącego planu: Wznów / Anuluj (bez drugiego pytania).
+ * Ekran główny Trening: hero CTA, siatka katalogów, wznowienie sesji.
  */
 const TrainingHome = ({ navigation }) => {
 	const { auth } = useAuth();
@@ -49,24 +49,8 @@ const TrainingHome = ({ navigation }) => {
 		}, [auth?.userId, auth?.accessToken]),
 	);
 
-	const open = (tile) => {
-		if (tile.key === 'start') {
-			navigation.navigate('TrainingStart');
-			return;
-		}
-		if (tile.key === 'free') {
-			navigation.navigate('TrainingMatchSetup');
-			return;
-		}
-		if (tile.section === 'progress') {
-			navigation.navigate('TrainingProgress');
-			return;
-		}
-		if (tile.section === 'plans' || tile.section === 'exercises' || tile.section === 'challenges' || tile.section === 'events') {
-			navigation.navigate('TrainingCatalog', { kind: tile.section });
-			return;
-		}
-		navigation.navigate('TrainingSection', { section: tile.section });
+	const openCatalog = (section) => {
+		navigation.navigate('TrainingCatalog', { kind: section });
 	};
 
 	const resume = () => {
@@ -90,60 +74,58 @@ const TrainingHome = ({ navigation }) => {
 		>
 			<View style={styles.form}>
 				{hanging ? (
-					<View style={styles.banner}>
-						<Text style={styles.bannerText}>
-							Wznów trening{hanging.plan?.name ? `: ${hanging.plan.name}` : ''}
-						</Text>
-						<View style={styles.bannerRow}>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Wznów trening"
-								onPress={resume}
-								style={[styles.bannerButton, styles.bannerPrimary]}
-							>
-								<Text style={styles.bannerPrimaryText}>Wznów trening</Text>
-							</Pressable>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Anuluj trening"
-								onPress={cancelHang}
-								style={styles.bannerButton}
-							>
-								<Text style={styles.bannerGhostText}>Anuluj trening</Text>
-							</Pressable>
-						</View>
-					</View>
+					<TrainingResumeBanner
+						title={`Wznów trening${hanging.plan?.name ? `: ${hanging.plan.name}` : ''}`}
+						primaryLabel="Wznów trening"
+						onPrimary={resume}
+						secondaryLabel="Anuluj trening"
+						onSecondary={cancelHang}
+					/>
 				) : null}
 				{hangingEvent ? (
-					<View style={styles.banner}>
-						<Text style={styles.bannerText}>
-							Wznów event{hangingEvent.event?.name ? `: ${hangingEvent.event.name}` : ''}
-						</Text>
-						<View style={styles.bannerRow}>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Wznów event"
-								onPress={resumeEvent}
-								style={[styles.bannerButton, styles.bannerPrimary]}
-							>
-								<Text style={styles.bannerPrimaryText}>Wznów event</Text>
-							</Pressable>
-						</View>
-					</View>
+					<TrainingResumeBanner
+						title={`Wznów event${hangingEvent.event?.name ? `: ${hangingEvent.event.name}` : ''}`}
+						primaryLabel="Wznów event"
+						onPrimary={resumeEvent}
+					/>
 				) : null}
-				<Text style={[styles.sectionLabel, (hanging || hangingEvent) ? null : styles.sectionLabelFirst]}>Trening</Text>
-				{TILES.map((tile) => {
-					const section = tile.section ? TRAINING_SECTIONS[tile.section] : null;
-					return (
-						<ModeTile
-							key={tile.key}
-							variant={tile.variant}
-							icon={tile.icon ?? section.icon}
-							title={tile.title ?? section.title}
-							onPress={() => open(tile)}
-						/>
-					);
-				})}
+
+				<TrainingHeroCta
+					title="Rozpocznij trening"
+					subtitle="Ulubione i ostatnie sesje"
+					onPress={() => navigation.navigate('TrainingStart')}
+				/>
+
+				<Text style={styles.sectionLabel}>Katalog</Text>
+				<View style={styles.grid}>
+					{CATALOG_GRID.map((tile) => {
+						const section = TRAINING_SECTIONS[tile.section];
+						return (
+							<View key={tile.key} style={styles.gridCell}>
+								<TrainingGridTile
+									icon={section.icon}
+									title={section.title}
+									hint={section.hint}
+									onPress={() => openCatalog(tile.section)}
+								/>
+							</View>
+						);
+					})}
+				</View>
+
+				<Text style={styles.sectionLabel}>Więcej</Text>
+				<ModeTile
+					icon="barbell-outline"
+					title="Wolna gra"
+					hint="Wybierz tryb i zagraj sam lub ze znajomymi"
+					onPress={() => navigation.navigate('TrainingMatchSetup')}
+				/>
+				<ModeTile
+					icon={TRAINING_SECTIONS.progress.icon}
+					title={TRAINING_SECTIONS.progress.title}
+					hint={TRAINING_SECTIONS.progress.hint}
+					onPress={() => navigation.navigate('TrainingProgress')}
+				/>
 			</View>
 		</ScrollView>
 	);
@@ -156,7 +138,6 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flexGrow: 1,
-		justifyContent: 'center',
 		alignItems: 'center',
 		paddingHorizontal: 24,
 		paddingVertical: 24,
@@ -166,7 +147,7 @@ const styles = StyleSheet.create({
 		maxWidth: 400,
 	},
 	sectionLabel: {
-		marginTop: 8,
+		marginTop: 4,
 		marginBottom: 12,
 		color: colors.textMuted,
 		fontSize: 13,
@@ -174,50 +155,15 @@ const styles = StyleSheet.create({
 		textTransform: 'uppercase',
 		letterSpacing: 0.6,
 	},
-	sectionLabelFirst: {
-		marginTop: 0,
-	},
-	banner: {
-		marginBottom: 16,
-		padding: 14,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentMuted,
-	},
-	bannerText: {
-		color: colors.text,
-		fontSize: 15,
-		fontWeight: '700',
-		marginBottom: 10,
-	},
-	bannerRow: {
+	grid: {
 		flexDirection: 'row',
-		gap: 8,
+		flexWrap: 'wrap',
+		justifyContent: 'space-between',
+		rowGap: 10,
+		marginBottom: 20,
 	},
-	bannerButton: {
-		flex: 1,
-		minHeight: 42,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.borderStrong,
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingHorizontal: 8,
-	},
-	bannerPrimary: {
-		backgroundColor: colors.accent,
-		borderColor: colors.accent,
-	},
-	bannerPrimaryText: {
-		color: colors.onAccent ?? colors.bgDeep,
-		fontSize: 14,
-		fontWeight: '700',
-	},
-	bannerGhostText: {
-		color: colors.text,
-		fontSize: 14,
-		fontWeight: '700',
+	gridCell: {
+		width: '48.5%',
 	},
 });
 

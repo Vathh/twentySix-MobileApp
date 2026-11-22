@@ -138,10 +138,11 @@ const styles = StyleSheet.create({
 	instruction: {
 		textAlign: 'center',
 		color: colors.textSecondary,
-		fontSize: 28,
-		lineHeight: 36,
+		fontSize: 22,
+		lineHeight: 30,
 		fontWeight: '600',
-		marginBottom: 12,
+		letterSpacing: -0.2,
+		marginBottom: 10,
 	},
 	instructionStrong: {
 		color: colors.text,
@@ -149,11 +150,13 @@ const styles = StyleSheet.create({
 	},
 	dartLabel: {
 		textAlign: 'center',
-		color: colors.text,
-		fontSize: 20,
-		lineHeight: 26,
+		color: colors.textMuted,
+		fontSize: 14,
+		lineHeight: 20,
 		fontWeight: '700',
-		marginBottom: 20,
+		letterSpacing: 0.4,
+		textTransform: 'uppercase',
+		marginBottom: 18,
 	},
 	row: {
 		flexDirection: 'row',
@@ -163,40 +166,46 @@ const styles = StyleSheet.create({
 	outcome: {
 		flex: 1,
 		minHeight: 72,
-		borderRadius: 12,
+		borderRadius: 14,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 4,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
 	},
 	triple: {
-		backgroundColor: colors.danger,
+		backgroundColor: colors.accent,
+		borderColor: colors.accent,
 	},
 	tripleText: {
-		color: colors.text,
-	},
-	double: {
-		backgroundColor: colors.accent,
-	},
-	doubleText: {
 		color: colors.onAccent,
 	},
+	double: {
+		backgroundColor: colors.accentMuted,
+		borderColor: colors.accentBorder,
+	},
+	doubleText: {
+		color: colors.accent,
+	},
 	single: {
-		backgroundColor: colors.info,
+		backgroundColor: colors.bgElevated,
+		borderColor: colors.borderStrong,
 	},
 	singleText: {
-		color: colors.onLight,
+		color: colors.text,
 	},
 	outcomeText: {
 		color: colors.text,
 		fontSize: 16,
-		fontWeight: '700',
+		fontWeight: '800',
 		textAlign: 'center',
 	},
 	miss: {
 		minHeight: 72,
-		borderRadius: 12,
+		borderRadius: 14,
 		backgroundColor: colors.bgElevated,
-		borderWidth: 1,
+		borderWidth: 1.5,
 		borderColor: colors.borderStrong,
 		alignItems: 'center',
 		justifyContent: 'center',
@@ -206,7 +215,7 @@ const styles = StyleSheet.create({
 	missText: {
 		color: colors.text,
 		fontSize: 18,
-		fontWeight: '700',
+		fontWeight: '800',
 	},
 	rotationRow: {
 		flexDirection: 'row',

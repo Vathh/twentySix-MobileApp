@@ -68,13 +68,17 @@ export function runBullCounterExerciseTests() {
 	const stats = bullCounterStats(cut);
 	assert(stats.hits === 2 && stats.attempts === 3, 'inner i outer liczą się jako trafienia');
 	assert(stats.percent === 67, '2 z 3 to 67 procent');
+	assert(stats.aims.map((row) => row.aim).join(',') === 'Bull,Inner,Outer', 'Bull + Inner + Outer');
+	assert(stats.aims[0].hits === 2 && stats.aims[1].hits === 1 && stats.aims[2].hits === 1, 'rozbicie pierścieni bulla');
 
 	const record = bullCounterCompletion(cut, '2026-11-20T18:00:00.000Z');
 	assert(record.score === 6, 'wynik to suma punktów');
 	assert(record.stats.hits === 2 && record.stats.percent === 67, 'statystyki bez listy lotek');
+	assert(record.stats.aims.length === 3, 'aims na serwer');
 	assert(!Object.prototype.hasOwnProperty.call(record.stats, 'darts'), 'statystyki nie mają listy lotek');
 	const body = sessionBody(record);
 	assert(body.exerciseKey === 'bull_counter', 'zapis wskazuje ćwiczenie');
 	assert(body.score === 6, 'na serwer idzie wynik');
 	assert(body.stats.attempts === 3, 'na serwer idą próby');
+	assert(body.stats.aims[0].aim === 'Bull', 'na serwer idzie skuteczność bulla');
 }

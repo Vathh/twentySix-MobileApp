@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import useAuth from '../../hooks/useAuth';
 import { createClientSessionId } from '../../helpers/training/clientSessionId';
@@ -25,8 +26,11 @@ import {
 	startEventAttempt,
 } from '../../helpers/training/trainingApi';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
+import TrainingAbortSheet from './TrainingAbortSheet';
 import TrainingExerciseScreen from './TrainingExerciseScreen';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
+import TrainingSessionResult from './TrainingSessionResult';
 
 const ABORT_TEXT = 'Przerwać event? Ta próba przepadnie i zużyje slot w oknie.';
 
@@ -202,24 +206,22 @@ const TrainingEventScreen = ({ navigation, route }) => {
 			<View style={styles.root}>
 				<TrainingNotice text={text} />
 				<ScrollView contentContainerStyle={styles.content}>
-					<Text style={styles.header}>{hang.event?.name}</Text>
-					<Text style={styles.scoreLabel}>Wynik</Text>
-					<Text style={styles.score}>{hang.summary.score}</Text>
-					{(hang.summary.results || []).map((row) => (
-						<View key={`${row.position}-${row.exerciseKey}`} style={styles.row}>
-							<Text style={styles.rowName}>{row.name}</Text>
-							<Text style={styles.rowScore}>{row.scored ? row.score : 'Rozgrzewka'}</Text>
-						</View>
-					))}
-					{classification?.mine ? (
-						<Text style={styles.place}>
-							Miejsce {classification.mine.place}
-							{classification.mine.medal ? ` · ${classification.mine.medal}` : ''}
-						</Text>
-					) : null}
-					<Pressable style={styles.ghost} onPress={leaveHome}>
-						<Text style={styles.ghostText}>Wróć</Text>
-					</Pressable>
+					<TrainingSessionResult
+						hero={{ label: 'Wynik', value: hang.summary.score }}
+						rows={(hang.summary.results || []).map((row) => ({
+							label: row.name,
+							value: row.scored ? row.score : 'Rozgrzewka',
+						}))}
+						secondaryLabel="Wróć"
+						onSecondary={leaveHome}
+					>
+						{classification?.mine ? (
+							<Text style={styles.place}>
+								Miejsce {classification.mine.place}
+								{classification.mine.medal ? ` · ${classification.mine.medal}` : ''}
+							</Text>
+						) : null}
+					</TrainingSessionResult>
 				</ScrollView>
 			</View>
 		);
@@ -241,7 +243,20 @@ const TrainingEventScreen = ({ navigation, route }) => {
 			{offline ? (
 				<Text style={styles.offline}>Brak sieci — stan próby jest zapisany. Wznów po połączeniu.</Text>
 			) : null}
-			<Text style={styles.progress}>{eventProgressLabel(hang.index, hang.total)}</Text>
+			<View style={styles.chrome}>
+				<View style={styles.chromeCopy}>
+					<Text style={styles.progress}>{eventProgressLabel(hang.index, hang.total)}</Text>
+					<Text style={styles.eventName} numberOfLines={1}>{hang.event?.name || 'Event'}</Text>
+				</View>
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Przerwij"
+					onPress={() => setPrompt('abort')}
+					style={styles.abortIcon}
+				>
+					<Ionicons name="close" size={scaleSize(20)} color={colors.textMuted} />
+				</Pressable>
+			</View>
 			<TrainingExerciseScreen
 				navigation={navigation}
 				planHost={{
@@ -261,57 +276,69 @@ const TrainingEventScreen = ({ navigation, route }) => {
 					},
 				}}
 			/>
-			<Pressable style={styles.abort} onPress={() => setPrompt('abort')}>
-				<Text style={styles.abortText}>Przerwij</Text>
-			</Pressable>
-			<Modal
+			<TrainingAbortSheet
 				visible={prompt === 'abort'}
-				transparent
-				animationType="fade"
-				presentationStyle="overFullScreen"
-				statusBarTranslucent
-				onRequestClose={() => setPrompt(null)}
-			>
-				<View style={styles.modalBackdrop}>
-					<View style={styles.modalCard}>
-						<Text style={styles.modalText}>{ABORT_TEXT}</Text>
-						<Pressable style={styles.secondary} onPress={() => setPrompt(null)}>
-							<Text style={styles.secondaryText}>Anuluj</Text>
-						</Pressable>
-						<Pressable style={styles.primary} onPress={confirmAbort}>
-							<Text style={styles.primaryText}>Przerwij</Text>
-						</Pressable>
-					</View>
-				</View>
-			</Modal>
+				text={ABORT_TEXT}
+				onCancel={() => setPrompt(null)}
+				onConfirm={confirmAbort}
+			/>
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
 	root: { flex: 1, backgroundColor: colors.bg },
-	content: { padding: 24, gap: 10 },
-	header: { fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center' },
-	scoreLabel: { textAlign: 'center', color: colors.textSecondary },
-	score: { textAlign: 'center', fontSize: 44, fontWeight: '800', color: colors.accent },
-	row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-	rowName: { color: colors.text },
-	rowScore: { color: colors.text, fontWeight: '600' },
-	place: { textAlign: 'center', color: colors.accent, fontWeight: '700', marginTop: 12 },
+	content: { padding: 24, gap: 10, maxWidth: 480, width: '100%', alignSelf: 'center' },
+	place: {
+		textAlign: 'center',
+		color: colors.accent,
+		fontWeight: '700',
+		marginBottom: 16,
+		fontSize: 15,
+	},
 	hint: { textAlign: 'center', color: colors.textMuted, marginTop: 40 },
-	offline: { backgroundColor: colors.warningMuted, color: colors.warning, padding: 10, textAlign: 'center' },
-	progress: { textAlign: 'center', color: colors.textSecondary, paddingVertical: 6 },
-	abort: { alignItems: 'center', paddingVertical: 14 },
-	abortText: { color: colors.textSecondary, fontSize: 16 },
-	ghost: { alignItems: 'center', paddingVertical: 14 },
-	ghostText: { color: colors.textSecondary },
-	modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
-	modalCard: { backgroundColor: colors.bg, borderRadius: 16, padding: 20, gap: 10 },
-	modalText: { color: colors.text, textAlign: 'center', marginBottom: 8 },
-	primary: { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-	primaryText: { color: colors.onAccent, fontWeight: '700' },
-	secondary: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-	secondaryText: { color: colors.text, fontWeight: '600' },
+	offline: {
+		backgroundColor: colors.warningMuted,
+		color: colors.warning,
+		padding: 10,
+		textAlign: 'center',
+		fontWeight: '600',
+	},
+	chrome: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 12,
+		paddingHorizontal: 20,
+		paddingTop: 12,
+		paddingBottom: 10,
+		borderBottomWidth: 1,
+		borderBottomColor: colors.border,
+		backgroundColor: colors.bgDeep,
+	},
+	chromeCopy: { flex: 1, minWidth: 0 },
+	progress: {
+		color: colors.textMuted,
+		fontSize: 12,
+		fontWeight: '700',
+		letterSpacing: 0.4,
+		textTransform: 'uppercase',
+	},
+	eventName: {
+		marginTop: 2,
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '800',
+	},
+	abortIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
+	},
 });
 
 export default TrainingEventScreen;

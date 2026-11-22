@@ -18,6 +18,21 @@ export const NINE_DARTS_VARIANTS = [
 const ROTATION = [20, 19, 18];
 const SECTOR_RINGS = new Set(['single', 'double', 'triple']);
 const STAGE_LABELS = ['Środek', 'Sektor 20', 'Sektor 19', '20, 19 i 18'];
+const BULL_AIM = 'Bull';
+
+/** Klucz skuteczności: Bull / sektor (cały), etap 4 dolicza do 20/19/18. */
+export function aimKeyFor(aim) {
+	if (!aim) {
+		return null;
+	}
+	if (aim.kind === 'bull') {
+		return BULL_AIM;
+	}
+	if (aim.kind === 'sector' && aim.number != null) {
+		return String(aim.number);
+	}
+	return null;
+}
 
 export function canPlayNineDarts(definition) {
 	return Boolean(
@@ -205,18 +220,30 @@ function percentOf(hits, attempts) {
 	return Math.round((hits * 100) / attempts);
 }
 
-/** Trafienia i procent każdego rozegranego etapu oraz łącznie. */
+/** Trafienia i procent: etapy (UI postępu) + aims per cel (pierścienie). */
 export function nineDartsStats(session) {
 	const darts = session?.darts ?? [];
 	const stageSize = session?.stageSize === EIGHTEEN_STAGE_SIZE ? EIGHTEEN_STAGE_SIZE : STAGE_SIZE;
 	const buckets = STAGE_LABELS.map((label) => ({ label, hits: 0, attempts: 0 }));
+	const aimMap = new Map();
 	darts.forEach((dart, index) => {
 		const aim = aimAt(index, stageSize);
 		const bucket = buckets[aim.stage];
 		bucket.attempts += 1;
-		if (dartHitsAim(aim, dart)) {
+		const hit = dartHitsAim(aim, dart);
+		if (hit) {
 			bucket.hits += 1;
 		}
+		const key = aimKeyFor(aim);
+		if (!key) {
+			return;
+		}
+		const row = aimMap.get(key) || { aim: key, hits: 0, attempts: 0 };
+		row.attempts += 1;
+		if (hit) {
+			row.hits += 1;
+		}
+		aimMap.set(key, row);
 	});
 	const stages = buckets
 		.filter((stage) => stage.attempts > 0)
@@ -224,6 +251,12 @@ export function nineDartsStats(session) {
 			...stage,
 			percent: percentOf(stage.hits, stage.attempts),
 		}));
+	const aims = [...aimMap.values()]
+		.map((row) => ({
+			...row,
+			percent: percentOf(row.hits, row.attempts),
+		}))
+		.sort((a, b) => (b.percent - a.percent) || a.aim.localeCompare(b.aim, 'pl'));
 	const hits = stages.reduce((sum, stage) => sum + stage.hits, 0);
 	return {
 		variant: session?.variant === '18' ? '18' : '9',
@@ -231,6 +264,7 @@ export function nineDartsStats(session) {
 		attempts: darts.length,
 		percent: percentOf(hits, darts.length),
 		stages,
+		aims,
 	};
 }
 

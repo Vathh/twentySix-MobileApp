@@ -6,26 +6,25 @@ import { loadCachedDefinition, saveCachedDefinition } from '../../helpers/traini
 import {
 	applyFavoriteCreated,
 	applyFavoriteRemoved,
+	loadCachedFavorites,
+	refreshFavorites,
 } from '../../helpers/training/favoritesCache';
 import { canPlayCatch20 } from '../../helpers/training/catch20Exercise';
 import { canPlayCheckout41 } from '../../helpers/training/checkout41Exercise';
 import { canPlayCheckoutBull81 } from '../../helpers/training/checkoutBull81Exercise';
 import { canPlayScoring65 } from '../../helpers/training/scoring65Exercise';
 import {
-	SCORING_PRESSURE_VARIANTS,
 	canPlayScoringPressure,
 } from '../../helpers/training/scoringUnderPressureExercise';
 import { canPlayClock } from '../../helpers/training/clockExercise';
 import {
 	BOBS_NAME,
-	BOBS_VARIANTS,
 	bobsPlayDefinition,
 	bobsVariantId,
 	isBobsKey,
 } from '../../helpers/training/bobs27Group';
 import {
 	CLOCK_NAME,
-	CLOCK_VARIANTS,
 	clockPlayDefinition,
 	clockVariantId,
 	isClockKey,
@@ -34,10 +33,15 @@ import { canPlayLooseThrows } from '../../helpers/training/looseThrowsExercise';
 import { canPlayBob27Easy } from '../../helpers/training/bobs27EasyExercise';
 import { canPlayBob27Hard } from '../../helpers/training/bobs27HardExercise';
 import { canPlayBullCounter } from '../../helpers/training/bullCounterExercise';
-import { NINE_DARTS_VARIANTS, canPlayNineDarts } from '../../helpers/training/nineDartsExercise';
+import { canPlayNineDarts } from '../../helpers/training/nineDartsExercise';
 import { canPlaySectorClock } from '../../helpers/training/sectorClockExercise';
 import { canPlaySingles } from '../../helpers/training/singlesUnderPressureExercise';
 import { canPlayFiftyFourDart } from '../../helpers/training/fiftyFourDartChallenge';
+import {
+	detailVariantOptions,
+	hasDetailVariantFavorites,
+	isVariantFavorited,
+} from '../../helpers/training/exerciseVariantFavorites';
 import {
 	FAVORITE_ADDED,
 	FAVORITE_REMOVED,
@@ -54,8 +58,12 @@ import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryIn
 import { trainingMeta } from '../../helpers/training/trainingMeta';
 import { SCORING_MODES } from '../../hooks/useGameSettings';
 import { colors } from '../../theme/colors';
+import TrainingGuideAccordion from './TrainingGuideAccordion';
+import TrainingKindChip from './TrainingKindChip';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
+import TrainingSegmentedControl from './TrainingSegmentedControl';
 import TrainingStar from './TrainingStar';
+import TrainingStickyStartBar from './TrainingStickyStartBar';
 
 const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const id = route?.params?.id;
@@ -75,6 +83,7 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const [ranking, setRanking] = useState(null);
 	const [attempts, setAttempts] = useState(null);
 	const [rankingLoading, setRankingLoading] = useState(false);
+	const [favoriteExercises, setFavoriteExercises] = useState([]);
 
 	const applyDefinition = (definition) => {
 		setItem(definition);
@@ -116,10 +125,29 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		await saveCachedDefinition(auth.userId, result.data);
 	}, [auth?.accessToken, auth?.userId, id]);
 
+	const loadFavoriteExercises = useCallback(async () => {
+		if (!auth?.userId) {
+			setFavoriteExercises([]);
+			return;
+		}
+		const cached = await loadCachedFavorites(auth.userId);
+		if (cached?.exercises) {
+			setFavoriteExercises(cached.exercises);
+		}
+		if (!auth?.accessToken) {
+			return;
+		}
+		const refreshed = await refreshFavorites(auth.userId, auth.accessToken);
+		if (refreshed?.exercises) {
+			setFavoriteExercises(refreshed.exercises);
+		}
+	}, [auth?.accessToken, auth?.userId]);
+
 	useFocusEffect(
 		useCallback(() => {
 			load();
-		}, [load]),
+			loadFavoriteExercises();
+		}, [load, loadFavoriteExercises]),
 	);
 
 	useEffect(() => {
@@ -139,8 +167,15 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		saveTrainingInputMode(auth?.userId, mode);
 	};
 
+	const variantFavoriteOptions = item && hasDetailVariantFavorites(item)
+		? detailVariantOptions(item)
+		: [];
+
 	const toggle = async () => {
 		if (!auth?.accessToken || !item || (item.inactive && !item.favorite)) {
+			return;
+		}
+		if (hasDetailVariantFavorites(item)) {
 			return;
 		}
 		const result = item.favorite
@@ -168,6 +203,72 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 			await applyFavoriteRemoved(auth.userId, item.kind, item.id);
 		}
 	};
+
+	const toggleVariantFavorite = async (optionKey) => {
+		if (!auth?.accessToken || !item || item.inactive) {
+			return;
+		}
+		const option = variantFavoriteOptions.find((row) => row.id === optionKey);
+		if (!option) {
+			return;
+		}
+		const favorited = isVariantFavorited(favoriteExercises, option.exerciseKey, option.variant);
+		const result = favorited
+			? await removeTrainingFavorite(
+				auth.accessToken,
+				option.exerciseKey,
+				'exercise',
+				option.variant || null,
+			)
+			: await addTrainingFavorite(
+				auth.accessToken,
+				option.exerciseKey,
+				'exercise',
+				option.variant || null,
+			);
+		if (!result.ok) {
+			show(result.data?.message || 'Nie udało się zapisać.');
+			return;
+		}
+		if (result.data?.created) {
+			show(FAVORITE_ADDED);
+		}
+		if (result.data?.removed) {
+			show(FAVORITE_REMOVED);
+		}
+		const card = result.data?.item ?? {
+			id: option.exerciseKey,
+			exerciseKey: option.exerciseKey,
+			kind: 'exercise',
+			variant: option.variant || null,
+			name: item.name,
+			favorite: true,
+		};
+		if (favorited) {
+			const nextLists = await applyFavoriteRemoved(auth.userId, 'exercise', {
+				id: option.exerciseKey,
+				exerciseKey: option.exerciseKey,
+				variant: option.variant || null,
+			});
+			setFavoriteExercises(nextLists?.exercises ?? []);
+		} else {
+			const nextLists = await applyFavoriteCreated(auth.userId, 'exercise', card);
+			setFavoriteExercises(nextLists?.exercises ?? []);
+		}
+	};
+
+	const variantFavoriteProps = variantFavoriteOptions.length > 0
+		? {
+			isFavorite: (key) => {
+				const option = variantFavoriteOptions.find((row) => row.id === key);
+				return option
+					? isVariantFavorited(favoriteExercises, option.exerciseKey, option.variant)
+					: false;
+			},
+			onToggleFavorite: toggleVariantFavorite,
+			favoriteDisabled: Boolean(item?.inactive),
+		}
+		: {};
 
 	const meta = trainingMeta(item);
 	const showImage = Boolean(item?.imageUrl) && !imageFailed;
@@ -262,65 +363,108 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		return '';
 	};
 
+	const displayName = item
+		? (isClockKey(item.exerciseKey)
+			? CLOCK_NAME
+			: isBobsKey(item.exerciseKey)
+				? BOBS_NAME
+				: item.name)
+		: '';
+
+	const startAction = (() => {
+		if (playable) {
+			return {
+				label: 'Rozpocznij',
+				onPress: () => navigation.navigate('TrainingExercise', {
+					definition: isClockKey(item.exerciseKey)
+						? clockPlayDefinition(item, clockVariant)
+						: isBobsKey(item.exerciseKey)
+							? bobsPlayDefinition(item, bobsVariant)
+							: item,
+					inputMode: scoreInput ? inputMode : undefined,
+					variant: canPlayScoringPressure(item) ? variant : canPlayNineDarts(item) ? dartVariant : undefined,
+				}),
+			};
+		}
+		if (challengeStartable) {
+			return {
+				label: 'Rozpocznij',
+				onPress: () => navigation.navigate('TrainingChallenge', { definition: item }),
+			};
+		}
+		if (eventStartable) {
+			return {
+				label: 'Rozpocznij',
+				onPress: () => navigation.navigate('TrainingEvent', { event: item }),
+			};
+		}
+		if (planStartable) {
+			return {
+				label: 'Rozpocznij plan',
+				onPress: () => navigation.navigate('TrainingPlan', { plan: item }),
+			};
+		}
+		return null;
+	})();
+
+	const guideSections = libraryGuide
+		? [
+			{ key: 'goal', title: `Cel ${guideNoun}`, body: libraryGuide.goal },
+			{ key: 'how', title: 'Jak wykonywać ćwiczenia?', lines: libraryGuide.how },
+			{ key: 'scoring', title: 'Zasady punktacji', lines: libraryGuide.scoring },
+			{ key: 'limit', title: 'Czas / liczba lotek', body: libraryGuide.limit },
+		]
+		: [];
+
 	return (
-		<View style={styles.scroll}>
+		<View style={styles.screen}>
 			<TrainingNotice text={text} />
-			<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+			<ScrollView
+				style={styles.scroll}
+				contentContainerStyle={[styles.content, startAction ? styles.contentWithBar : null]}
+			>
 				{error ? <Text style={styles.empty}>{error}</Text> : null}
 				{item ? (
 				<View>
-					<View style={styles.head}>
+					<View style={styles.hero}>
 						{showImage ? (
 							<Image
 								source={{ uri: item.imageUrl }}
-								style={styles.mark}
+								style={styles.heroMark}
 								onError={() => setImageFailed(true)}
 							/>
 						) : (
-							<View style={styles.mark}>
-								<Text style={styles.initials}>{trainingInitials(item.name)}</Text>
+							<View style={styles.heroMark}>
+								<Text style={styles.heroInitials}>{trainingInitials(displayName)}</Text>
 							</View>
 						)}
-						<View style={styles.copy}>
-							<Text style={styles.title}>
-								{isClockKey(item.exerciseKey)
-									? CLOCK_NAME
-									: isBobsKey(item.exerciseKey)
-										? BOBS_NAME
-										: item.name}
-							</Text>
+						<View style={styles.heroCopy}>
+							{item.kind ? <TrainingKindChip kind={item.kind} style={styles.kindChip} /> : null}
+							<Text style={styles.title}>{displayName}</Text>
 							{meta ? <Text style={styles.meta}>{meta}</Text> : null}
 						</View>
-						<TrainingStar
-							favorite={item.favorite}
-							disabled={item.inactive && !item.favorite}
-							onPress={toggle}
-						/>
+						{hasDetailVariantFavorites(item) ? null : (
+							<TrainingStar
+								favorite={item.favorite}
+								disabled={item.inactive && !item.favorite}
+								onPress={toggle}
+							/>
+						)}
 					</View>
 					{item.inactive ? (
 						<Text style={styles.inactive}>Nieaktywne. Nie da się tego rozpocząć.</Text>
 					) : null}
 					{item.kind === 'challenge' ? (
-						<View style={styles.tabs}>
-							{[
-								['info', 'Opis'],
-								['ranking', 'Ranking'],
-								['history', 'Historia'],
-							].map(([key, label]) => {
-								const selected = challengeTab === key;
-								return (
-									<Pressable
-										key={key}
-										accessibilityRole="button"
-										accessibilityState={{ selected }}
-										onPress={() => setChallengeTab(key)}
-										style={[styles.tab, selected && styles.tabOn]}
-									>
-										<Text style={[styles.tabText, selected && styles.tabTextOn]}>{label}</Text>
-									</Pressable>
-								);
-							})}
-						</View>
+						<TrainingSegmentedControl
+							options={[
+								{ key: 'info', label: 'Opis' },
+								{ key: 'ranking', label: 'Ranking' },
+								{ key: 'history', label: 'Historia' },
+							]}
+							value={challengeTab}
+							onChange={setChallengeTab}
+							style={styles.tabs}
+						/>
 					) : null}
 					{(item.kind !== 'challenge' || challengeTab === 'info') && item.description ? (
 						<Text style={styles.description}>{item.description}</Text>
@@ -429,11 +573,15 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 													</Text>
 													<Text style={styles.previewMeta}>{planItemMeta(row)}</Text>
 												</Pressable>
-												{expanded && row.description ? (
-													<Text style={styles.previewDescription}>{row.description}</Text>
+												{expanded && row.kind === 'exercise' ? (
+													<Text style={styles.previewDescription}>
+														{row.description
+															|| libraryInstructionsFor(row)?.goal
+															|| 'Ćwiczenie z biblioteki treningowej.'}
+													</Text>
 												) : null}
-												{expanded && !row.description && row.kind === 'exercise' ? (
-													<Text style={styles.previewDescription}>Bez opisu.</Text>
+												{expanded && row.kind === 'break' && row.description ? (
+													<Text style={styles.previewDescription}>{row.description}</Text>
 												) : null}
 											</View>
 										);
@@ -444,175 +592,81 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 					) : null}
 					{scoreInput ? (
 						<View style={styles.modes}>
-							{[
-								[SCORING_MODES.SUM, 'Suma trzech rzutów'],
-								[SCORING_MODES.PER_DART, 'Każdy rzut osobno'],
-							].map(([mode, label]) => {
-								const selected = inputMode === mode;
-								return (
-									<Pressable
-										key={mode}
-										accessibilityRole="button"
-										accessibilityLabel={label}
-										accessibilityState={{ selected }}
-										onPress={() => chooseInputMode(mode)}
-										style={[styles.mode, styles.variant, selected && styles.variantOn]}
-									>
-										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{label}</Text>
-									</Pressable>
-								);
-							})}
+							<Text style={styles.variantCaption}>Tryb wpisywania</Text>
+							<TrainingSegmentedControl
+								options={[
+									{ key: SCORING_MODES.SUM, label: 'Suma 3 rzutów' },
+									{ key: SCORING_MODES.PER_DART, label: 'Każdy osobno' },
+								]}
+								value={inputMode}
+								onChange={chooseInputMode}
+							/>
 						</View>
 					) : null}
 					{canPlayNineDarts(item) ? (
 						<View style={styles.modes}>
 							<Text style={styles.variantCaption}>Wariant</Text>
-							{NINE_DARTS_VARIANTS.map((option) => {
-								const selected = dartVariant === option.id;
-								return (
-									<Pressable
-										key={option.id}
-										accessibilityRole="button"
-										accessibilityLabel={option.label}
-										accessibilityState={{ selected }}
-										onPress={() => setDartVariant(option.id)}
-										style={[styles.mode, styles.variant, selected && styles.variantOn]}
-									>
-										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{option.label}</Text>
-									</Pressable>
-								);
-							})}
+							<TrainingSegmentedControl
+								options={variantFavoriteOptions.map((option) => ({
+									key: option.id,
+									label: option.label,
+								}))}
+								value={dartVariant}
+								onChange={setDartVariant}
+								{...variantFavoriteProps}
+							/>
 						</View>
 					) : null}
 					{isClockKey(item.exerciseKey) ? (
 						<View style={styles.modes}>
 							<Text style={styles.variantCaption}>Wariant</Text>
-							{CLOCK_VARIANTS.map((option) => {
-								const selected = clockVariant === option.id;
-								return (
-									<Pressable
-										key={option.id}
-										accessibilityRole="button"
-										accessibilityLabel={option.label}
-										accessibilityState={{ selected }}
-										onPress={() => setClockVariant(option.id)}
-										style={[styles.mode, styles.variant, selected && styles.variantOn]}
-									>
-										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{option.label}</Text>
-									</Pressable>
-								);
-							})}
+							<TrainingSegmentedControl
+								options={variantFavoriteOptions.map((option) => ({
+									key: option.id,
+									label: option.label,
+								}))}
+								value={clockVariant}
+								onChange={setClockVariant}
+								{...variantFavoriteProps}
+							/>
 						</View>
 					) : null}
 					{isBobsKey(item.exerciseKey) ? (
 						<View style={styles.modes}>
 							<Text style={styles.variantCaption}>Wariant</Text>
-							{BOBS_VARIANTS.map((option) => {
-								const selected = bobsVariant === option.id;
-								return (
-									<Pressable
-										key={option.id}
-										accessibilityRole="button"
-										accessibilityLabel={option.label}
-										accessibilityState={{ selected }}
-										onPress={() => setBobsVariant(option.id)}
-										style={[styles.mode, styles.variant, selected && styles.variantOn]}
-									>
-										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{option.label}</Text>
-									</Pressable>
-								);
-							})}
+							<TrainingSegmentedControl
+								options={variantFavoriteOptions.map((option) => ({
+									key: option.id,
+									label: option.label,
+								}))}
+								value={bobsVariant}
+								onChange={setBobsVariant}
+								{...variantFavoriteProps}
+							/>
 						</View>
 					) : null}
 					{canPlayScoringPressure(item) ? (
 						<View style={styles.modes}>
 							<Text style={styles.variantCaption}>Wariant</Text>
-							{SCORING_PRESSURE_VARIANTS.map((option) => {
-								const selected = variant === option;
-								return (
-									<Pressable
-										key={option}
-										accessibilityRole="button"
-										accessibilityLabel={`Wariant ${option}`}
-										accessibilityState={{ selected }}
-										onPress={() => setVariant(option)}
-										style={[styles.mode, styles.variant, selected && styles.variantOn]}
-									>
-										<Text style={[styles.modeText, selected && styles.variantTextOn]}>{option}</Text>
-									</Pressable>
-								);
-							})}
+							<TrainingSegmentedControl
+								options={variantFavoriteOptions.map((option) => ({
+									key: option.id,
+									label: option.label,
+								}))}
+								value={variant}
+								onChange={setVariant}
+								{...variantFavoriteProps}
+							/>
 						</View>
 					) : null}
 					{libraryGuide && (item.kind !== 'challenge' || challengeTab === 'info') ? (
-						<View style={styles.guide}>
-							<Text style={styles.guideHeading}>Cel {guideNoun}</Text>
-							<Text style={styles.guideBody}>{libraryGuide.goal}</Text>
-							<Text style={styles.guideHeading}>Jak wykonywać ćwiczenia?</Text>
-							{libraryGuide.how.map((line, index) => (
-								<Text key={`how-${index}`} style={styles.guideBody}>{line}</Text>
-							))}
-							<Text style={styles.guideHeading}>Zasady punktacji</Text>
-							{libraryGuide.scoring.map((line, index) => (
-								<Text key={`score-${index}`} style={styles.guideBody}>{line}</Text>
-							))}
-							<Text style={styles.guideHeading}>Czas / liczba lotek</Text>
-							<Text style={styles.guideBody}>{libraryGuide.limit}</Text>
-						</View>
-					) : null}
-					{playable ? (
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Rozpocznij"
-							style={styles.start}
-							onPress={() => navigation.navigate('TrainingExercise', {
-								definition: isClockKey(item.exerciseKey)
-									? clockPlayDefinition(item, clockVariant)
-									: isBobsKey(item.exerciseKey)
-										? bobsPlayDefinition(item, bobsVariant)
-										: item,
-								inputMode: scoreInput ? inputMode : undefined,
-								variant: canPlayScoringPressure(item) ? variant : canPlayNineDarts(item) ? dartVariant : undefined,
-							})}
-						>
-							<Text style={styles.startText}>Rozpocznij</Text>
-						</Pressable>
-					) : null}
-					{challengeStartable ? (
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Rozpocznij wyzwanie"
-							style={styles.start}
-							onPress={() => navigation.navigate('TrainingChallenge', { definition: item })}
-						>
-							<Text style={styles.startText}>Rozpocznij</Text>
-						</Pressable>
-					) : null}
-					{eventStartable ? (
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Rozpocznij event"
-							style={styles.start}
-							onPress={() => navigation.navigate('TrainingEvent', { event: item })}
-						>
-							<Text style={styles.startText}>Rozpocznij</Text>
-						</Pressable>
+						<TrainingGuideAccordion sections={guideSections} />
 					) : null}
 					{item?.kind === 'event' && item.status === 'finished' ? (
 						<Text style={styles.meta}>Event zakończony. Zobacz klasyfikację w Analizie (medale).</Text>
 					) : null}
 					{item?.kind === 'event' && item.status === 'paused' ? (
 						<Text style={styles.inactive}>Event wstrzymany. Otwarte próby można dokończyć z banera.</Text>
-					) : null}
-					{planStartable ? (
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Rozpocznij plan"
-							style={styles.start}
-							onPress={() => navigation.navigate('TrainingPlan', { plan: item })}
-						>
-							<Text style={styles.startText}>Rozpocznij plan</Text>
-						</Pressable>
 					) : null}
 					{item.kind === 'exercise' && !item.inactive && !playable ? (
 						<Text style={styles.later}>To ćwiczenie nie jest jeszcze dostępne.</Text>
@@ -623,11 +677,21 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 				</View>
 				) : null}
 			</ScrollView>
+			{startAction ? (
+				<TrainingStickyStartBar
+					label={startAction.label}
+					onPress={startAction.onPress}
+				/>
+			) : null}
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
+	screen: {
+		flex: 1,
+		backgroundColor: colors.bg,
+	},
 	scroll: {
 		flex: 1,
 		backgroundColor: colors.bg,
@@ -639,34 +703,47 @@ const styles = StyleSheet.create({
 		maxWidth: 480,
 		alignSelf: 'center',
 	},
-	head: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 12,
+	contentWithBar: {
+		paddingBottom: 32,
 	},
-	mark: {
-		width: 64,
-		height: 64,
-		borderRadius: 14,
+	hero: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		gap: 14,
+		paddingBottom: 4,
+	},
+	heroMark: {
+		width: 76,
+		height: 76,
+		borderRadius: 18,
 		backgroundColor: colors.accentMuted,
+		borderWidth: 1,
+		borderColor: colors.accentBorder,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
-	initials: {
+	heroInitials: {
 		color: colors.accent,
-		fontSize: 18,
-		fontWeight: '700',
+		fontSize: 22,
+		fontWeight: '800',
 	},
-	copy: {
+	heroCopy: {
 		flex: 1,
+		minWidth: 0,
+		paddingTop: 2,
+	},
+	kindChip: {
+		marginBottom: 8,
 	},
 	title: {
-		fontSize: 22,
-		fontWeight: '600',
+		fontSize: 24,
+		fontWeight: '800',
 		color: colors.text,
+		letterSpacing: -0.3,
+		lineHeight: 30,
 	},
 	meta: {
-		marginTop: 4,
+		marginTop: 6,
 		color: colors.textMuted,
 		fontSize: 14,
 		lineHeight: 20,
@@ -683,68 +760,17 @@ const styles = StyleSheet.create({
 		fontSize: 15,
 		lineHeight: 22,
 	},
-	guide: {
-		marginTop: 20,
-		gap: 6,
-	},
-	guideHeading: {
-		marginTop: 10,
-		color: colors.text,
-		fontSize: 15,
-		fontWeight: '700',
-	},
-	guideBody: {
-		color: colors.textSecondary,
-		fontSize: 14,
-		lineHeight: 21,
-	},
 	modes: {
-		marginTop: 24,
+		marginTop: 22,
 		gap: 8,
 	},
 	variantCaption: {
 		color: colors.textMuted,
 		fontSize: 13,
 		fontWeight: '700',
-		marginBottom: 4,
-	},
-	mode: {
-		minHeight: 48,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.border,
-		backgroundColor: colors.bgElevated,
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingHorizontal: 16,
-	},
-	variant: {
-		borderWidth: 2,
-	},
-	variantOn: {
-		backgroundColor: colors.bgElevated,
-		borderColor: colors.accent,
-	},
-	modeText: {
-		color: colors.text,
-		fontSize: 16,
-		fontWeight: '700',
-	},
-	variantTextOn: {
-		color: colors.accent,
-	},
-	start: {
-		marginTop: 24,
-		minHeight: 48,
-		borderRadius: 10,
-		backgroundColor: colors.accent,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	startText: {
-		color: colors.onAccent,
-		fontSize: 16,
-		fontWeight: '700',
+		marginBottom: 2,
+		textTransform: 'uppercase',
+		letterSpacing: 0.4,
 	},
 	later: {
 		marginTop: 24,
@@ -756,10 +782,11 @@ const styles = StyleSheet.create({
 		marginTop: 20,
 	},
 	previewToggle: {
-		minHeight: 44,
-		borderRadius: 10,
+		minHeight: 46,
+		borderRadius: 12,
 		borderWidth: 1,
-		borderColor: colors.border,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingHorizontal: 12,
@@ -776,8 +803,9 @@ const styles = StyleSheet.create({
 	previewRow: {
 		borderWidth: 1,
 		borderColor: colors.border,
-		borderRadius: 10,
+		borderRadius: 12,
 		overflow: 'hidden',
+		backgroundColor: colors.bgElevated,
 	},
 	previewHead: {
 		flexDirection: 'row',
@@ -786,7 +814,6 @@ const styles = StyleSheet.create({
 		gap: 8,
 		paddingHorizontal: 12,
 		paddingVertical: 12,
-		backgroundColor: colors.bgElevated,
 	},
 	previewName: {
 		flex: 1,
@@ -809,35 +836,16 @@ const styles = StyleSheet.create({
 		borderTopColor: colors.border,
 	},
 	tabs: {
-		flexDirection: 'row',
-		gap: 8,
-		marginTop: 16,
-	},
-	tab: {
-		flex: 1,
-		minHeight: 40,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.border,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.bgElevated,
-	},
-	tabOn: {
-		borderColor: colors.accent,
-		backgroundColor: colors.accentMuted,
-	},
-	tabText: {
-		color: colors.textSecondary,
-		fontSize: 13,
-		fontWeight: '600',
-	},
-	tabTextOn: {
-		color: colors.accent,
+		marginTop: 18,
 	},
 	challengeBlock: {
 		marginTop: 16,
 		gap: 8,
+		padding: 12,
+		borderRadius: 14,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
 	},
 	rankRow: {
 		flexDirection: 'row',
@@ -851,6 +859,7 @@ const styles = StyleSheet.create({
 		marginTop: 8,
 		borderTopWidth: StyleSheet.hairlineWidth,
 		borderTopColor: colors.border,
+		paddingTop: 10,
 	},
 	rankPlace: {
 		width: 28,

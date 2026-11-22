@@ -128,18 +128,79 @@ export function extendBreak(breakState, extraMs = 60000, now = Date.now()) {
 	};
 }
 
-export function aimsFromCompletion(record) {
-	const aims = record?.stats?.aims;
-	if (!Array.isArray(aims)) {
-		return [];
+/** Stare etykiety etapów 9 dartów → klucze pierścieni (bez zbiorczego „20, 19 i 18”). */
+function normalizeAimLabel(raw) {
+	const label = typeof raw === 'string' ? raw.trim() : '';
+	if (!label) {
+		return '';
 	}
-	return aims
-		.filter((row) => row && typeof row.aim === 'string')
-		.map((row) => ({
-			aim: row.aim,
-			attempts: Number(row.attempts) || 0,
-			hits: Number(row.hits) || 0,
-		}));
+	if (label === '20, 19 i 18' || label === '20, 19, 18') {
+		return '';
+	}
+	const sector = /^Sektor\s+(\d+)$/i.exec(label);
+	if (sector) {
+		return sector[1];
+	}
+	return label;
+}
+
+export function aimsFromCompletion(record) {
+	const rows = [];
+	const aims = record?.stats?.aims;
+	const hasAims = Array.isArray(aims) && aims.length > 0;
+	if (hasAims) {
+		for (const row of aims) {
+			const aim = normalizeAimLabel(row?.aim);
+			if (!aim) {
+				continue;
+			}
+			rows.push({
+				aim,
+				attempts: Math.max(0, Math.trunc(Number(row.attempts) || 0)),
+				hits: Math.max(0, Math.trunc(Number(row.hits) || 0)),
+			});
+		}
+	}
+	const doubles = record?.stats?.doubles;
+	if (Array.isArray(doubles)) {
+		for (const row of doubles) {
+			const aim = normalizeAimLabel(
+				typeof row?.aim === 'string' && row.aim
+					? row.aim
+					: (typeof row?.label === 'string' ? row.label : ''),
+			);
+			if (!aim) {
+				continue;
+			}
+			rows.push({
+				aim,
+				attempts: Math.max(0, Math.trunc(Number(row.attempts) || 0)),
+				hits: Math.max(0, Math.trunc(Number(row.hits) || 0)),
+			});
+		}
+	}
+	// Etapy tylko gdy brak aims — inaczej podwójne liczenie (np. nine_darts).
+	if (!hasAims) {
+		const stages = record?.stats?.stages;
+		if (Array.isArray(stages)) {
+			for (const row of stages) {
+				const aim = normalizeAimLabel(
+					typeof row?.aim === 'string' && row.aim
+						? row.aim
+						: (typeof row?.label === 'string' ? row.label : ''),
+				);
+				if (!aim) {
+					continue;
+				}
+				rows.push({
+					aim,
+					attempts: Math.max(0, Math.trunc(Number(row.attempts) || 0)),
+					hits: Math.max(0, Math.trunc(Number(row.hits) || 0)),
+				});
+			}
+		}
+	}
+	return mergeAims([rows]);
 }
 
 export function mergeAims(lists) {
@@ -159,9 +220,10 @@ export function mergeAims(lists) {
 		.filter((row) => row.attempts > 0)
 		.map((row) => ({
 			...row,
+			hits: Math.min(row.hits, row.attempts),
 			percent: row.attempts > 0 ? Math.round((1000 * row.hits) / row.attempts) / 10 : 0,
 		}))
-		.sort((a, b) => a.aim.localeCompare(b.aim, 'pl'));
+		.sort((a, b) => (b.percent - a.percent) || a.aim.localeCompare(b.aim, 'pl'));
 }
 
 export function recordExerciseResult(hang, item, completion, status = 'completed') {
@@ -230,19 +292,26 @@ export function finalizeHang(hang, completedAt = new Date().toISOString()) {
 	const score = results.reduce((sum, row) => sum + (Number(row.contribution) || 0), 0);
 	const aims = mergeAims(results.map((row) => row.aims));
 	const items = results.map((row) => {
-		const item = {
+		const rawScore = row.score;
+		const score = rawScore == null || rawScore === ''
+			? null
+			: Math.trunc(Number(rawScore));
+		return {
 			position: row.position,
 			kind: row.kind,
-			exerciseKey: row.exerciseKey,
+			exerciseKey: row.kind === 'break' ? null : row.exerciseKey,
 			status: row.status,
-			score: row.score,
+			score: Number.isFinite(score) ? score : null,
 			scored: Boolean(row.scored),
-			aims: row.aims || [],
+			aims: (row.aims || []).map((aim) => ({
+				aim: aim.aim,
+				attempts: Math.max(0, Math.trunc(Number(aim.attempts) || 0)),
+				hits: Math.min(
+					Math.max(0, Math.trunc(Number(aim.hits) || 0)),
+					Math.max(0, Math.trunc(Number(aim.attempts) || 0)),
+				),
+			})).filter((aim) => aim.attempts > 0),
 		};
-		if (row.kind === 'exercise' && row.status === 'completed' && row.stats && typeof row.stats === 'object') {
-			item.stats = row.stats;
-		}
-		return item;
 	});
 	return {
 		...hang,
