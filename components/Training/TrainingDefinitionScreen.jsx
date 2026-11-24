@@ -36,7 +36,8 @@ import { canPlayBullCounter } from '../../helpers/training/bullCounterExercise';
 import { canPlayNineDarts } from '../../helpers/training/nineDartsExercise';
 import { canPlaySectorClock } from '../../helpers/training/sectorClockExercise';
 import { canPlaySingles } from '../../helpers/training/singlesUnderPressureExercise';
-import { canPlayFiftyFourDart } from '../../helpers/training/fiftyFourDartChallenge';
+import { canPlayChallenge } from '../../helpers/training/challengeSession';
+import { canPlayShanghaiDoubles } from '../../helpers/training/shanghaiDoublesExercises';
 import {
 	detailVariantOptions,
 	hasDetailVariantFavorites,
@@ -49,6 +50,7 @@ import {
 	fetchChallengeAttempts,
 	fetchChallengeRanking,
 	fetchTrainingDefinition,
+	publishChallengeSession,
 	removeTrainingFavorite,
 	withdrawChallengePublication,
 } from '../../helpers/training/trainingApi';
@@ -83,6 +85,7 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const [ranking, setRanking] = useState(null);
 	const [attempts, setAttempts] = useState(null);
 	const [rankingLoading, setRankingLoading] = useState(false);
+	const [publishingAttemptId, setPublishingAttemptId] = useState(null);
 	const [favoriteExercises, setFavoriteExercises] = useState([]);
 
 	const applyDefinition = (definition) => {
@@ -300,9 +303,10 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 			|| canPlayScoring65(item)
 			|| canPlayScoringPressure(item)
 			|| canPlaySingles(item)
+			|| canPlayShanghaiDoubles(item)
 		),
 	);
-	const challengeStartable = Boolean(item && canPlayFiftyFourDart(item));
+	const challengeStartable = Boolean(item && canPlayChallenge(item));
 	const planStartable = Boolean(isPlan && !item.inactive && planItems.length > 0);
 	const eventStartable = Boolean(
 		item
@@ -337,6 +341,29 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 			loadChallengeExtras();
 		}
 	}, [item?.kind, challengeTab, loadChallengeExtras]);
+
+	const canPublishAttempt = (row) => {
+		if (!row?.id || row.published) {
+			return false;
+		}
+		const publishedScore = attempts?.publishedScore;
+		return publishedScore == null || Number(row.score) > Number(publishedScore);
+	};
+
+	const publishAttempt = async (row) => {
+		if (!auth?.accessToken || !row?.id || publishingAttemptId || !canPublishAttempt(row)) {
+			return;
+		}
+		setPublishingAttemptId(row.id);
+		const result = await publishChallengeSession(auth.accessToken, row.id);
+		setPublishingAttemptId(null);
+		if (!result.ok) {
+			show(result.data?.message || 'Nie udało się opublikować.');
+			return;
+		}
+		show(result.data?.message || 'Opublikowano.');
+		await loadChallengeExtras();
+	};
 
 	const togglePreviewRow = (position) => {
 		setPreviewRows((prev) => {
@@ -531,12 +558,27 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 								<Text style={styles.empty}>Brak ukończonych prób.</Text>
 							) : (
 								(attempts?.items || []).map((row) => (
-									<View key={row.id} style={styles.rankRow}>
-										<Text style={styles.rankName}>
-											{row.completedAt ? new Date(row.completedAt).toLocaleDateString('pl-PL') : '—'}
-											{row.published ? ' · opublikowane' : ''}
-										</Text>
-										<Text style={styles.rankScore}>{row.score}</Text>
+									<View key={row.id} style={styles.attemptRow}>
+										<View style={styles.rankRow}>
+											<Text style={styles.rankName}>
+												{row.completedAt ? new Date(row.completedAt).toLocaleDateString('pl-PL') : '—'}
+												{row.published ? ' · opublikowane' : ''}
+											</Text>
+											<Text style={styles.rankScore}>{row.score}</Text>
+										</View>
+										{canPublishAttempt(row) ? (
+											<Pressable
+												accessibilityRole="button"
+												accessibilityLabel="Opublikuj wynik"
+												style={styles.publishAttempt}
+												disabled={publishingAttemptId != null}
+												onPress={() => publishAttempt(row)}
+											>
+												<Text style={styles.publishAttemptText}>
+													{publishingAttemptId === row.id ? 'Publikowanie…' : 'Opublikuj wynik'}
+												</Text>
+											</Pressable>
+										) : null}
 									</View>
 								))
 							)}
@@ -847,13 +889,27 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.bgElevated,
 	},
+	attemptRow: {
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: colors.border,
+		paddingBottom: 4,
+	},
 	rankRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 10,
 		paddingVertical: 10,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
+	},
+	publishAttempt: {
+		alignSelf: 'flex-start',
+		paddingVertical: 6,
+		paddingHorizontal: 2,
+		marginBottom: 6,
+	},
+	publishAttemptText: {
+		color: colors.accent,
+		fontSize: 14,
+		fontWeight: '700',
 	},
 	rankMine: {
 		marginTop: 8,

@@ -40,9 +40,13 @@ import {
 	visibleRemainingMs,
 	TICK_MS,
 } from '../../helpers/training/sectorClockExercise';
+import useTrainingKeepAwake from '../../hooks/useTrainingKeepAwake';
+import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryInstructions';
 import { colors } from '../../theme/colors';
 import TrainingAimRings from './TrainingAimRings';
 import TrainingExerciseScreen from './TrainingExerciseScreen';
+import TrainingHelpModal, { helpSectionsFromGuide } from './TrainingHelpModal';
+import TrainingPlayTimer from './TrainingPlayTimer';
 
 const MENU = 'menu';
 const SKIP = 'skip';
@@ -56,6 +60,7 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 	const [hang, setHang] = useState(null);
 	const [now, setNow] = useState(() => Date.now());
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [helpOpen, setHelpOpen] = useState(false);
 	const [prompt, setPrompt] = useState(null);
 	const hangRef = useRef(null);
 	const leaving = useRef(false);
@@ -64,6 +69,8 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 	const accessTokenRef = useRef(accessToken);
 	userIdRef.current = userId;
 	accessTokenRef.current = accessToken;
+
+	useTrainingKeepAwake(hang?.phase === 'running');
 
 	const persist = useCallback(async (next) => {
 		hangRef.current = next;
@@ -151,6 +158,26 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 		}, 250);
 		return () => clearInterval(tick);
 	}, [hang?.index, hang?.break?.endsAt, hang?.break?.paused, hang?.paused, hang?.phase]);
+
+	const helpBreakRef = useRef(false);
+	useEffect(() => {
+		const current = hangRef.current;
+		if (!current || current.phase !== 'running' || !current.break) {
+			return;
+		}
+		if (helpOpen && !current.paused && !current.break.paused) {
+			helpBreakRef.current = true;
+			void persist({ ...current, break: pauseBreak(current.break) });
+			return;
+		}
+		if (!helpOpen && helpBreakRef.current) {
+			helpBreakRef.current = false;
+			const live = hangRef.current;
+			if (live?.break?.paused && !live.paused) {
+				void persist({ ...live, break: resumeBreak(live.break) });
+			}
+		}
+	}, [helpOpen, persist]);
 
 	useEffect(() => {
 		const unsubscribe = navigation.addListener('beforeRemove', (event) => {
@@ -320,13 +347,24 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 		? slotToExerciseDefinition(hang.plan, item)
 		: null;
 	const exerciseKey = `${hang?.clientSessionId || 'plan'}-${hang?.index ?? 0}-${item?.exerciseKey || 'x'}`;
+	const planPaused = Boolean(hang?.paused || helpOpen);
+	const helpGuide = libraryInstructionsFor(exerciseDefinition || item, {
+		dartVariant: item?.dartCount,
+		pressureVariant: slotVariant(item),
+	});
+	const helpSections = helpSectionsFromGuide(helpGuide);
+	const helpFallback = item?.kind === 'break'
+		? (item.description || 'Przerwa w planie treningowym.')
+		: (exerciseDefinition?.description || item?.description || null);
 
 	const planHost = (!hang || hang.phase !== 'running' || item?.kind !== 'exercise' || !exerciseDefinition)
 		? null
 		: {
 			definition: exerciseDefinition,
 			inputMode: hang.inputMode,
-			paused: hang.paused,
+			paused: planPaused,
+			allowManualPause: true,
+			onTogglePause: togglePause,
 			initialSession: hang.exerciseSession,
 			onSessionChange: (session) => {
 				const live = hangRef.current;
@@ -382,24 +420,24 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 			<View style={styles.chrome}>
 				<Text style={styles.progress}>{progress}</Text>
 				<Text style={styles.title}>{title}</Text>
-				{hang.paused ? <Text style={styles.paused}>Pauza</Text> : null}
+				{planPaused ? <Text style={styles.paused}>Pauza</Text> : null}
 			</View>
 
 			{item?.kind === 'break' && breakState ? (
 				<View style={styles.breakBody}>
-					<Text style={styles.clockCaption}>Zostało</Text>
-					<Text style={[styles.clockValue, breakRemaining <= TICK_MS && styles.clockUrgent]}>
-						{formatRemaining(breakRemaining)}
-					</Text>
-					<View style={styles.clockTrack}>
-						<View style={[styles.clockFill, { width: `${breakProgress * 100}%` }]} />
-					</View>
+					<TrainingPlayTimer
+						value={formatRemaining(breakRemaining)}
+						progress={breakProgress}
+						urgent={breakRemaining <= TICK_MS}
+						paused={planPaused}
+						onTogglePause={togglePause}
+					/>
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Dodaj minutę"
-						disabled={hang.paused}
+						disabled={planPaused}
 						onPress={addMinute}
-						style={[styles.secondary, hang.paused && styles.disabled]}
+						style={[styles.secondary, planPaused && styles.disabled]}
 					>
 						<Text style={styles.secondaryText}>+1 minuta</Text>
 					</Pressable>
@@ -433,6 +471,16 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 							accessibilityRole="button"
 							onPress={() => {
 								setMenuOpen(false);
+								setHelpOpen(true);
+							}}
+							style={styles.menuItem}
+						>
+							<Text style={styles.menuItemText}>Pomoc</Text>
+						</Pressable>
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => {
+								setMenuOpen(false);
 								setPrompt(SKIP);
 							}}
 							style={styles.menuItem}
@@ -454,6 +502,13 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 					</View>
 				</Pressable>
 			</Modal>
+
+			<TrainingHelpModal
+				visible={helpOpen}
+				sections={helpSections}
+				fallbackText={helpFallback}
+				onClose={() => setHelpOpen(false)}
+			/>
 
 			<ConfirmSheet
 				prompt={prompt}

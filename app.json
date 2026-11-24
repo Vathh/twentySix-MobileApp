@@ -3,7 +3,7 @@
     "name": "twentySix",
     "slug": "twentysix",
     "scheme": "twentysix",
-    "version": "1.0.20",
+    "version": "1.0.21",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,13 +25,14 @@
         "backgroundColor": "#000000"
       },
       "package": "app.twentysix.mobile",
-      "versionCode": 21,
+      "versionCode": 22,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withOptionalAndroidHardwareFeatures",
       [
         "expo-build-properties",
         {

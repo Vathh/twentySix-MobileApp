@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import useAuth from '../../hooks/useAuth';
+import useTrainingKeepAwake from '../../hooks/useTrainingKeepAwake';
 import { createClientSessionId } from '../../helpers/training/clientSessionId';
 import {
 	CLOCK_MECHANIC,
@@ -22,7 +23,10 @@ import {
 	looseThrowsCompletion,
 	startLooseThrowsSession,
 } from '../../helpers/training/looseThrowsExercise';
-import { LOOSE_THROWS_AIM_TEXT } from '../../helpers/training/exerciseLibraryInstructions';
+import {
+	LOOSE_THROWS_AIM_TEXT,
+	libraryInstructionsFor,
+} from '../../helpers/training/exerciseLibraryInstructions';
 import {
 	NINE_DARTS_MECHANIC,
 	canPlayNineDarts,
@@ -138,6 +142,16 @@ import CheckoutBull81Board from './CheckoutBull81Board';
 import Scoring65Board from './Scoring65Board';
 import NineDartsBoard from './NineDartsBoard';
 import ScoringPressureBoard from './ScoringPressureBoard';
+import ShanghaiDoublesBoard from './ShanghaiDoublesBoard';
+import {
+	canPlayShanghaiDoubles,
+	currentShanghaiDoublesTarget,
+	recordShanghaiDoublesDart,
+	shanghaiDoublesCompletion,
+	startShanghaiDoublesSession,
+	undoShanghaiDoublesDart,
+	isShanghaiDoublesKey,
+} from '../../helpers/training/shanghaiDoublesExercises';
 import {
 	SECTOR_AIM_TEXT,
 	SECTOR_CLOCK_MECHANIC,
@@ -154,12 +168,13 @@ import {
 	visibleRemainingMs,
 } from '../../helpers/training/sectorClockExercise';
 import { formatAverage } from '../../helpers/formatAverage';
-import { playFinalBell, playTicking, stopTicking } from '../../helpers/gameSounds/playGameSound';
+import { playClick, playFinalBell, playTicking, stopTicking } from '../../helpers/gameSounds/playGameSound';
 import SectorTargetReel from './SectorTargetReel';
 import TrainingPlayChrome from './TrainingPlayChrome';
 import TrainingPlayScore from './TrainingPlayScore';
 import TrainingPlayTimer from './TrainingPlayTimer';
 import TrainingSessionResult from './TrainingSessionResult';
+import TrainingHelpModal, { helpSectionsFromGuide } from './TrainingHelpModal';
 import { rememberRecentTraining } from '../../helpers/training/recentTrainingStore';
 import { aimsFromCompletion } from '../../helpers/training/planSession';
 import { syncLabel } from '../../helpers/training/trainingSessionSync';
@@ -296,7 +311,12 @@ function canPlay(definition) {
 		|| canPlayCheckoutBull81(definition)
 		|| canPlayScoring65(definition)
 		|| canPlayScoringPressure(definition)
-		|| canPlaySingles(definition);
+		|| canPlaySingles(definition)
+		|| canPlayShanghaiDoubles(definition);
+}
+
+function isShanghaiDoubles(sessionOrDefinition) {
+	return isShanghaiDoublesKey(sessionOrDefinition?.exerciseKey || sessionOrDefinition?.mechanic);
 }
 
 function isSectorClock(sessionOrDefinition) {
@@ -419,6 +439,9 @@ function startSession(definition, inputMode, variant) {
 	if (canPlayNineDarts(definition)) {
 		return startNineDartsSession(definition, clientSessionId, variant);
 	}
+	if (canPlayShanghaiDoubles(definition)) {
+		return startShanghaiDoublesSession(definition, clientSessionId);
+	}
 	if (canPlayBob27Easy(definition)) {
 		return startBob27EasySession(definition, clientSessionId);
 	}
@@ -440,6 +463,9 @@ function completionFor(session, completedAt) {
 	}
 	if (isNineDarts(session)) {
 		return nineDartsCompletion(session, completedAt);
+	}
+	if (isShanghaiDoubles(session)) {
+		return shanghaiDoublesCompletion(session, completedAt);
 	}
 	if (isBob27Easy(session)) {
 		return bob27EasyCompletion(session, completedAt);
@@ -477,7 +503,6 @@ function completionFor(session, completedAt) {
 const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const definition = planHost?.definition ?? route?.params?.definition;
 	const planMode = Boolean(planHost);
-	const planPaused = Boolean(planHost?.paused);
 	const { auth } = useAuth();
 	const userId = auth?.userId;
 	const accessToken = auth?.accessToken;
@@ -486,6 +511,9 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const sessionRef = useRef(null);
 	const [prompt, setPrompt] = useState(null);
 	const [summary, setSummary] = useState(null);
+	const [localPaused, setLocalPaused] = useState(false);
+	const [helpOpen, setHelpOpen] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 	const summaryId = useRef(null);
 	const leaving = useRef(false);
 	const userIdRef = useRef(userId);
@@ -495,8 +523,16 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	accessTokenRef.current = accessToken;
 
 	const playing = session?.status === 'playing' && !summary;
+	const timed = Boolean(session && isTimed(session));
+	const allowManualPause = planMode
+		? Boolean(planHost?.allowManualPause)
+		: timed;
+	const helpFreezesTimer = helpOpen && allowManualPause && timed;
+	const planPaused = Boolean(planHost?.paused) || localPaused || helpFreezesTimer;
 	const interactive = playing && !planPaused;
 	const started = useRef(false);
+
+	useTrainingKeepAwake(playing && !planMode);
 
 	const begin = (nextDefinition, nextUserId, inputMode, variant) => {
 		const restored = planHost?.initialSession;
@@ -510,6 +546,9 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		sessionRef.current = next;
 		setPrompt(null);
 		setSummary(null);
+		setLocalPaused(false);
+		setHelpOpen(false);
+		setMenuOpen(false);
 		summaryId.current = null;
 		setSession(next);
 		planHost?.onSessionChange?.(next);
@@ -547,8 +586,41 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		}
 		navigation.setOptions({
 			title: headingVariant ? `${headingName}, ${headingVariant}` : headingName,
+			headerRight: () => (
+				playing ? (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Menu ćwiczenia"
+						onPress={() => setMenuOpen(true)}
+						hitSlop={12}
+						style={styles.menuButton}
+					>
+						<Text style={styles.menuButtonText}>⋯</Text>
+					</Pressable>
+				) : null
+			),
 		});
-	}, [navigation, headingName, headingVariant, planMode]);
+	}, [navigation, headingName, headingVariant, planMode, playing]);
+
+	const toggleLocalPause = () => {
+		if (!allowManualPause || planMode) {
+			return;
+		}
+		setLocalPaused((value) => !value);
+	};
+
+	const openHelp = () => {
+		setMenuOpen(false);
+		setHelpOpen(true);
+	};
+
+	const helpGuide = libraryInstructionsFor(session || definition, {
+		dartVariant: session?.dartCount || definition?.dartCount,
+		pressureVariant: session?.variant || definition?.variant || route?.params?.variant,
+		clockVariant: undefined,
+		bobsVariant: undefined,
+	});
+	const helpSections = helpSectionsFromGuide(helpGuide);
 
 	useEffect(() => {
 		const current = sessionRef.current;
@@ -849,7 +921,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 					: isDoublesClock(session)
 						? DOUBLES_AIM_TEXT
 						: AIM_TEXT;
-	const timed = isTimed(session);
 	const remaining = timed ? visibleRemainingMs(session, now) : 0;
 	const duration = timed ? session.durationMs : 0;
 	const elapsed = Math.max(0, duration - remaining);
@@ -876,8 +947,14 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	const boardDisabled = Boolean(prompt) || planPaused;
 	const resultView = summary ? summaryPresentation(summary) : null;
 	const summaryAims = summary ? aimsFromCompletion(summary) : [];
+	const pauseHandler = !playing || !timed
+		? null
+		: planMode
+			? (allowManualPause && planHost?.onTogglePause ? planHost.onTogglePause : null)
+			: toggleLocalPause;
 
 	return (
+		<>
 		<TrainingPlayChrome
 			title={headingName}
 			subtitle={headingVariant || undefined}
@@ -889,6 +966,8 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 					value={clockLabel}
 					progress={progress}
 					urgent={clockUrgent}
+					paused={planPaused}
+					onTogglePause={pauseHandler}
 				/>
 			) : null}
 			abortVisible={prompt === 'abort'}
@@ -904,6 +983,8 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							progress={progress}
 							urgent={clockUrgent}
 							compact
+							paused={planPaused}
+							onTogglePause={pauseHandler}
 						/>
 					</View>
 				) : null}
@@ -921,6 +1002,31 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							applySession(recordNineDart(current, dart));
 						}}
 						onUndo={undo}
+					/>
+				) : null}
+				{playing && isShanghaiDoubles(session) ? (
+					<ShanghaiDoublesBoard
+						target={currentShanghaiDoublesTarget(session)}
+						disabled={boardDisabled}
+						undoDisabled={session.darts.length === 0}
+						onDart={(ring) => {
+							const current = sessionRef.current;
+							if (!current || current.status !== 'playing' || prompt) {
+								return;
+							}
+							const { session: next, visitClosed } = recordShanghaiDoublesDart(current, ring);
+							applySession(next);
+							if (visitClosed) {
+								playClick();
+							}
+						}}
+						onUndo={() => {
+							const current = sessionRef.current;
+							if (!current || current.status !== 'playing' || prompt) {
+								return;
+							}
+							applySession(undoShanghaiDoublesDart(current));
+						}}
 					/>
 				) : null}
 				{playing && catch20 && !catch20.finished ? (
@@ -1234,10 +1340,72 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 					</TrainingSessionResult>
 				) : null}
 		</TrainingPlayChrome>
+		{!planMode ? (
+			<Modal
+				visible={menuOpen}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setMenuOpen(false)}
+			>
+				<Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+					<View style={styles.menuSheet}>
+						<Pressable accessibilityRole="button" onPress={openHelp} style={styles.menuItem}>
+							<Text style={styles.menuItemText}>Pomoc</Text>
+						</Pressable>
+					</View>
+				</Pressable>
+			</Modal>
+		) : null}
+		{!planMode ? (
+			<TrainingHelpModal
+				visible={helpOpen}
+				sections={helpSections}
+				fallbackText={definition?.description || null}
+				onClose={() => setHelpOpen(false)}
+			/>
+		) : null}
+		</>
 	);
 };
 
 const styles = StyleSheet.create({
+	menuButton: {
+		paddingHorizontal: 10,
+		paddingVertical: 4,
+	},
+	menuButtonText: {
+		color: colors.text,
+		fontSize: 28,
+		fontWeight: '700',
+		lineHeight: 30,
+	},
+	menuBackdrop: {
+		flex: 1,
+		backgroundColor: 'rgba(0,0,0,0.45)',
+		justifyContent: 'flex-start',
+		alignItems: 'flex-end',
+		paddingTop: 56,
+		paddingRight: 12,
+	},
+	menuSheet: {
+		minWidth: 180,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+		overflow: 'hidden',
+	},
+	menuItem: {
+		paddingHorizontal: 16,
+		paddingVertical: 14,
+	},
+	menuItemText: {
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '600',
+	},
 	looseClock: {
 		alignItems: 'center',
 		width: '100%',

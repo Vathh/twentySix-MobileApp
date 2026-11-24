@@ -234,33 +234,57 @@ const BULL_COUNTER = {
 	limit: '3 minuty.',
 };
 
-const FIFTY_FOUR_DART = {
-	goal: 'Sprawdzenie punktacji, doubli i shanghai pod stałą liczbą 54 rzutów.',
+const SHANGHAI_10_15 = {
+	goal: 'Trening Shanghai na sektorach 10–15.',
 	how: [
-		'Wyzwanie ma trzy etapy bez pauzy i bez wznowienia. Przerwanie kończy próbę bez zapisu.',
-		'Etap 1 — Shanghai 10–15: na każdy sektor trzy lotki. Wpisujesz Single, Double, Triple albo Pudło. Najbardziej optymalne jest trafienie pełnego shanghai (S, D, T).',
-		'Etap 2 — Doubles: po jednej lotce w D1–D20 + Inner Bull. Outer bull traktowany jest jako pudło.',
-		'Etap 3 — Shanghai 16–20: jak etap 1, sektory 16–20. Najbardziej optymalne jest trafienie pełnego shanghai (S, D, T).',
-		'Po każdym sektorze lub celu od razu idzie następny. W trakcie nie widać sumy punktów.',
+		'Na każdy sektor masz trzy lotki. Wpisujesz Single, Double, Triple albo Pudło.',
+		'Najbardziej optymalne jest trafienie pełnego shanghai (S, D i T) w jednym podejściu.',
+		'Po każdym sektorze od razu idzie następny. W trakcie nie widać sumy punktów.',
 	],
 	scoring: [
-		'Shanghai: wartość pojedyncza daje 15 punktów, podwójna 30 punktów, potrójna 45 punktów. Za komplet trafień (pojedyncza, podwójna, potrójna) w jednym podejściu dodatkowo doliczane jest 100 punktów.',
-		'Doubles: trafiony double daje 50. Inner Bull daje 100. Outer Bull nie jest trafieniem (0).',
-		'Wynik to suma trzech etapów. Maksimum 3190. Punktację łączną widać dopiero w podsumowaniu.',
+		'Single 15, Double 30, Triple 45.',
+		'Za komplet S+D+T w jednym podejściu dodatkowo +100.',
+		'Wynik to suma punktów. Maksimum na to ćwiczenie: 1080.',
 	],
-	limit: '54 lotki (18 w Shanghai 10–15, 21 w Doubles, 15 w Shanghai 16–20).',
+	limit: '18 lotek (6 sektorów × 3).',
+};
+
+const DOUBLES_54 = {
+	goal: 'Trening doubli D1–D20 oraz Inner Bull.',
+	how: [
+		'Po jednej lotce w D1–D20, na końcu Inner Bull.',
+		'Outer Bull traktowany jest jako pudło.',
+		'Po każdym celu od razu idzie następny. W trakcie nie widać sumy punktów.',
+	],
+	scoring: [
+		'Trafiony double daje 50 punktów.',
+		'Inner Bull daje 100. Outer Bull = 0.',
+		'Wynik to suma punktów. Maksimum: 1100.',
+	],
+	limit: '21 lotek.',
+};
+
+const SHANGHAI_16_20 = {
+	goal: 'Trening Shanghai na sektorach 16–20.',
+	how: [
+		'Na każdy sektor masz trzy lotki. Wpisujesz Single, Double, Triple albo Pudło.',
+		'Najbardziej optymalne jest trafienie pełnego shanghai (S, D i T) w jednym podejściu.',
+		'Po każdym sektorze od razu idzie następny. W trakcie nie widać sumy punktów.',
+	],
+	scoring: [
+		'Single 15, Double 30, Triple 45.',
+		'Za komplet S+D+T w jednym podejściu dodatkowo +100.',
+		'Wynik to suma punktów. Maksimum na to ćwiczenie: 900.',
+	],
+	limit: '15 lotek (5 sektorów × 3).',
 };
 
 /**
- * @param {{ exerciseKey?: string|null, kind?: string, challengeKey?: string, mechanic?: string }} definition
+ * @param {{ exerciseKey?: string|null, kind?: string, challengeKey?: string, mechanic?: string, description?: string|null }} definition
  * @param {{ clockVariant?: string, dartVariant?: string, pressureVariant?: string, bobsVariant?: string }} [opts]
  * @returns {{ goal: string, how: string[], scoring: string[], limit: string }|null}
  */
 export function libraryInstructionsFor(definition, opts = {}) {
-	const challengeKey = definition?.challengeKey || definition?.mechanic;
-	if (definition?.kind === 'challenge' && challengeKey === 'fifty_four_dart') {
-		return FIFTY_FOUR_DART;
-	}
 	const key = definition?.exerciseKey;
 	if (!key) {
 		return null;
@@ -299,6 +323,15 @@ export function libraryInstructionsFor(definition, opts = {}) {
 	}
 	if (key === 'bull_counter') {
 		return BULL_COUNTER;
+	}
+	if (key === 'shanghai_10_15') {
+		return SHANGHAI_10_15;
+	}
+	if (key === 'doubles_54') {
+		return DOUBLES_54;
+	}
+	if (key === 'shanghai_16_20') {
+		return SHANGHAI_16_20;
 	}
 	return null;
 }

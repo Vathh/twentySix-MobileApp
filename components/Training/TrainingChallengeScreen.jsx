@@ -1,30 +1,35 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import useAuth from '../../hooks/useAuth';
+import useTrainingKeepAwake from '../../hooks/useTrainingKeepAwake';
 import { createClientSessionId } from '../../helpers/training/clientSessionId';
 import {
-	canPlayFiftyFourDart,
-	currentTarget,
-	fiftyFourAimText,
-	fiftyFourCompletion,
-	recordFiftyFourDart,
-	startFiftyFourSession,
-	undoFiftyFourDart,
-} from '../../helpers/training/fiftyFourDartChallenge';
+	canPlayChallenge,
+	challengeProgressLabel,
+	emptyChallengeHang,
+	finalizeChallengeHang,
+	planItemAt,
+	recordChallengeExercise,
+	slotToExerciseDefinition,
+	slotVariant,
+} from '../../helpers/training/challengeSession';
+import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryInstructions';
+import { rememberRecentTraining } from '../../helpers/training/recentTrainingStore';
+import { loadTrainingInputMode } from '../../helpers/training/trainingInputMode';
+import {
+	enqueueTrainingCompletion,
+	flushTrainingOutbox,
+} from '../../helpers/training/trainingSessionStore';
 import {
 	fetchChallengeRanking,
 	publishChallengeSession,
 	withdrawChallengePublication,
 } from '../../helpers/training/trainingApi';
-import {
-	enqueueTrainingCompletion,
-	flushTrainingOutbox,
-} from '../../helpers/training/trainingSessionStore';
-import { playClick } from '../../helpers/gameSounds/playGameSound';
 import { colors } from '../../theme/colors';
+import TrainingAbortSheet from './TrainingAbortSheet';
+import TrainingExerciseScreen from './TrainingExerciseScreen';
+import TrainingHelpModal, { helpSectionsFromGuide } from './TrainingHelpModal';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
-import TrainingPlayChrome from './TrainingPlayChrome';
-import TrainingPlayScore from './TrainingPlayScore';
 import TrainingSessionResult from './TrainingSessionResult';
 
 const ABORT_TEXT = 'Przerwać wyzwanie? Ta próba przepadnie.';
@@ -33,114 +38,134 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 	const definition = route?.params?.definition;
 	const { auth } = useAuth();
 	const { text, show } = useTrainingNotice();
-	const [session, setSession] = useState(null);
-	const [summary, setSummary] = useState(null);
+	const userId = auth?.userId;
+	const accessToken = auth?.accessToken;
+	const [hang, setHang] = useState(null);
 	const [prompt, setPrompt] = useState(null);
 	const [publishInfo, setPublishInfo] = useState(null);
 	const [publishing, setPublishing] = useState(false);
-	const sessionRef = useRef(null);
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [helpOpen, setHelpOpen] = useState(false);
+	const hangRef = useRef(null);
 	const leaving = useRef(false);
 	const summaryId = useRef(null);
-	const userIdRef = useRef(auth?.userId);
-	const accessTokenRef = useRef(auth?.accessToken);
+	const userIdRef = useRef(userId);
+	const accessTokenRef = useRef(accessToken);
+	userIdRef.current = userId;
+	accessTokenRef.current = accessToken;
 
-	useEffect(() => {
-		userIdRef.current = auth?.userId;
-		accessTokenRef.current = auth?.accessToken;
-	}, [auth?.userId, auth?.accessToken]);
+	const playing = hang?.phase === 'running';
+	useTrainingKeepAwake(playing);
 
-	useEffect(() => {
-		sessionRef.current = session;
-	}, [session]);
+	const persist = useCallback((next) => {
+		hangRef.current = next;
+		setHang(next);
+	}, []);
 
-	const begin = useCallback(() => {
-		if (!canPlayFiftyFourDart(definition)) {
+	const begin = useCallback(async () => {
+		if (!canPlayChallenge(definition)) {
 			return;
 		}
 		leaving.current = false;
 		summaryId.current = null;
-		setSummary(null);
-		setPublishInfo(null);
 		setPrompt(null);
-		setSession(startFiftyFourSession(definition, createClientSessionId()));
-	}, [definition]);
+		setPublishInfo(null);
+		const inputMode = await loadTrainingInputMode(userIdRef.current);
+		const next = emptyChallengeHang(definition, createClientSessionId(), inputMode);
+		persist(next);
+		rememberRecentTraining(userIdRef.current, {
+			id: definition.id,
+			kind: 'challenge',
+			name: definition.name,
+		});
+	}, [definition, persist]);
 
 	useEffect(() => {
 		begin();
 	}, [begin]);
 
-	useEffect(() => {
-		navigation.setOptions({ title: definition?.name || 'Wyzwanie', headerBackTitleVisible: false });
-	}, [navigation, definition?.name]);
+	useLayoutEffect(() => {
+		navigation.setOptions({
+			title: definition?.name || 'Wyzwanie',
+			headerBackTitleVisible: false,
+			headerRight: () => (
+				playing ? (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Menu wyzwania"
+						onPress={() => setMenuOpen(true)}
+						hitSlop={12}
+						style={styles.menuButton}
+					>
+						<Text style={styles.menuButtonText}>⋯</Text>
+					</Pressable>
+				) : null
+			),
+		});
+	}, [navigation, definition?.name, playing]);
 
 	useEffect(() => {
 		const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-			if (leaving.current || summary || !session || session.status !== 'playing') {
+			if (leaving.current || hang?.phase === 'summary' || hang?.phase !== 'running') {
 				return;
 			}
 			event.preventDefault();
 			setPrompt('abort');
 		});
 		return unsubscribe;
-	}, [navigation, session, summary]);
+	}, [navigation, hang?.phase]);
 
 	const leaveHome = () => {
 		leaving.current = true;
 		navigation.navigate('TrainingHome');
 	};
 
-	const finish = async (next) => {
-		const record = fiftyFourCompletion(next, new Date().toISOString());
+	const finishExercise = async (completion) => {
+		const current = hangRef.current;
+		if (!current || current.phase !== 'running') {
+			return;
+		}
+		const item = planItemAt(current.plan, current.index);
+		const next = recordChallengeExercise(current, item, completion);
+		if (next.phase === 'summary') {
+			const done = finalizeChallengeHang(next);
+			persist(done);
+			await syncSummary(done);
+			return;
+		}
+		persist(next);
+	};
+
+	const syncSummary = async (done) => {
+		const record = done.summary;
+		if (!record) {
+			return;
+		}
 		summaryId.current = record.clientSessionId;
-		setSummary(record);
-		setSession(next);
 		try {
 			await enqueueTrainingCompletion(userIdRef.current, record);
 			const items = await flushTrainingOutbox(userIdRef.current, accessTokenRef.current);
 			if (summaryId.current !== record.clientSessionId) {
 				return;
 			}
-			const saved = items.find((item) => item.clientSessionId === record.clientSessionId);
-			setSummary(saved ?? record);
-			if (saved?.id && accessTokenRef.current) {
+			const saved = items.find((row) => row.clientSessionId === record.clientSessionId);
+			const nextSummary = saved ?? record;
+			persist({ ...done, summary: nextSummary });
+			if (saved?.id && accessTokenRef.current && definition?.id) {
 				const ranking = await fetchChallengeRanking(accessTokenRef.current, definition.id, { limit: 1 });
 				if (ranking.ok) {
 					const publishedScore = ranking.data?.publishedScore ?? null;
 					setPublishInfo({
 						publishedScore,
-						canPublish: publishedScore == null || record.score > publishedScore,
+						canPublish: publishedScore == null || nextSummary.score > publishedScore,
 					});
 				} else {
 					setPublishInfo({ publishedScore: null, canPublish: true });
 				}
 			}
 		} catch {
-			setSummary(record);
 			setPublishInfo({ publishedScore: null, canPublish: true });
 		}
-	};
-
-	const applyDart = (ring) => {
-		const current = sessionRef.current;
-		if (!current || current.status !== 'playing' || prompt) {
-			return;
-		}
-		const { session: next, visitClosed } = recordFiftyFourDart(current, ring);
-		setSession(next);
-		if (visitClosed) {
-			playClick();
-		}
-		if (next.status === 'completed') {
-			finish(next);
-		}
-	};
-
-	const undo = () => {
-		const current = sessionRef.current;
-		if (!current || current.status !== 'playing' || prompt) {
-			return;
-		}
-		setSession(undoFiftyFourDart(current));
 	};
 
 	const confirmAbort = () => {
@@ -149,6 +174,7 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 	};
 
 	const onPublish = async () => {
+		const summary = hangRef.current?.summary;
 		if (!summary?.id || !accessTokenRef.current || publishing) {
 			return;
 		}
@@ -188,10 +214,19 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 		}));
 	};
 
-	const target = currentTarget(session);
-	const stages = summary?.stats?.stages || [];
+	if (!hang) {
+		return (
+			<View style={styles.root}>
+				<TrainingNotice text={text} />
+				<Text style={styles.hint}>
+					{canPlayChallenge(definition) ? 'Ładowanie…' : 'To wyzwanie nie ma ćwiczeń.'}
+				</Text>
+			</View>
+		);
+	}
 
-	if (summary) {
+	if (hang.phase === 'summary' && hang.summary) {
+		const summary = hang.summary;
 		const syncHint = summary.sync === 'pending'
 			? 'Zapisze się po połączeniu.'
 			: summary.sync === 'rejected'
@@ -200,107 +235,127 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 		return (
 			<View style={styles.root}>
 				<TrainingNotice text={text} />
-				<TrainingPlayChrome hideHeader title={definition?.name}>
-					<TrainingSessionResult
-						hero={{ label: 'Wynik', value: summary.score }}
-						rows={stages.map((stage) => ({ label: stage.label, value: stage.score }))}
-						syncLabel={syncHint}
-						primaryLabel={publishInfo?.canPublish && summary.id ? 'Opublikuj wynik' : undefined}
-						onPrimary={publishInfo?.canPublish && summary.id ? onPublish : undefined}
-						secondaryLabel="Spróbuj ponownie"
-						onSecondary={begin}
-					>
-						{publishInfo?.publishedScore != null && !publishInfo?.canPublish ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Wycofaj publikację"
-								style={styles.secondary}
-								disabled={publishing}
-								onPress={onWithdraw}
-							>
-								<Text style={styles.secondaryText}>Wycofaj publikację</Text>
-							</Pressable>
-						) : null}
+				<TrainingSessionResult
+					hero={{ label: 'Wynik', value: summary.score }}
+					rows={(summary.results || []).map((row) => ({
+						label: row.name,
+						value: row.scored ? row.score : 'Rozgrzewka',
+					}))}
+					syncLabel={syncHint}
+					primaryLabel={publishInfo?.canPublish && summary.id ? 'Opublikuj wynik' : undefined}
+					onPrimary={publishInfo?.canPublish && summary.id ? onPublish : undefined}
+					secondaryLabel="Spróbuj ponownie"
+					onSecondary={begin}
+				>
+					{publishInfo?.publishedScore != null && !publishInfo?.canPublish ? (
 						<Pressable
 							accessibilityRole="button"
-							accessibilityLabel="Wróć"
-							style={styles.ghost}
-							onPress={leaveHome}
+							accessibilityLabel="Wycofaj publikację"
+							style={styles.secondary}
+							disabled={publishing}
+							onPress={onWithdraw}
 						>
-							<Text style={styles.ghostText}>Wróć</Text>
+							<Text style={styles.secondaryText}>Wycofaj publikację</Text>
 						</Pressable>
-					</TrainingSessionResult>
-				</TrainingPlayChrome>
+					) : null}
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Wróć"
+						style={styles.ghost}
+						onPress={leaveHome}
+					>
+						<Text style={styles.ghostText}>Wróć</Text>
+					</Pressable>
+				</TrainingSessionResult>
+			</View>
+		);
+	}
+
+	const item = planItemAt(hang.plan, hang.index);
+	const exerciseDefinition = item ? slotToExerciseDefinition(hang.plan, item) : null;
+	const helpSections = helpSectionsFromGuide(libraryInstructionsFor(exerciseDefinition, {
+		dartVariant: item?.dartCount,
+		pressureVariant: slotVariant(item),
+	}));
+
+	if (!exerciseDefinition) {
+		return (
+			<View style={styles.root}>
+				<Text style={styles.hint}>Brak ćwiczeń w wyzwaniu.</Text>
 			</View>
 		);
 	}
 
 	return (
-		<TrainingPlayChrome
-			title={definition?.name}
-			onAbort={() => setPrompt('abort')}
-			abortVisible={prompt === 'abort'}
-			abortText={ABORT_TEXT}
-			onAbortCancel={() => setPrompt(null)}
-			onAbortConfirm={confirmAbort}
-		>
-			{target ? (
-				<>
-					<Text style={styles.aim}>{fiftyFourAimText(target)}</Text>
-					<TrainingPlayScore
-						label="Cel"
-						value={target.targetLabel}
-						size="large"
-						accessibilityLabel={target.targetLabel}
-					/>
-					<Text style={styles.dartCounter}>Lotka {target.dartNumber} z {target.visitSize}</Text>
-					{target.stageType === 'shanghai' ? (
-						<View style={styles.grid}>
-							{[
-								['single', 'Single'],
-								['double', 'Double'],
-								['triple', 'Triple'],
-								['miss', 'Pudło'],
-							].map(([ring, label]) => (
-								<Pressable
-									key={ring}
-									accessibilityRole="button"
-									accessibilityLabel={label}
-									style={[styles.action, ring === 'miss' ? styles.miss : styles.hit]}
-									onPress={() => applyDart(ring)}
-								>
-									<Text style={ring === 'miss' ? styles.missText : styles.hitText}>{label}</Text>
-								</Pressable>
-							))}
-						</View>
-					) : (
-						<View style={styles.outcomeRow}>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Pudło"
-								style={[styles.action, styles.miss, styles.half]}
-								onPress={() => applyDart('miss')}
-							>
-								<Text style={styles.missText}>Pudło</Text>
-							</Pressable>
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel={target.isBull ? 'Inner bull' : 'Trafiona'}
-								style={[styles.action, styles.hit, styles.half]}
-								onPress={() => applyDart(target.isBull ? 'inner' : 'double')}
-							>
-								<Text style={styles.hitText}>{target.isBull ? 'Inner bull' : 'Trafiona'}</Text>
-							</Pressable>
-						</View>
-					)}
-					<Pressable accessibilityRole="button" accessibilityLabel="Cofnij" style={styles.tool} onPress={undo}>
-						<Text style={styles.toolText}>Cofnij</Text>
-					</Pressable>
-				</>
-			) : (
-				<Text style={styles.empty}>Ładowanie…</Text>
-			)}
-		</TrainingPlayChrome>
+		<View style={styles.root}>
+			<TrainingNotice text={text} />
+			<View style={styles.chrome}>
+				<Text style={styles.progress}>{challengeProgressLabel(hang.index, hang.total)}</Text>
+				<Text style={styles.title} numberOfLines={1}>{exerciseDefinition.name}</Text>
+			</View>
+			<TrainingExerciseScreen
+				navigation={navigation}
+				route={{
+					params: {
+						definition: exerciseDefinition,
+						variant: slotVariant(item),
+						inputMode: hang.inputMode,
+					},
+				}}
+				planHost={{
+					definition: exerciseDefinition,
+					inputMode: hang.inputMode,
+					initialSession: hang.exerciseSession,
+					paused: false,
+					allowManualPause: false,
+					onSessionChange: (session) => {
+						const current = hangRef.current;
+						if (!current || current.phase !== 'running') {
+							return;
+						}
+						persist({ ...current, exerciseSession: session });
+					},
+					onComplete: (record) => {
+						finishExercise(record);
+					},
+				}}
+			/>
+			<Modal
+				visible={menuOpen}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setMenuOpen(false)}
+			>
+				<Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+					<View style={styles.menuSheet}>
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => {
+								setMenuOpen(false);
+								setHelpOpen(true);
+							}}
+							style={styles.menuItem}
+						>
+							<Text style={styles.menuItemText}>Pomoc</Text>
+						</Pressable>
+					</View>
+				</Pressable>
+			</Modal>
+			<TrainingHelpModal
+				visible={helpOpen}
+				sections={helpSections}
+				fallbackText={exerciseDefinition.description || definition?.description || null}
+				onClose={() => setHelpOpen(false)}
+			/>
+			<TrainingAbortSheet
+				visible={prompt === 'abort'}
+				text={ABORT_TEXT}
+				onCancel={() => setPrompt(null)}
+				onConfirm={confirmAbort}
+			/>
+		</View>
 	);
 };
 
@@ -309,106 +364,85 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: colors.bg,
 	},
-	aim: {
-		fontSize: 18,
-		fontWeight: '700',
-		color: colors.text,
-		textAlign: 'center',
-		marginBottom: 12,
-		letterSpacing: -0.2,
-	},
-	dartCounter: {
-		fontSize: 14,
+	hint: {
+		marginTop: 24,
+		paddingHorizontal: 24,
 		color: colors.textMuted,
+		fontSize: 15,
 		textAlign: 'center',
-		marginBottom: 20,
+	},
+	chrome: {
+		paddingHorizontal: 20,
+		paddingTop: 12,
+		paddingBottom: 10,
+		borderBottomWidth: 1,
+		borderBottomColor: colors.border,
+		backgroundColor: colors.bgDeep,
+	},
+	progress: {
+		color: colors.accent,
+		fontSize: 13,
 		fontWeight: '700',
-		letterSpacing: 0.4,
-		textTransform: 'uppercase',
+		letterSpacing: 0.3,
 	},
-	grid: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		gap: 12,
-		justifyContent: 'center',
+	title: {
+		marginTop: 2,
+		color: colors.text,
+		fontSize: 17,
+		fontWeight: '800',
 	},
-	outcomeRow: {
-		flexDirection: 'row',
-		gap: 12,
+	menuButton: {
+		paddingHorizontal: 10,
+		paddingVertical: 4,
 	},
-	action: {
-		minHeight: 88,
-		borderRadius: 14,
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingHorizontal: 16,
+	menuButtonText: {
+		color: colors.text,
+		fontSize: 28,
+		fontWeight: '700',
+		lineHeight: 30,
 	},
-	half: {
+	menuBackdrop: {
 		flex: 1,
+		backgroundColor: 'rgba(0,0,0,0.45)',
+		justifyContent: 'flex-start',
+		alignItems: 'flex-end',
+		paddingTop: 56,
+		paddingRight: 12,
 	},
-	hit: {
-		backgroundColor: colors.accent,
-		borderWidth: 1.5,
-		borderColor: colors.accent,
-		minWidth: '45%',
-	},
-	miss: {
-		backgroundColor: colors.bgElevated,
-		borderWidth: 1.5,
-		borderColor: colors.borderStrong,
-		minWidth: '45%',
-	},
-	hitText: {
-		color: colors.onAccent,
-		fontSize: 18,
-		fontWeight: '800',
-	},
-	missText: {
-		color: colors.text,
-		fontSize: 18,
-		fontWeight: '800',
-	},
-	tool: {
-		marginTop: 16,
-		minHeight: 48,
+	menuSheet: {
+		minWidth: 180,
 		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: colors.borderStrong,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	toolText: {
-		color: colors.text,
-		fontSize: 16,
-		fontWeight: '700',
-	},
-	secondary: {
-		borderRadius: 12,
-		paddingVertical: 14,
-		alignItems: 'center',
-		marginBottom: 10,
 		borderWidth: 1,
 		borderColor: colors.border,
 		backgroundColor: colors.bgElevated,
+		overflow: 'hidden',
+	},
+	menuItem: {
+		paddingHorizontal: 16,
+		paddingVertical: 14,
+	},
+	menuItemText: {
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '600',
+	},
+	secondary: {
+		marginTop: 10,
+		alignItems: 'center',
+		paddingVertical: 12,
 	},
 	secondaryText: {
-		color: colors.text,
+		color: colors.textSecondary,
 		fontWeight: '600',
-		fontSize: 16,
 	},
 	ghost: {
-		paddingVertical: 14,
-		alignItems: 'center',
 		marginTop: 4,
+		alignItems: 'center',
+		paddingVertical: 12,
 	},
 	ghostText: {
-		color: colors.textSecondary,
-		fontSize: 16,
-	},
-	empty: {
-		textAlign: 'center',
-		color: colors.textSecondary,
-		marginTop: 40,
+		color: colors.textMuted,
+		fontWeight: '600',
 	},
 });
 

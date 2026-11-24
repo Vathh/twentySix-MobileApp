@@ -1,9 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { scaleSize } from '../../theme/uiScale';
 
 /**
- * Pasek czasu sesji treningowej.
+ * Pasek czasu sesji treningowej. Opcjonalny play/pause jak w odtwarzaczu.
  */
 export default function TrainingPlayTimer({
 	label = 'Zostało',
@@ -11,22 +13,47 @@ export default function TrainingPlayTimer({
 	progress = 0,
 	urgent = false,
 	compact = false,
+	paused = false,
+	onTogglePause = null,
 }) {
+	const showPause = typeof onTogglePause === 'function';
+
 	return (
 		<View
 			style={[styles.bar, compact && styles.barCompact]}
 			accessibilityRole="text"
-			accessibilityLabel={`${label} ${value}`}
+			accessibilityLabel={`${label} ${value}${paused ? ', pauza' : ''}`}
 		>
 			<Text style={[styles.caption, compact && styles.captionCompact]}>{label}</Text>
-			<Text style={[
-				styles.value,
-				compact && styles.valueCompact,
-				urgent && styles.valueUrgent,
-			]}
-			>
-				{value}
-			</Text>
+			<View style={styles.valueRow}>
+				<Text style={[
+					styles.value,
+					compact && styles.valueCompact,
+					urgent && styles.valueUrgent,
+					showPause && styles.valueWithPause,
+				]}
+				>
+					{value}
+				</Text>
+				{showPause ? (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel={paused ? 'Wznów' : 'Pauza'}
+						onPress={onTogglePause}
+						hitSlop={10}
+						style={({ pressed }) => [
+							styles.pauseBtn,
+							pressed && styles.pauseBtnPressed,
+						]}
+					>
+						<Ionicons
+							name={paused ? 'play' : 'pause'}
+							size={scaleSize(compact ? 20 : 22)}
+							color={colors.text}
+						/>
+					</Pressable>
+				) : null}
+			</View>
 			<View style={styles.track}>
 				<View
 					style={[
@@ -66,9 +93,15 @@ const styles = StyleSheet.create({
 	captionCompact: {
 		fontSize: 13,
 	},
-	value: {
+	valueRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
 		marginTop: 2,
 		marginBottom: 10,
+		minHeight: 38,
+	},
+	value: {
 		color: colors.text,
 		fontSize: 32,
 		lineHeight: 38,
@@ -77,12 +110,28 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		letterSpacing: -0.4,
 	},
+	valueWithPause: {
+		marginRight: 10,
+	},
 	valueCompact: {
 		fontSize: 28,
 		lineHeight: 34,
 	},
 	valueUrgent: {
 		color: colors.warning,
+	},
+	pauseBtn: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.borderStrong,
+	},
+	pauseBtnPressed: {
+		backgroundColor: colors.bgElevatedHover,
 	},
 	track: {
 		alignSelf: 'stretch',

@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import useAuth from '../../hooks/useAuth';
+import useTrainingKeepAwake from '../../hooks/useTrainingKeepAwake';
+import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryInstructions';
 import { createClientSessionId } from '../../helpers/training/clientSessionId';
 import {
 	clearHangingEvent,
@@ -29,6 +31,7 @@ import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import TrainingAbortSheet from './TrainingAbortSheet';
 import TrainingExerciseScreen from './TrainingExerciseScreen';
+import TrainingHelpModal, { helpSectionsFromGuide } from './TrainingHelpModal';
 import TrainingNotice, { useTrainingNotice } from './TrainingNotice';
 import TrainingSessionResult from './TrainingSessionResult';
 
@@ -43,8 +46,12 @@ const TrainingEventScreen = ({ navigation, route }) => {
 	const [prompt, setPrompt] = useState(null);
 	const [classification, setClassification] = useState(null);
 	const [offline, setOffline] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [helpOpen, setHelpOpen] = useState(false);
 	const hangRef = useRef(null);
 	const leaving = useRef(false);
+
+	useTrainingKeepAwake(hang?.phase === 'running');
 
 	const persist = useCallback(async (next) => {
 		hangRef.current = next;
@@ -115,9 +122,24 @@ const TrainingEventScreen = ({ navigation, route }) => {
 		};
 	}, [accessToken, persist, route?.params?.event, route?.params?.resume, show, userId]);
 
-	useEffect(() => {
-		navigation.setOptions({ title: hang?.event?.name || route?.params?.event?.name || 'Event' });
-	}, [navigation, hang?.event?.name, route?.params?.event?.name]);
+	useLayoutEffect(() => {
+		navigation.setOptions({
+			title: hang?.event?.name || route?.params?.event?.name || 'Event',
+			headerRight: () => (
+				hang?.phase === 'running' ? (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Menu eventu"
+						onPress={() => setMenuOpen(true)}
+						hitSlop={12}
+						style={styles.menuButton}
+					>
+						<Text style={styles.menuButtonText}>⋯</Text>
+					</Pressable>
+				) : null
+			),
+		});
+	}, [navigation, hang?.event?.name, hang?.phase, route?.params?.event?.name]);
 
 	const leaveHome = () => {
 		leaving.current = true;
@@ -229,6 +251,10 @@ const TrainingEventScreen = ({ navigation, route }) => {
 
 	const item = planItemAt(hang.plan, hang.index);
 	const definition = item ? slotToExerciseDefinition(hang.plan, item) : null;
+	const helpSections = helpSectionsFromGuide(libraryInstructionsFor(definition, {
+		dartVariant: item?.dartCount,
+		pressureVariant: item?.variant,
+	}));
 
 	if (!definition) {
 		return (
@@ -264,6 +290,7 @@ const TrainingEventScreen = ({ navigation, route }) => {
 					inputMode: hang.inputMode,
 					initialSession: hang.exerciseSession,
 					paused: offline,
+					allowManualPause: false,
 					onSessionChange: (session) => {
 						const current = hangRef.current;
 						if (!current || current.phase !== 'running') {
@@ -275,6 +302,35 @@ const TrainingEventScreen = ({ navigation, route }) => {
 						finishExercise(record);
 					},
 				}}
+			/>
+			<Modal
+				visible={menuOpen}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				statusBarTranslucent
+				onRequestClose={() => setMenuOpen(false)}
+			>
+				<Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+					<View style={styles.menuSheet}>
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => {
+								setMenuOpen(false);
+								setHelpOpen(true);
+							}}
+							style={styles.menuItem}
+						>
+							<Text style={styles.menuItemText}>Pomoc</Text>
+						</Pressable>
+					</View>
+				</Pressable>
+			</Modal>
+			<TrainingHelpModal
+				visible={helpOpen}
+				sections={helpSections}
+				fallbackText={definition?.description || hang.event?.description || null}
+				onClose={() => setHelpOpen(false)}
 			/>
 			<TrainingAbortSheet
 				visible={prompt === 'abort'}
@@ -288,6 +344,41 @@ const TrainingEventScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
 	root: { flex: 1, backgroundColor: colors.bg },
+	menuButton: {
+		paddingHorizontal: 10,
+		paddingVertical: 4,
+	},
+	menuButtonText: {
+		color: colors.text,
+		fontSize: 28,
+		fontWeight: '700',
+		lineHeight: 30,
+	},
+	menuBackdrop: {
+		flex: 1,
+		backgroundColor: 'rgba(0,0,0,0.45)',
+		justifyContent: 'flex-start',
+		alignItems: 'flex-end',
+		paddingTop: 56,
+		paddingRight: 12,
+	},
+	menuSheet: {
+		minWidth: 180,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgElevated,
+		overflow: 'hidden',
+	},
+	menuItem: {
+		paddingHorizontal: 16,
+		paddingVertical: 14,
+	},
+	menuItemText: {
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '600',
+	},
 	content: { padding: 24, gap: 10, maxWidth: 480, width: '100%', alignSelf: 'center' },
 	place: {
 		textAlign: 'center',

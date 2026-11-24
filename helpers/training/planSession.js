@@ -360,6 +360,9 @@ const PLAN_EXERCISE_TITLES = {
 	checkout_41: 'Checkout 41+',
 	checkout_bull_81: 'Checkout Bull 81+',
 	bull_counter: 'Walka o licznik',
+	shanghai_10_15: 'Shanghai 10–15',
+	doubles_54: 'Doubles',
+	shanghai_16_20: 'Shanghai 16–20',
 };
 
 /** Czytelny tytuł slotu w trakcie planu — z wariantem, nie gołą nazwą katalogu. */
