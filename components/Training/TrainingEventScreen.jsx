@@ -27,6 +27,7 @@ import {
 	fetchEventClassification,
 	startEventAttempt,
 } from '../../helpers/training/trainingApi';
+import { applyCompletionToRecordsCache } from '../../helpers/training/recordsCache';
 import { colors } from '../../theme/colors';
 import { scaleSize } from '../../theme/uiScale';
 import TrainingAbortSheet from './TrainingAbortSheet';
@@ -187,6 +188,11 @@ const TrainingEventScreen = ({ navigation, route }) => {
 			show(result.data?.message || 'Nie udało się zapisać próby.');
 			return;
 		}
+		await applyCompletionToRecordsCache(userId, {
+			...done.summary,
+			definitionId: done.definitionId,
+			kind: 'event',
+		});
 		await clearHangingEvent(userId);
 		const classResult = await fetchEventClassification(accessToken, done.definitionId);
 		if (classResult.ok) {

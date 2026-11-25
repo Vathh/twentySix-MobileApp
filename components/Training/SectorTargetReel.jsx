@@ -58,10 +58,49 @@ function AimFrame({ width, height }) {
 	);
 }
 
+function resolveLabel(target, formatLabel, doubles) {
+	if (typeof formatLabel === 'function') {
+		return formatLabel(target);
+	}
+	return targetLabel(target, { doubles });
+}
+
+function targetKey(target, index) {
+	if (typeof target === 'string' || typeof target === 'number') {
+		return `${index}-${target}`;
+	}
+	if (target?.kind === 'bull') {
+		return `${index}-bull`;
+	}
+	if (target?.label != null) {
+		return `${index}-${target.label}`;
+	}
+	return `${index}-${target?.kind ?? 't'}-${target?.number ?? 'x'}`;
+}
+
+/** D1–D20 mieszczą się dużą czcionką; „Czerwony środek” potrzebuje mniejszej. */
+function labelTextStyle(label) {
+	const length = String(label || '').length;
+	if (length <= 3) {
+		return null;
+	}
+	if (length <= 4) {
+		return styles.textMedium;
+	}
+	return styles.textLong;
+}
+
 /**
  * Trzy cele na raz. Ramka sunie między nimi, a po podejściu pasek zjeżdża w karuzeli.
+ * targets: obiekty clock ({ kind, number }) albo stringi etykiet (Shanghai / Doubles).
  */
-const SectorTargetReel = ({ targets, windowStart, activeOffset }) => {
+const SectorTargetReel = ({
+	targets,
+	windowStart,
+	activeOffset,
+	doubles = false,
+	formatLabel,
+}) => {
 	const [width, setWidth] = useState(0);
 	const step = useSharedValue(0);
 	const shift = useSharedValue(windowStart);
@@ -103,20 +142,23 @@ const SectorTargetReel = ({ targets, windowStart, activeOffset }) => {
 			<View style={styles.clip}>
 				<Animated.View style={[styles.row, rowStyle]}>
 					{width > 0 ? targets.map((target, index) => {
-						const label = targetLabel(target);
+						const label = resolveLabel(target, formatLabel, doubles);
 						const selected = index === aimed;
 						const shown = index >= windowStart && index < windowStart + 3;
+						const isBull = target?.kind === 'bull'
+							|| label === 'Bull'
+							|| label === 'Czerwony środek';
 						return (
 							<View
-								key={`${index}-${target.kind}-${target.number ?? 'bull'}`}
+								key={targetKey(target, index)}
 								accessibilityRole="text"
-								accessibilityLabel={target.kind === 'bull' ? 'Bull' : `Sektor ${label}`}
+								accessibilityLabel={isBull ? label || 'Bull' : `Sektor ${label}`}
 								accessibilityState={{ selected }}
 								accessibilityElementsHidden={!shown}
 								importantForAccessibility={shown ? 'auto' : 'no-hide-descendants'}
 								style={[styles.cell, { width: cellWidth }]}
 							>
-								<Text style={[styles.text, label.length > 2 && styles.textLong]}>
+								<Text style={[styles.text, labelTextStyle(label)]}>
 									{label}
 								</Text>
 							</View>
@@ -138,6 +180,8 @@ const SectorTargetReel = ({ targets, windowStart, activeOffset }) => {
 
 const styles = StyleSheet.create({
 	reel: {
+		width: '100%',
+		alignSelf: 'stretch',
 		height: CELL,
 		marginBottom: 16,
 	},
@@ -162,14 +206,22 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		alignItems: 'center',
 		justifyContent: 'center',
+		paddingHorizontal: 6,
 	},
 	text: {
 		color: colors.text,
 		fontSize: 40,
 		fontWeight: '700',
+		textAlign: 'center',
+	},
+	textMedium: {
+		fontSize: 34,
+		textAlign: 'center',
 	},
 	textLong: {
-		fontSize: 28,
+		fontSize: 15,
+		lineHeight: 18,
+		textAlign: 'center',
 	},
 	frame: {
 		position: 'absolute',

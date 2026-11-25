@@ -1,14 +1,25 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
+import { playFailShort, playSuccessShort } from '../../helpers/gameSounds/playGameSound';
+import { BULL_INNER_LABEL } from '../../helpers/training/bullLabels';
 import { colors } from '../../theme/colors';
-import { shanghaiDoublesAimText } from '../../helpers/training/shanghaiDoublesExercises';
-import TrainingPlayScore from './TrainingPlayScore';
+import { dartIndexReelWindow, targetIndexReelWindow } from '../../helpers/training/targetReelWindow';
+import SectorTargetReel from './SectorTargetReel';
+
+const SHANGHAI_RINGS = [
+	['triple', 'Triple'],
+	['double', 'Double'],
+	['single', 'Single'],
+];
 
 /**
- * Pad do Shanghai / Doubles (ćwiczenia z biblioteki).
+ * Pad do Shanghai / Doubles (ćwiczenia z biblioteki) + karuzela celów.
  */
 export default function ShanghaiDoublesBoard({
 	target,
+	targets = [],
+	dartIndex = 0,
 	disabled = false,
 	undoDisabled = false,
 	onDart,
@@ -18,65 +29,80 @@ export default function ShanghaiDoublesBoard({
 		return null;
 	}
 
+	const list = Array.isArray(targets) ? targets : [];
+	const visitSize = Math.max(1, Number(target.visitSize) || 3);
+	const reelWindow = target.stageType === 'shanghai'
+		? targetIndexReelWindow(Math.floor(dartIndex / visitSize), list.length)
+		: dartIndexReelWindow(dartIndex, list.length);
+
 	return (
 		<View style={styles.wrap}>
-			<Text style={styles.aim}>{shanghaiDoublesAimText(target)}</Text>
-			<TrainingPlayScore
-				label="Cel"
-				value={target.targetLabel}
-				size="large"
-				accessibilityLabel={target.targetLabel}
-			/>
+			{reelWindow ? (
+				<SectorTargetReel
+					targets={list}
+					windowStart={reelWindow.windowStart}
+					activeOffset={reelWindow.activeOffset}
+					formatLabel={(value) => (value === 'Bull' ? BULL_INNER_LABEL : String(value))}
+				/>
+			) : null}
 			<Text style={styles.dartCounter}>
-				Lotka {target.dartNumber} z {target.visitSize}
+				Lotka {target.dartNumber} z {visitSize}
 			</Text>
 			{target.stageType === 'shanghai' ? (
-				<View style={styles.grid}>
-					{[
-						['single', 'Single'],
-						['double', 'Double'],
-						['triple', 'Triple'],
-						['miss', 'Pudło'],
-					].map(([ring, label]) => (
-						<Pressable
-							key={ring}
-							accessibilityRole="button"
-							accessibilityLabel={label}
-							disabled={disabled}
-							style={[
-								styles.action,
-								ring === 'miss' ? styles.miss : styles.hit,
-								disabled && styles.disabled,
-							]}
-							onPress={() => onDart?.(ring)}
-						>
-							<Text style={ring === 'miss' ? styles.missText : styles.hitText}>{label}</Text>
-						</Pressable>
-					))}
-				</View>
-			) : (
-				<View style={styles.outcomeRow}>
-					<Pressable
+				<View style={styles.column}>
+					<View style={styles.row}>
+						{SHANGHAI_RINGS.map(([ring, label]) => (
+							<TrainingPressable
+								key={ring}
+								accessibilityRole="button"
+								accessibilityLabel={label}
+								disabled={disabled}
+								style={[styles.outcome, styles[ring], disabled && styles.disabled]}
+								onPress={() => onDart?.(ring)}
+							>
+								<Text style={[styles.outcomeText, styles[`${ring}Text`]]}>{label}</Text>
+							</TrainingPressable>
+						))}
+					</View>
+					<TrainingPressable
 						accessibilityRole="button"
 						accessibilityLabel="Pudło"
 						disabled={disabled}
-						style={[styles.action, styles.miss, styles.half, disabled && styles.disabled]}
+						style={[styles.miss, disabled && styles.disabled]}
 						onPress={() => onDart?.('miss')}
 					>
 						<Text style={styles.missText}>Pudło</Text>
-					</Pressable>
-					<Pressable
+					</TrainingPressable>
+				</View>
+			) : (
+				<View style={styles.outcomeRow}>
+					<TrainingPressable
 						accessibilityRole="button"
-						accessibilityLabel={target.isBull ? 'Inner bull' : 'Trafiona'}
+						accessibilityLabel="Pudło"
+						disabled={disabled}
+						style={[styles.action, styles.missHalf, styles.half, disabled && styles.disabled]}
+						onPress={() => {
+							playFailShort();
+							onDart?.('miss');
+						}}
+					>
+						<Text style={styles.missText}>Pudło</Text>
+					</TrainingPressable>
+					<TrainingPressable
+						accessibilityRole="button"
+						accessibilityLabel="Trafiona"
 						disabled={disabled}
 						style={[styles.action, styles.hit, styles.half, disabled && styles.disabled]}
-						onPress={() => onDart?.(target.isBull ? 'inner' : 'double')}
+						onPress={() => {
+							playSuccessShort();
+							onDart?.(target.isBull ? 'inner' : 'double');
+						}}
 					>
-						<Text style={styles.hitText}>{target.isBull ? 'Inner bull' : 'Trafiona'}</Text>
-					</Pressable>
+						<Text style={styles.hitText}>Trafiona</Text>
+					</TrainingPressable>
 				</View>
 			)}
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={disabled || undoDisabled}
@@ -84,7 +110,7 @@ export default function ShanghaiDoublesBoard({
 				onPress={onUndo}
 			>
 				<Text style={styles.toolText}>Cofnij</Text>
-			</Pressable>
+			</TrainingPressable>
 		</View>
 	);
 }
@@ -92,36 +118,69 @@ export default function ShanghaiDoublesBoard({
 const styles = StyleSheet.create({
 	wrap: {
 		width: '100%',
-		alignItems: 'center',
-	},
-	aim: {
-		textAlign: 'center',
-		color: colors.text,
-		fontSize: 18,
-		lineHeight: 24,
-		fontWeight: '700',
-		marginBottom: 12,
+		alignSelf: 'stretch',
 	},
 	dartCounter: {
-		marginTop: 8,
+		marginTop: 0,
 		marginBottom: 18,
 		color: colors.textMuted,
 		fontSize: 14,
 		fontWeight: '700',
 		textTransform: 'uppercase',
 		letterSpacing: 0.4,
+		textAlign: 'center',
 	},
-	grid: {
+	column: {
+		width: '100%',
+	},
+	row: {
 		flexDirection: 'row',
-		flexWrap: 'wrap',
-		gap: 10,
-		justifyContent: 'center',
+		gap: 8,
+		marginBottom: 8,
 		width: '100%',
 	},
 	outcomeRow: {
 		flexDirection: 'row',
 		gap: 10,
 		width: '100%',
+	},
+	outcome: {
+		flex: 1,
+		minHeight: 72,
+		borderRadius: 14,
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingHorizontal: 4,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
+		backgroundColor: colors.bgElevated,
+	},
+	triple: {
+		backgroundColor: colors.accent,
+		borderColor: colors.accent,
+	},
+	tripleText: {
+		color: colors.onAccent,
+	},
+	double: {
+		backgroundColor: colors.accentMuted,
+		borderColor: colors.accentBorder,
+	},
+	doubleText: {
+		color: colors.accent,
+	},
+	single: {
+		backgroundColor: colors.bgElevated,
+		borderColor: colors.borderStrong,
+	},
+	singleText: {
+		color: colors.text,
+	},
+	outcomeText: {
+		color: colors.text,
+		fontSize: 16,
+		fontWeight: '800',
+		textAlign: 'center',
 	},
 	action: {
 		minHeight: 56,
@@ -137,13 +196,22 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.accent,
 		borderWidth: 1.5,
 		borderColor: colors.accent,
-		minWidth: '45%',
 	},
 	miss: {
+		minHeight: 72,
+		borderRadius: 14,
 		backgroundColor: colors.bgElevated,
 		borderWidth: 1.5,
 		borderColor: colors.borderStrong,
-		minWidth: '45%',
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingHorizontal: 8,
+		marginBottom: 4,
+	},
+	missHalf: {
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1.5,
+		borderColor: colors.borderStrong,
 	},
 	hitText: {
 		color: colors.onAccent,
@@ -157,13 +225,18 @@ const styles = StyleSheet.create({
 	},
 	tool: {
 		marginTop: 16,
-		alignSelf: 'center',
-		paddingVertical: 10,
-		paddingHorizontal: 14,
+		minHeight: 48,
+		alignSelf: 'stretch',
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
 	},
 	toolText: {
 		color: colors.textSecondary,
-		fontSize: 15,
+		fontSize: 16,
 		fontWeight: '700',
 	},
 	disabled: {

@@ -206,8 +206,21 @@ export const TRAINING_FAVORITES_URL = API_BASE_URL + '/training/favorites';
 export const TRAINING_SESSIONS_URL = API_BASE_URL + '/training/sessions';
 export const TRAINING_HISTORY_URL = API_BASE_URL + '/training/history';
 export const TRAINING_RECORDS_URL = API_BASE_URL + '/training/records';
-export const TRAINING_GOALS_URL = API_BASE_URL + '/training/goals';
+export const TRAINING_MEDALS_URL = API_BASE_URL + '/training/medals';
 export const TRAINING_ANALYSIS_URL = API_BASE_URL + '/training/analysis';
+export const TRAINING_SKILL_STATS_URL = API_BASE_URL + '/training/skill-stats';
+export const TRAINING_SECTOR_STATS_URL = API_BASE_URL + '/training/sector-stats';
+export const trainingSkillStatsUrl = (windowKey, offset = 0) => {
+	const params = new URLSearchParams();
+	params.set('window', windowKey || '90d');
+	params.set('offset', String(Math.max(0, Number(offset) || 0)));
+	return `${TRAINING_SKILL_STATS_URL}?${params}`;
+};
+export const trainingSectorStatsUrl = (offset = 0) => {
+	const params = new URLSearchParams();
+	params.set('offset', String(Math.max(0, Number(offset) || 0)));
+	return `${TRAINING_SECTOR_STATS_URL}?${params}`;
+};
 export const trainingCatalogUrl = (kind) => `${API_BASE_URL}/training/catalog/${kind}`;
 export const trainingDefinitionUrl = (id) => `${API_BASE_URL}/training/definitions/${id}`;
 export const trainingExerciseUrl = (key) => `${API_BASE_URL}/training/exercises/${key}`;

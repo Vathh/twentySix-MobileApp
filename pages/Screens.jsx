@@ -36,7 +36,7 @@ import TrainingHistoryScreen from '../components/Training/TrainingHistoryScreen'
 import TrainingHistoryDetailScreen from '../components/Training/TrainingHistoryDetailScreen';
 import TrainingAnalysisScreen from '../components/Training/TrainingAnalysisScreen';
 import TrainingRecordsScreen from '../components/Training/TrainingRecordsScreen';
-import TrainingGoalsScreen from '../components/Training/TrainingGoalsScreen';
+import TrainingMedalsScreen from '../components/Training/TrainingMedalsScreen';
 import TrainingProgressScreen from '../components/Training/TrainingProgressScreen';
 import TrainingSessionSync from '../components/Training/TrainingSessionSync';
 import TrainingMatchSetup from '../components/QuickGame/TrainingMatchSetup';
@@ -134,7 +134,7 @@ function GrajStack() {
 			<Stack.Screen name="TrainingHistoryDetail" component={TrainingHistoryDetailScreen} options={{ title: 'Szczegóły' }} />
 			<Stack.Screen name="TrainingAnalysis" component={TrainingAnalysisScreen} options={{ title: 'Analiza zawodnika' }} />
 			<Stack.Screen name="TrainingRecords" component={TrainingRecordsScreen} options={{ title: 'Moje rekordy' }} />
-			<Stack.Screen name="TrainingGoals" component={TrainingGoalsScreen} options={{ title: 'Moje cele' }} />
+			<Stack.Screen name="TrainingMedals" component={TrainingMedalsScreen} options={{ title: 'Medale' }} />
 			<Stack.Screen name="TrainingMatchSetup" component={TrainingMatchSetup} />
 			<Stack.Screen name="QuickGameLobby" component={QuickGameLobby} />
 			<Stack.Screen

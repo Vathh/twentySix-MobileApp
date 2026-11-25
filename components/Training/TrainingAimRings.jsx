@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { boardOrderKey } from '../../helpers/training/sectorAimGroups';
 import { colors } from '../../theme/colors';
 
 function ringMetrics(width) {
@@ -49,10 +50,11 @@ function AimRing({ aim, attempts, hits, percent, metrics }) {
 						strokeDasharray={`${circ} ${circ}`}
 						strokeDashoffset={offset}
 						strokeLinecap="round"
-						transform={`rotate(-90 ${size / 2} ${size / 2})`}
+						rotation={-90}
+						origin={`${size / 2}, ${size / 2}`}
 					/>
 				</Svg>
-				<Text style={[styles.aimLabel, { fontSize: labelSize, maxWidth: size - 16 }]} numberOfLines={1}>
+				<Text style={[styles.aimLabel, { fontSize: labelSize }]} numberOfLines={1}>
 					{aim}
 				</Text>
 			</View>
@@ -62,46 +64,132 @@ function AimRing({ aim, attempts, hits, percent, metrics }) {
 	);
 }
 
-/** Siatka 3 kolumn: pierścień skuteczności per cel, od najwyższego %. */
-const TrainingAimRings = ({ aims }) => {
+function sortRows(list, sortBy) {
+	if (sortBy === 'board') {
+		return [...list].sort((a, b) => {
+			const order = boardOrderKey(a.aim) - boardOrderKey(b.aim);
+			if (order !== 0) {
+				return order;
+			}
+			return String(a.aim).localeCompare(String(b.aim), 'pl');
+		});
+	}
+	return [...list].sort((a, b) => {
+		const pa = Number.isFinite(a.percent)
+			? a.percent
+			: (a.attempts > 0 ? (100 * a.hits) / a.attempts : 0);
+		const pb = Number.isFinite(b.percent)
+			? b.percent
+			: (b.attempts > 0 ? (100 * b.hits) / b.attempts : 0);
+		return (pb - pa) || String(a.aim).localeCompare(String(b.aim), 'pl');
+	});
+}
+
+/**
+ * Siatka pierścieni skuteczności.
+ *
+ * @param {{
+ *   aims: Array<{ aim: string, attempts: number, hits: number, percent?: number }>,
+ *   title?: string,
+ *   defaultOpen?: boolean,
+ *   collapsible?: boolean,
+ *   sortBy?: 'percent' | 'board',
+ * }} props
+ */
+const TrainingAimRings = ({
+	aims,
+	title = 'Skuteczność',
+	defaultOpen = false,
+	collapsible = true,
+	sortBy = 'percent',
+}) => {
 	const { width } = useWindowDimensions();
 	const metrics = useMemo(() => ringMetrics(width), [width]);
+	const [open, setOpen] = useState(defaultOpen || !collapsible);
 	const rows = useMemo(() => {
 		const list = Array.isArray(aims)
 			? aims.filter((row) => row?.aim && (row.attempts ?? 0) > 0)
 			: [];
-		return [...list].sort((a, b) => {
-			const pa = Number.isFinite(a.percent)
-				? a.percent
-				: (a.attempts > 0 ? (100 * a.hits) / a.attempts : 0);
-			const pb = Number.isFinite(b.percent)
-				? b.percent
-				: (b.attempts > 0 ? (100 * b.hits) / b.attempts : 0);
-			return (pb - pa) || String(a.aim).localeCompare(String(b.aim), 'pl');
-		});
-	}, [aims]);
+		return sortRows(list, sortBy);
+	}, [aims, sortBy]);
 
 	if (rows.length === 0) {
 		return null;
 	}
 
+	const showGrid = !collapsible || open;
+
 	return (
-		<View style={styles.grid}>
-			{rows.map((row) => (
-				<AimRing
-					key={row.aim}
-					aim={row.aim}
-					attempts={row.attempts}
-					hits={row.hits}
-					percent={row.percent}
-					metrics={metrics}
-				/>
-			))}
+		<View style={styles.section}>
+			{collapsible ? (
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel={open ? `Zwiń: ${title}` : `Rozwiń: ${title}`}
+					accessibilityState={{ expanded: open }}
+					onPress={() => setOpen((prev) => !prev)}
+					style={({ pressed }) => [styles.toggle, pressed && styles.togglePressed]}
+				>
+					<Text style={styles.toggleLabel}>{title}</Text>
+					<Text style={styles.toggleChevron}>{open ? '▴' : '▾'}</Text>
+				</Pressable>
+			) : title ? (
+				<Text style={styles.staticTitle}>{title}</Text>
+			) : null}
+			{showGrid ? (
+				<View style={styles.grid}>
+					{rows.map((row) => (
+						<AimRing
+							key={row.aim}
+							aim={row.aim}
+							attempts={row.attempts}
+							hits={row.hits}
+							percent={row.percent}
+							metrics={metrics}
+						/>
+					))}
+				</View>
+			) : null}
 		</View>
 	);
 };
 
 const styles = StyleSheet.create({
+	section: {
+		width: '100%',
+		marginBottom: 8,
+	},
+	toggle: {
+		minHeight: 44,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		paddingHorizontal: 14,
+		paddingVertical: 10,
+		borderRadius: 12,
+		backgroundColor: colors.bgElevated,
+		borderWidth: 1,
+		borderColor: colors.border,
+		marginBottom: 8,
+	},
+	togglePressed: {
+		opacity: 0.85,
+	},
+	toggleLabel: {
+		color: colors.text,
+		fontSize: 15,
+		fontWeight: '700',
+	},
+	toggleChevron: {
+		color: colors.textMuted,
+		fontSize: 14,
+		fontWeight: '700',
+	},
+	staticTitle: {
+		color: colors.text,
+		fontSize: 15,
+		fontWeight: '700',
+		marginBottom: 8,
+	},
 	grid: {
 		flexDirection: 'row',
 		flexWrap: 'wrap',

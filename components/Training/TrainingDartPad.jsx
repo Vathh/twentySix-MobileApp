@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
 import { colors } from '../../theme/colors';
 
 const ROWS = [
@@ -31,7 +32,7 @@ export default function TrainingDartPad({
 				{MODIFIERS.map(([value, label]) => {
 					const selected = modifier === value;
 					return (
-						<Pressable
+						<TrainingPressable
 							key={value}
 							accessibilityRole="button"
 							accessibilityLabel={label}
@@ -41,14 +42,14 @@ export default function TrainingDartPad({
 							style={[styles.choice, selected && styles.choiceSelected, disabled && styles.disabled]}
 						>
 							<Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text>
-						</Pressable>
+						</TrainingPressable>
 					);
 				})}
 			</View>
 			{ROWS.map((row) => (
 				<View key={row[0]} style={styles.row}>
 					{row.map((number) => (
-						<Pressable
+						<TrainingPressable
 							key={number}
 							accessibilityRole="button"
 							accessibilityLabel={String(number)}
@@ -57,31 +58,31 @@ export default function TrainingDartPad({
 							style={[styles.key, disabled && styles.disabled]}
 						>
 							<Text style={styles.keyText}>{number}</Text>
-						</Pressable>
+						</TrainingPressable>
 					))}
 				</View>
 			))}
 			<View style={styles.row}>
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
-					accessibilityLabel="Outer"
+					accessibilityLabel="Zielony środek"
 					disabled={disabled}
 					onPress={() => onBull('outer')}
 					style={[styles.choice, disabled && styles.disabled]}
 				>
-					<Text style={styles.choiceText}>Outer</Text>
-				</Pressable>
-				<Pressable
+					<Text style={styles.choiceText}>Zielony środek</Text>
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
-					accessibilityLabel="Inner"
+					accessibilityLabel="Czerwony środek"
 					disabled={disabled}
 					onPress={() => onBull('inner')}
 					style={[styles.choice, disabled && styles.disabled]}
 				>
-					<Text style={styles.choiceText}>Inner</Text>
-				</Pressable>
+					<Text style={styles.choiceText}>Czerwony środek</Text>
+				</TrainingPressable>
 			</View>
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={disabled || undoDisabled}
@@ -89,9 +90,9 @@ export default function TrainingDartPad({
 				style={[styles.secondary, (disabled || undoDisabled) && styles.disabled]}
 			>
 				<Text style={styles.secondaryText}>Cofnij</Text>
-			</Pressable>
+			</TrainingPressable>
 			{onAbort ? (
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Przerwij"
 					disabled={disabled}
@@ -99,7 +100,7 @@ export default function TrainingDartPad({
 					style={[styles.ghost, disabled && styles.disabled]}
 				>
 					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
+				</TrainingPressable>
 			) : null}
 		</View>
 	);

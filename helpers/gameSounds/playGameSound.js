@@ -6,6 +6,8 @@ const SETTINGS_KEY = '@match_settings';
 
 const EVENT_SOURCES = {
 	click: require('../../assets/sounds/click.wav'),
+	failShort: require('../../assets/sounds/fail_shortest.mp3'),
+	successShort: require('../../assets/sounds/success_shortest.mp3'),
 	gameon: require('../../assets/sounds/gameon.mp3'),
 	gameshot: require('../../assets/sounds/gameshot.mp3'),
 	gameshotandthematch: require('../../assets/sounds/gameshotandthematch.mp3'),
@@ -20,6 +22,8 @@ const PLAYER_OPTIONS = {
 
 let audioModePromise = null;
 let clickPlayer = null;
+let failShortPlayer = null;
+let successShortPlayer = null;
 let voicePlayer = null;
 let tickPlayer = null;
 let bellPlayer = null;
@@ -48,6 +52,12 @@ function applyVolumeToPlayers() {
 	const volume = effectiveVolume();
 	if (clickPlayer) {
 		clickPlayer.volume = volume;
+	}
+	if (failShortPlayer) {
+		failShortPlayer.volume = volume;
+	}
+	if (successShortPlayer) {
+		successShortPlayer.volume = volume;
 	}
 	if (voicePlayer) {
 		voicePlayer.volume = volume;
@@ -114,6 +124,22 @@ function getClickPlayer() {
 	return clickPlayer;
 }
 
+function getFailShortPlayer() {
+	if (!failShortPlayer) {
+		failShortPlayer = createAudioPlayer(EVENT_SOURCES.failShort, PLAYER_OPTIONS);
+		failShortPlayer.volume = effectiveVolume();
+	}
+	return failShortPlayer;
+}
+
+function getSuccessShortPlayer() {
+	if (!successShortPlayer) {
+		successShortPlayer = createAudioPlayer(EVENT_SOURCES.successShort, PLAYER_OPTIONS);
+		successShortPlayer.volume = effectiveVolume();
+	}
+	return successShortPlayer;
+}
+
 function getVoicePlayer() {
 	if (!voicePlayer) {
 		voicePlayer = createAudioPlayer(EVENT_SOURCES.gameon, PLAYER_OPTIONS);
@@ -147,6 +173,16 @@ export function playClick() {
 	void replay(getClickPlayer(), EVENT_SOURCES.click, null);
 }
 
+/** Pudło / Fail w treningu (binarne trafiona–pudło). */
+export function playFailShort() {
+	void replay(getFailShortPlayer(), EVENT_SOURCES.failShort, null);
+}
+
+/** Trafiona / Check w treningu (binarne trafiona–pudło). */
+export function playSuccessShort() {
+	void replay(getSuccessShortPlayer(), EVENT_SOURCES.successShort, null);
+}
+
 /** Głos (wynik wizyty) — źródło z lazy chunka, nie z mapy eventów. */
 export function playVoiceSource(source, sourceKey) {
 	if (!source) {
@@ -168,7 +204,7 @@ export function playCheckoutWin(matchWon) {
 		);
 		return;
 	}
-	void replay(getVoicePlayer(), EVENT_SOURCES.gameshot, 'gameshot');
+	void replay(getVoicePlayer(), EVENT_SOURCES.gameshot, 'gamehot');
 }
 
 export function playCheckoutWinSound(playerState, matchFormat) {

@@ -3,6 +3,8 @@
  * Treść według TWENTY_SIX_TRAINING.md; nie idzie na serwer.
  */
 
+import { BULL_INNER_LABEL, BULL_OUTER_LABEL } from './bullLabels.js';
+
 const LOOSE_THROWS = {
 	goal: 'Swobodne przygotowanie do treningu i rozgrzanie ręki przed właściwymi ćwiczeniami.',
 	how: [
@@ -25,7 +27,7 @@ function nineDarts(variant) {
 		goal: 'Poprawa skuteczności na środku oraz sektorach 20, 19 i 18.',
 		how: [
 			`Wykonaj cztery etapy, każdy po ${stage} lotek:`,
-			`1. Środek tarczy — Outer Bull albo Inner Bull.`,
+			`1. Środek tarczy — ${BULL_OUTER_LABEL} albo ${BULL_INNER_LABEL}.`,
 			`2. Sektor 20 (single, double lub triple).`,
 			`3. Sektor 19.`,
 			`4. Na zmianę sektory 20, 19 i 18 aż do końca etapu.`,
@@ -44,7 +46,7 @@ function clock(variantId) {
 		return {
 			goal: 'Poprawa celności przy rozmianach',
 			how: [
-				'Celuj kolejno w sektory 1–20, potem w Bull (Outer albo Inner).',
+				`Celuj kolejno w sektory 1–20, potem w Bull (${BULL_OUTER_LABEL} albo ${BULL_INNER_LABEL}).`,
 				'Pozostań na podświetlonym sektorze, aż go trafisz. Po trafieniu kolejna lotka idzie w następny cel — także w tej samej trójce.',
 				'Pudło nie przesuwa celu. Koniec czasu urywa ćwiczenie na aktualnym sektorze. Ukończenie Bulla przed czasem kończy ćwiczenie.',
 			],
@@ -62,10 +64,10 @@ function clock(variantId) {
 			how: [
 				'Celuj kolejno po jednej lotce w Double 1–Double 20, potem w Bull.',
 				'Po każdej lotce — trafionej albo pudle — przechodzisz do następnego celu. Nie wracasz do nietrafionego.',
-				'Przy Bullu zaznaczasz Outer albo Inner.',
+				`Przy Bullu zaznaczasz ${BULL_OUTER_LABEL} albo ${BULL_INNER_LABEL}.`,
 			],
 			scoring: [
-				'Trafienie Double 1–20 daje 3 punkty. Outer Bull daje 3 punkty. Inner Bull daje 6 punktów. Pudło daje 0.',
+				`Trafienie Double 1–20 daje 3 punkty. ${BULL_OUTER_LABEL} daje 3 punkty. ${BULL_INNER_LABEL} daje 6 punktów. Pudło daje 0.`,
 				'Wynik to suma punktów. W podsumowaniu widać też trafienia i procent.',
 			],
 			limit: '21 lotek (po jednej na cel).',
@@ -74,7 +76,7 @@ function clock(variantId) {
 	return {
 		goal: 'Poprawa celności przy szybkiej zmianie sektorów i rozmianach.',
 		how: [
-			'Celuj kolejno po jednej lotce w sektory 1–20, potem w Bull (Outer albo Inner).',
+			`Celuj kolejno po jednej lotce w sektory 1–20, potem w Bull (${BULL_OUTER_LABEL} albo ${BULL_INNER_LABEL}).`,
 			'Po każdej lotce — trafionej albo pudle — przechodzisz do następnego celu. Nie wracasz do nietrafionego.',
 		],
 		scoring: [
@@ -90,10 +92,10 @@ function bobs27(variantId) {
 		return {
 			goal: 'Poprawa skuteczności na podwójnych',
 			how: [
-				'Startujesz z licznikiem 27. Cele: D1–D20, a na końcu Inner Bull (wartość 50). Outer Bull przy Innerze jest pudłem.',
+				`Startujesz z licznikiem 27. Cele: D1–D20, a na końcu ${BULL_INNER_LABEL} (wartość 50). ${BULL_OUTER_LABEL} przy czerwonym środku jest pudłem.`,
 				'Na każdy cel trzy lotki. Każde trafienie w aktualny Double dodaje jego wartość (do Twojego licznika). Trzy pudła odejmują ją raz.',
 				'Jeśli rozliczenie celu zjechałoby wynik poniżej 1, ćwiczenie się kończy — zapisujemy 0, nie liczbę ujemną.',
-				'Inaczej koniec po 5 minutach albo po rozliczeniu Innera, ze stanem licznika.',
+				`Inaczej koniec po 5 minutach albo po rozliczeniu ${BULL_INNER_LABEL.toLowerCase()}, ze stanem licznika.`,
 			],
 			scoring: [
 				'W trakcie widać aktualny wynik licznika.',
@@ -172,7 +174,7 @@ const SCORING_65 = {
 const SINGLES = {
 	goal: 'Trening celności na polach Single oraz poruszania się po ścieżce sektorów pod presją czasu.',
 	how: [
-		'Ścieżka: 1 → 2 → … → 20 → Bull → 20 → 19 → … → 1. Bull zalicza Outer albo Inner.',
+		`Ścieżka: 1 → 2 → … → 20 → Bull → 20 → 19 → … → 1. Bull zalicza ${BULL_OUTER_LABEL} albo ${BULL_INNER_LABEL}.`,
 		'Liczą się tylko Single. Double i Triple nie zaliczają sektora.',
 		'Podejście ma trzy lotki. Trafienie Single aktualnego sektora przesuwa Cię dalej już przy następnej lotce — w jednej trójce możesz przejść kilka sektorów.',
 		'Jeśli żadna z trzech lotek nie trafi sektora aktualnego przy tej lotce, cofasz się o jeden sektor (nie niżej niż 1).',
@@ -206,14 +208,14 @@ const CHECKOUT_BULL_81 = {
 	goal: 'Poprawa skuteczności przy rozmianach oraz celności na środku tarczy',
 	how: [
 		'Każde podejście ma zawsze 3 lotki. Wpisujesz każde podejście po jednej lotce.',
-		'Dwie pierwsze lotki ustawiają checkout — odejmują pełną wartość z tarczy (single, double, triple, Outer 25, Inner 50). Pudło odejmuje 0. Zawsze rzucasz trzecią lotkę.',
-		'Trzecia lotka zawsze idzie w czerwony środek.',
+		`Dwie pierwsze lotki ustawiają checkout — odejmują pełną wartość z tarczy (single, double, triple, ${BULL_OUTER_LABEL} 25, ${BULL_INNER_LABEL} 50). Pudło odejmuje 0. Zawsze rzucasz trzecią lotkę.`,
+		`Trzecia lotka zawsze idzie w ${BULL_INNER_LABEL.toLowerCase()}.`,
 		'Kolejność wartości: 81 → … → 90, potem powrót 89 → … → 81. Po ponownym zamknięciu 81, jeśli został czas, kolejna runda od 81.',
 		'Nieudane podejście (także z bonusem) zostawia tę samą wartość checkoutu.',
 	],
 	scoring: [
-		'Zamknięcie (+10): po dwóch lotkach zostało dokładnie 50 i trzecia trafiła Inner. Outer przy ustawionych 50 nie zamyka.',
-		'Bonus (+4): po dwóch lotkach nie zostało 50, a trzecia trafiła Inner.',
+		`Zamknięcie (+10): po dwóch lotkach zostało dokładnie 50 i trzecia trafiła ${BULL_INNER_LABEL.toLowerCase()}. ${BULL_OUTER_LABEL} przy ustawionych 50 nie zamyka.`,
+		`Bonus (+4): po dwóch lotkach nie zostało 50, a trzecia trafiła ${BULL_INNER_LABEL.toLowerCase()}.`,
 		'Wynik to suma zamknięć i bonusów. W trakcie ćwiczenia nie pokazujemy aktualnego wyniku.',
 	],
 	limit: '8 minut.',
@@ -223,11 +225,11 @@ const BULL_COUNTER = {
 	goal: 'Poprawa celności na środku tarczy przy walce o pierwszeństwo przy tarczy',
 	how: [
 		'Używaj tylko jednej lotki — po rzucie wyciągasz ją z tarczy i rzucasz ponownie.',
-		'Celuj w środek. Na ekranie zaznaczasz Inner, Outer albo Pudło.',
+		`Celuj w środek. Na ekranie zaznaczasz ${BULL_INNER_LABEL}, ${BULL_OUTER_LABEL} albo Pudło.`,
 	],
 	scoring: [
-		'Inner (czerwony) — 4 punkty.',
-		'Outer (zielony) — 2 punkty.',
+		`${BULL_INNER_LABEL} — 4 punkty.`,
+		`${BULL_OUTER_LABEL} — 2 punkty.`,
 		'Poza Bullem — 0.',
 		'Wynik to suma punktów. W trakcie widać aktualny wynik.',
 	],
@@ -250,15 +252,15 @@ const SHANGHAI_10_15 = {
 };
 
 const DOUBLES_54 = {
-	goal: 'Trening doubli D1–D20 oraz Inner Bull.',
+	goal: `Trening doubli D1–D20 oraz ${BULL_INNER_LABEL}.`,
 	how: [
-		'Po jednej lotce w D1–D20, na końcu Inner Bull.',
-		'Outer Bull traktowany jest jako pudło.',
+		`Po jednej lotce w D1–D20, na końcu ${BULL_INNER_LABEL}.`,
+		`${BULL_OUTER_LABEL} traktowany jest jako pudło.`,
 		'Po każdym celu od razu idzie następny. W trakcie nie widać sumy punktów.',
 	],
 	scoring: [
 		'Trafiony double daje 50 punktów.',
-		'Inner Bull daje 100. Outer Bull = 0.',
+		`${BULL_INNER_LABEL} daje 100. ${BULL_OUTER_LABEL} = 0.`,
 		'Wynik to suma punktów. Maksimum: 1100.',
 	],
 	limit: '21 lotek.',

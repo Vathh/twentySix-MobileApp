@@ -5,8 +5,21 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initTheme } from './theme/colors';
 import AppIntro from './components/Common/AppIntro';
-import { IntroOverlayProvider } from './context/IntroOverlayContext';
+import {
+	IntroOverlayProvider,
+	useIntroOverlay,
+} from './context/IntroOverlayContext';
 import { getIntroLogotypXml, preloadSvgAssets } from './helpers/svgAssets';
+
+/** Wspólny układ dla AppShell i overlay — pomiary slotu logo są względem tego hosta. */
+function IntroCoordinateHost({ children }) {
+	const { coordinateHostRef } = useIntroOverlay();
+	return (
+		<View ref={coordinateHostRef} collapsable={false} style={bootStyles.root}>
+			{children}
+		</View>
+	);
+}
 
 // pusher-js (web build) oczekuje `self` — w RN jest tylko `global`
 if (typeof global !== 'undefined' && typeof global.self === 'undefined') {
@@ -78,7 +91,7 @@ export default function App() {
 			onRevealComplete={handleRevealComplete}
 		>
 			<SafeAreaProvider>
-				<View style={bootStyles.root}>
+				<IntroCoordinateHost>
 					{drawDone ? <AppShell /> : null}
 					{!introDone ? (
 						<View style={bootStyles.introOverlay}>
@@ -88,7 +101,7 @@ export default function App() {
 							/>
 						</View>
 					) : null}
-				</View>
+				</IntroCoordinateHost>
 			</SafeAreaProvider>
 		</IntroOverlayProvider>
 	);

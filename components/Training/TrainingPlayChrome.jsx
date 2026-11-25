@@ -1,19 +1,16 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
-import { scaleSize } from '../../theme/uiScale';
 import TrainingAbortSheet from './TrainingAbortSheet';
 
 /**
- * Wspólny shell play: context header, timer, body, abort sheet.
+ * Wspólny shell play: scalony header (tytuł + opcjonalny timer), body, abort sheet.
+ * Wyjście z ćwiczenia — przez menu ⋯ (bez X w chrome).
  */
 export default function TrainingPlayChrome({
 	title,
 	subtitle,
 	hideHeader = false,
-	onAbort,
-	abortDisabled = false,
 	timer = null,
 	children,
 	contentStyle,
@@ -23,37 +20,31 @@ export default function TrainingPlayChrome({
 	onAbortConfirm,
 	abortConfirmLabel,
 }) {
+	const showHeader = !hideHeader && (title || timer);
+
 	return (
 		<View style={styles.screen}>
-			{!hideHeader && title ? (
+			{showHeader ? (
 				<View
 					style={styles.header}
 					accessibilityRole="header"
-					accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+					accessibilityLabel={
+						title
+							? (subtitle ? `${title}, ${subtitle}` : title)
+							: undefined
+					}
 				>
 					<View style={styles.headerCopy}>
-						<Text style={styles.title} numberOfLines={2}>{title}</Text>
-						{subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
+						{title ? (
+							<Text style={styles.title} numberOfLines={2}>{title}</Text>
+						) : null}
+						{subtitle ? (
+							<Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+						) : null}
 					</View>
-					{onAbort ? (
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Przerwij"
-							disabled={abortDisabled}
-							onPress={onAbort}
-							hitSlop={8}
-							style={({ pressed }) => [
-								styles.abort,
-								pressed && !abortDisabled && styles.abortPressed,
-								abortDisabled && styles.abortDisabled,
-							]}
-						>
-							<Ionicons name="close" size={scaleSize(20)} color={colors.textMuted} />
-						</Pressable>
-					) : null}
+					{timer ? <View style={styles.timerSlot}>{timer}</View> : null}
 				</View>
 			) : null}
-			{timer}
 			<ScrollView
 				style={styles.scroll}
 				contentContainerStyle={[styles.content, contentStyle]}
@@ -83,7 +74,7 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 12,
 		paddingHorizontal: 20,
-		paddingTop: 12,
+		paddingTop: 10,
 		paddingBottom: 10,
 		borderBottomWidth: 1,
 		borderBottomColor: colors.border,
@@ -95,33 +86,20 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		color: colors.text,
-		fontSize: 18,
-		lineHeight: 24,
+		fontSize: 17,
+		lineHeight: 22,
 		fontWeight: '800',
 		letterSpacing: -0.2,
 	},
 	subtitle: {
 		marginTop: 2,
 		color: colors.textSecondary,
-		fontSize: 14,
-		lineHeight: 18,
+		fontSize: 13,
+		lineHeight: 16,
 		fontWeight: '600',
 	},
-	abort: {
-		width: 40,
-		height: 40,
-		borderRadius: 12,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.bgElevated,
-		borderWidth: 1,
-		borderColor: colors.border,
-	},
-	abortPressed: {
-		backgroundColor: colors.bgElevatedHover,
-	},
-	abortDisabled: {
-		opacity: 0.4,
+	timerSlot: {
+		flexShrink: 0,
 	},
 	scroll: {
 		flex: 1,

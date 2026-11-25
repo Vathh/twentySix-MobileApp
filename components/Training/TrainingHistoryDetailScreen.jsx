@@ -127,10 +127,7 @@ const TrainingHistoryDetailScreen = ({ navigation, route }) => {
 			) : null}
 
 			{Array.isArray(aims) && aims.length > 0 ? (
-				<>
-					<Text style={styles.section}>Skuteczność</Text>
-					<TrainingAimRings aims={aims} />
-				</>
+				<TrainingAimRings aims={aims} />
 			) : null}
 
 			{item.kind === 'plan' && Array.isArray(results) && results.length > 0 ? (

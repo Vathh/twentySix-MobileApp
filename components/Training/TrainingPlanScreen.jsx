@@ -16,6 +16,7 @@ import {
 	enqueueTrainingCompletion,
 	flushTrainingOutbox,
 } from '../../helpers/training/trainingSessionStore';
+import { applyCompletionToRecordsCache } from '../../helpers/training/recordsCache';
 import { syncLabel } from '../../helpers/training/trainingSessionSync';
 import {
 	advanceHang,
@@ -230,6 +231,10 @@ const TrainingPlanScreen = ({ navigation, route }) => {
 		}
 		summaryId.current = summary.clientSessionId;
 		try {
+			await applyCompletionToRecordsCache(userIdRef.current, {
+				...summary,
+				kind: summary.kind || 'plan',
+			});
 			await enqueueTrainingCompletion(userIdRef.current, summary);
 			const items = await flushTrainingOutbox(userIdRef.current, accessTokenRef.current);
 			if (summaryId.current !== summary.clientSessionId) {
@@ -575,10 +580,7 @@ function SummaryView({ summary, plan, onHome, onRepeat, prompt, onCancelPrompt, 
 				<Text style={styles.sync}>{syncLabel(summary.sync, summary.syncReason)}</Text>
 
 				{summaryAims.length > 0 ? (
-					<>
-						<Text style={styles.sectionLabel}>Skuteczność</Text>
-						<TrainingAimRings aims={summaryAims} />
-					</>
+					<TrainingAimRings aims={summaryAims} />
 				) : null}
 
 				<Text style={styles.sectionLabel}>Ćwiczenia</Text>

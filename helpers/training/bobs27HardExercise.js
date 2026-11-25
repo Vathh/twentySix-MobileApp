@@ -14,7 +14,7 @@ export const DEFAULT_DURATION_MS = 300000;
 export const BOB27_HARD_INNER_AIM = 'Inner';
 
 export const BOB27_HARD_DOUBLE_AIM_TEXT = 'Rzuć trzy lotki w wyświetloną podwójną.';
-export const BOB27_HARD_INNER_AIM_TEXT = 'Rzuć trzy lotki w inner bull';
+export const BOB27_HARD_INNER_AIM_TEXT = 'Rzuć trzy lotki w czerwony środek.';
 
 export function canPlayBob27Hard(definition) {
 	return Boolean(
@@ -119,8 +119,8 @@ export function currentBob27HardVisit(session) {
 	if (targetIndex === BOB27_HARD_DOUBLES) {
 		return {
 			aim: BOB27_HARD_INNER_AIM,
-			label: BOB27_HARD_INNER_AIM,
-			accessibilityLabel: 'Inner',
+			label: 'Czerwony środek',
+			accessibilityLabel: 'Czerwony środek',
 			dartNumber,
 		};
 	}

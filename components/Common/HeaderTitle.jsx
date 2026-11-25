@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
 	Easing,
 	runOnJS,
@@ -64,43 +63,69 @@ const HeaderTitle = () => {
 	const {
 		introActive,
 		revealRest,
+		coordinateHostRef,
 		reportHeaderLogoLayout,
+		registerHeaderLogoMeasure,
 		reportRevealComplete,
 	} = useIntroOverlay();
-	const insets = useSafeAreaInsets();
 	const logotypRef = useRef(null);
 	const reveal = useSharedValue(introActive ? 0 : 1);
 	const finishedRef = useRef(false);
 	const safeLogoXml = useMemo(() => sanitizeSvgXml(getLogoXml()), []);
 
 	const measureLogotyp = useCallback(() => {
-		logotypRef.current?.measureInWindow((x, y, width, height) => {
+		const target = logotypRef.current;
+		const host = coordinateHostRef?.current;
+		if (!target) {
+			return;
+		}
+
+		const publish = (x, y, width, height) => {
 			if (!(width > 0) || !(height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) {
 				return;
 			}
-			// Pomiar z native headera bywa nad paskiem statusu. Poprzednio
-			// dociąganie do środka belki (56/44) lądowało pod slotem logo.
-			const windowY = y < insets.top - 1 ? insets.top : y;
-			reportHeaderLogoLayout({
-				x: Math.max(0, x),
-				y: windowY,
-				width,
-				height,
+			reportHeaderLogoLayout({ x, y, width, height });
+		};
+
+		// Współrzędne względem hosta (= overlay). Native header bywa poza
+		// drzewem hosta — wtedy measureLayout pada i robimy window − host.
+		const publishFromWindow = () => {
+			if (!host?.measureInWindow || !target.measureInWindow) {
+				target.measureInWindow?.((x, y, width, height) => {
+					publish(x, y, width, height);
+				});
+				return;
+			}
+			host.measureInWindow((hostX, hostY) => {
+				target.measureInWindow((x, y, width, height) => {
+					const originX = Number.isFinite(hostX) ? hostX : 0;
+					const originY = Number.isFinite(hostY) ? hostY : 0;
+					publish(x - originX, y - originY, width, height);
+				});
 			});
-		});
-	}, [insets.top, reportHeaderLogoLayout]);
+		};
+
+		if (host && typeof target.measureLayout === 'function') {
+			target.measureLayout(host, publish, publishFromWindow);
+			return;
+		}
+
+		publishFromWindow();
+	}, [coordinateHostRef, reportHeaderLogoLayout]);
 
 	useEffect(() => {
 		if (!introActive) {
 			return undefined;
 		}
+		const unregister = registerHeaderLogoMeasure?.(measureLogotyp);
 		const frame = requestAnimationFrame(measureLogotyp);
 		const timers = [80, 200, 400].map((ms) => setTimeout(measureLogotyp, ms));
 		return () => {
+			unregister?.();
 			cancelAnimationFrame(frame);
 			timers.forEach(clearTimeout);
 		};
-	}, [introActive, measureLogotyp]);
+	}, [introActive, measureLogotyp, registerHeaderLogoMeasure]);
 
 	const completeReveal = useCallback(() => {
 		if (finishedRef.current) {

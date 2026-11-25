@@ -1,13 +1,14 @@
 /**
  * Walka o licznik. Jedna lotka, inner 4, outer 2, pudło 0.
  * Czas z definicji (domyślnie 3 minuty). Wynik to suma punktów.
- * Lista lotek zostaje na telefonie. Na serwer: wynik, trafienia, aims (Bull/Inner/Outer).
+ * Lista lotek zostaje na telefonie. Na serwer: wynik, trafienia, aims.
  */
 
 export const BULL_COUNTER_MECHANIC = 'bull_counter';
 export const DEFAULT_DURATION_MS = 180000;
 export const INNER_POINTS = 4;
 export const OUTER_POINTS = 2;
+
 export const BULL_COUNTER_AIM = 'Inner';
 export const BULL_COUNTER_AIM_TEXT = 'Celuj w czerwony środek. Używaj tylko jednej lotki.';
 

@@ -33,6 +33,7 @@ import {
 	serverToHistoryItem,
 	syncStatusLabel,
 } from '../../helpers/training/trainingHistoryMerge';
+import { clearRecordsCache } from '../../helpers/training/recordsCache';
 import {
 	clearTrainingOutbox,
 	flushTrainingOutbox,
@@ -196,7 +197,7 @@ const TrainingHistoryScreen = ({ navigation }) => {
 		}
 		const ok = await confirm({
 			title: 'Usunąć historię treningową?',
-			message: 'Znikną wszystkie ukończone treningi, rekordy, cele, odznaki i opublikowane wyniki. Tej operacji nie cofniesz z aplikacji.',
+			message: 'Znikną wszystkie ukończone treningi, rekordy i opublikowane wyniki. Tej operacji nie cofniesz z aplikacji.',
 			confirmLabel: 'Usuń historię',
 		});
 		if (!ok) {
@@ -212,6 +213,7 @@ const TrainingHistoryScreen = ({ navigation }) => {
 			}
 			await Promise.all([
 				clearHistoryCache(auth.userId),
+				clearRecordsCache(auth.userId),
 				clearTrainingOutbox(auth.userId),
 				clearTrainingHistory(),
 			]);

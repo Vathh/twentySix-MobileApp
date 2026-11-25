@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { placeRecent } from './recentTraining';
+import { placeRecent, RECENT_TRAINING_LIMIT } from './recentTraining';
 
 /**
  * Ostatnio używane żyją tylko na tym telefonie, osobno dla każdego konta, które się tu loguje.
@@ -16,7 +16,7 @@ export async function loadRecentTraining(userId) {
 	}
 	try {
 		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+		return Array.isArray(parsed) ? parsed.slice(0, RECENT_TRAINING_LIMIT) : [];
 	} catch {
 		return [];
 	}

@@ -3,6 +3,8 @@
  * Wariant 9 ma 9 lotek na etap, wariant 18 ma 18. Każde trafienie daje 1 punkt.
  */
 
+import { targetIndexReelWindow } from './targetReelWindow.js';
+
 export const NINE_DARTS_MECHANIC = 'nine_darts';
 export const STAGE_SIZE = 9;
 export const EIGHTEEN_STAGE_SIZE = 18;
@@ -146,6 +148,63 @@ export function currentAim(session) {
 		return null;
 	}
 	return aimAt(session.darts.length, session.stageSize);
+}
+
+/** Unikalne cele na karuzeli — znacznik rusza tylko przy zmianie celu. */
+export const NINE_DARTS_REEL_TARGETS = ['Bull', '20', '19', '18'];
+
+/** Etap rotacji: stałe okno 20/19/18 — karuzela już nie jedzie, tylko znacznik. */
+export const NINE_DARTS_ROTATION_WINDOW_START = 1;
+
+export function nineDartsReelTargets() {
+	return NINE_DARTS_REEL_TARGETS;
+}
+
+/**
+ * Indeks na karuzeli Bull/20/19/18.
+ * Etapy 0–2: Bull → 20 → 19. Etap 3: skacze między 20, 19, 18 (także w lewo).
+ */
+export function nineDartsReelActiveIndex(aim) {
+	if (!aim) {
+		return null;
+	}
+	if (aim.stage === 0 || aim.kind === 'bull') {
+		return 0;
+	}
+	if (aim.stage === 1) {
+		return 1;
+	}
+	if (aim.stage === 2) {
+		return 2;
+	}
+	if (aim.number === 20) {
+		return 1;
+	}
+	if (aim.number === 19) {
+		return 2;
+	}
+	if (aim.number === 18) {
+		return 3;
+	}
+	return null;
+}
+
+/**
+ * Okno karuzeli. W etapie 3 (20/19/18) windowStart jest zablokowane — widać tylko
+ * te trzy cele, znacznik chodzi między nimi bez przewijania Bulla.
+ */
+export function nineDartsReelWindow(aim) {
+	const activeIndex = nineDartsReelActiveIndex(aim);
+	if (activeIndex == null) {
+		return null;
+	}
+	if (aim?.stage === 3) {
+		return {
+			windowStart: NINE_DARTS_ROTATION_WINDOW_START,
+			activeOffset: activeIndex - NINE_DARTS_ROTATION_WINDOW_START,
+		};
+	}
+	return targetIndexReelWindow(activeIndex, NINE_DARTS_REEL_TARGETS.length);
 }
 
 function missDart() {

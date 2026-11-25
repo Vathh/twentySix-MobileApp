@@ -161,7 +161,7 @@ export function fiftyFourAimText(target) {
 		return `Celuj w sektor ${target.targetLabel}`;
 	}
 	if (target.isBull) {
-		return 'Celuj w Inner Bull';
+		return 'Celuj w czerwony środek';
 	}
 	return `Celuj w ${target.targetLabel}`;
 }

@@ -6,13 +6,16 @@ import { colors } from '../../theme/colors';
 /**
  * Sticky dolny pasek z głównym CTA startu sesji.
  */
-export default function TrainingStickyStartBar({ label, onPress, disabled }) {
+export default function TrainingStickyStartBar({ label, onPress, disabled, recordLabel }) {
 	const insets = useSafeAreaInsets();
 	if (!label || !onPress) {
 		return null;
 	}
 	return (
 		<View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+			{recordLabel ? (
+				<Text style={styles.record}>{recordLabel}</Text>
+			) : null}
 			<Pressable
 				accessibilityRole="button"
 				accessibilityLabel={label}
@@ -38,6 +41,13 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: colors.border,
 		backgroundColor: colors.bgDeep,
+	},
+	record: {
+		color: colors.textMuted,
+		fontSize: 14,
+		fontWeight: '600',
+		textAlign: 'center',
+		marginBottom: 10,
 	},
 	button: {
 		minHeight: 52,

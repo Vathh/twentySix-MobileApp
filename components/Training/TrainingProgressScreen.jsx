@@ -5,34 +5,16 @@ import { colors } from '../../theme/colors';
 import { TRAINING_SECTIONS } from './trainingSections';
 
 const TILES = [
-	{ key: 'analysis', section: 'analysis' },
-	{ key: 'records', section: 'records' },
-	{ key: 'goals', section: 'goals' },
-	{ key: 'history', section: 'history' },
+	{ key: 'analysis', section: 'analysis', route: 'TrainingAnalysis' },
+	{ key: 'records', section: 'records', route: 'TrainingRecords' },
+	{ key: 'medals', section: 'medals', route: 'TrainingMedals' },
+	{ key: 'history', section: 'history', route: 'TrainingHistory' },
 ];
 
 /**
- * Hub postępu: analiza, rekordy, cele i historia treningów.
+ * Hub postępu: analiza, rekordy, medale i historia treningów.
  */
 const TrainingProgressScreen = ({ navigation }) => {
-	const open = (tile) => {
-		if (tile.section === 'history') {
-			navigation.navigate('TrainingHistory');
-			return;
-		}
-		if (tile.section === 'analysis') {
-			navigation.navigate('TrainingAnalysis');
-			return;
-		}
-		if (tile.section === 'records') {
-			navigation.navigate('TrainingRecords');
-			return;
-		}
-		if (tile.section === 'goals') {
-			navigation.navigate('TrainingGoals');
-		}
-	};
-
 	return (
 		<ScrollView
 			style={styles.scroll}
@@ -48,7 +30,7 @@ const TrainingProgressScreen = ({ navigation }) => {
 							key={tile.key}
 							icon={section.icon}
 							title={section.title}
-							onPress={() => open(tile)}
+							onPress={() => navigation.navigate(tile.route)}
 						/>
 					);
 				})}

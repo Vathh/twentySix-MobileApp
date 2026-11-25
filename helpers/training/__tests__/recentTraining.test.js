@@ -18,12 +18,19 @@ export function runRecentTrainingTests() {
 	list = placeRecent(list, exercise);
 	list = placeRecent(list, challenge);
 	list = placeRecent(list, fourth);
-	assert(list.map((item) => item.id).join() === '4,3,2', 'czwarta pozycja spada z końca');
+	assert(list.map((item) => item.id).join() === '4,3,2,1', 'cztery pozycje mieszczą się w limicie 6');
+	assert(list.length === 4, 'na razie cztery');
+
+	for (let id = 5; id <= 7; id += 1) {
+		list = placeRecent(list, { id, kind: 'plan', name: `Plan ${id}` });
+	}
+	assert(list.length === 6, 'limit zostaje sześć');
+	assert(list.map((item) => item.id).join() === '7,6,5,4,3,2', 'najstarsza wypada po przekroczeniu limitu');
 	assert(list.every((item) => item.id !== 1), 'najstarsza znika');
 
 	list = placeRecent(list, exercise);
-	assert(list.map((item) => item.key).join() === 'exercise:2,plan:4,challenge:3', 'ponowienie idzie na początek');
-	assert(list.length === 3, 'limit zostaje trzy');
+	assert(list.map((item) => item.key).join() === 'exercise:2,plan:7,plan:6,plan:5,plan:4,challenge:3', 'ponowienie idzie na początek');
+	assert(list.length === 6, 'limit zostaje sześć');
 
 	const sameNumber = placeRecent(list, { id: 4, kind: 'exercise', name: 'Inne' });
 	assert(sameNumber[0].key === 'exercise:4', 'inny rodzaj o tym samym id jest osobną pozycją');

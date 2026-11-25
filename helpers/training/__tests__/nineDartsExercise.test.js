@@ -7,6 +7,9 @@ import {
 	dartHitsAim,
 	nineDartsCompletion,
 	nineDartsLength,
+	nineDartsReelActiveIndex,
+	nineDartsReelTargets,
+	nineDartsReelWindow,
 	nineDartsStats,
 	recordNineDart,
 	startNineDartsSession,
@@ -165,4 +168,19 @@ export function runNineDartsExerciseTests() {
 	assert(currentAim(wide).number === 20, 'po 18 lotkach wchodzi sektor 20');
 	assert(nineDartsStats(wide).stages[0].attempts === 18, 'etap środka liczy 18 lotek');
 	assert(nineDartsStats(wide).variant === '18', 'zapis pamięta wariant');
+
+	assert(nineDartsReelTargets().join(',') === 'Bull,20,19,18', 'karuzela ma 4 unikalne cele');
+	assert(nineDartsReelActiveIndex(aimAt(0)) === 0, 'pierwsze lotki na Bull');
+	assert(nineDartsReelActiveIndex(aimAt(8)) === 0, '9. lotka dalej na Bull');
+	assert(nineDartsReelActiveIndex(aimAt(9)) === 1, 'etap 20');
+	assert(nineDartsReelActiveIndex(aimAt(18)) === 2, 'etap 19');
+	assert(nineDartsReelActiveIndex(aimAt(27)) === 1, 'rotacja wraca na 20');
+	assert(nineDartsReelActiveIndex(aimAt(28)) === 2, 'rotacja 19');
+	assert(nineDartsReelActiveIndex(aimAt(29)) === 3, 'rotacja 18');
+	const rot20 = nineDartsReelWindow(aimAt(27));
+	const rot19 = nineDartsReelWindow(aimAt(28));
+	const rot18 = nineDartsReelWindow(aimAt(29));
+	assert(rot20.windowStart === 1 && rot20.activeOffset === 0, 'etap 3: stałe okno, znacznik na 20');
+	assert(rot19.windowStart === 1 && rot19.activeOffset === 1, 'etap 3: znacznik na 19 bez przewijania');
+	assert(rot18.windowStart === 1 && rot18.activeOffset === 2, 'etap 3: znacznik na 18 bez przewijania');
 }

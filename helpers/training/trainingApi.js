@@ -2,11 +2,13 @@ import { apiRequest } from '../apiClient';
 import {
 	TRAINING_ANALYSIS_URL,
 	TRAINING_FAVORITES_URL,
-	TRAINING_GOALS_URL,
 	TRAINING_HISTORY_URL,
+	TRAINING_MEDALS_URL,
 	TRAINING_RECORDS_URL,
 	TRAINING_SESSIONS_URL,
 	trainingCatalogUrl,
+	trainingSectorStatsUrl,
+	trainingSkillStatsUrl,
 	trainingChallengeAttemptsUrl,
 	trainingChallengePublicationUrl,
 	trainingChallengeRankingUrl,
@@ -112,12 +114,20 @@ export function fetchTrainingRecords(accessToken) {
 	return apiRequest(TRAINING_RECORDS_URL, { accessToken });
 }
 
-export function fetchTrainingGoals(accessToken) {
-	return apiRequest(TRAINING_GOALS_URL, { accessToken });
+export function fetchTrainingMedals(accessToken) {
+	return apiRequest(TRAINING_MEDALS_URL, { accessToken });
 }
 
 export function fetchTrainingAnalysis(accessToken) {
 	return apiRequest(TRAINING_ANALYSIS_URL, { accessToken });
+}
+
+export function fetchTrainingSkillStats(accessToken, windowKey = '90d', offset = 0) {
+	return apiRequest(trainingSkillStatsUrl(windowKey, offset), { accessToken });
+}
+
+export function fetchTrainingSectorStats(accessToken, offset = 0) {
+	return apiRequest(trainingSectorStatsUrl(offset), { accessToken });
 }
 
 export function fetchChallengeRanking(accessToken, definitionId, { offset = 0, limit = 10 } = {}) {

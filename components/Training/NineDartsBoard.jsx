@@ -1,7 +1,13 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { aimInstruction } from '../../helpers/training/nineDartsExercise';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
+import {
+	aimInstruction,
+	nineDartsReelTargets,
+	nineDartsReelWindow,
+} from '../../helpers/training/nineDartsExercise';
 import { colors } from '../../theme/colors';
+import SectorTargetReel from './SectorTargetReel';
 
 const RINGS = [
 	['triple', 'Triple'],
@@ -9,11 +15,9 @@ const RINGS = [
 	['single', 'Single'],
 ];
 
-const ROTATION = [20, 19, 18];
-
 function OutcomeButton({ label, accessibilityLabel, disabled, ring, onPress }) {
 	return (
-		<Pressable
+		<TrainingPressable
 			accessibilityRole="button"
 			accessibilityLabel={accessibilityLabel || label}
 			disabled={disabled}
@@ -21,13 +25,13 @@ function OutcomeButton({ label, accessibilityLabel, disabled, ring, onPress }) {
 			style={[styles.outcome, styles[ring], disabled && styles.disabled]}
 		>
 			<Text style={[styles.outcomeText, styles[`${ring}Text`]]}>{label}</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 }
 
 function MissButton({ disabled, onPress, fill }) {
 	return (
-		<Pressable
+		<TrainingPressable
 			accessibilityRole="button"
 			accessibilityLabel="Pudło"
 			disabled={disabled}
@@ -35,7 +39,7 @@ function MissButton({ disabled, onPress, fill }) {
 			style={[styles.miss, fill && styles.missFill, disabled && styles.disabled]}
 		>
 			<Text style={styles.missText}>Pudło</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 }
 
@@ -46,15 +50,23 @@ export default function NineDartsBoard({
 	undoDisabled,
 	onDart,
 	onUndo,
-	onAbort,
 }) {
 	const stage = aim?.stage ?? 0;
 	const throwRing = (ring, number) => {
 		onDart(number == null ? { ring } : { ring, number });
 	};
+	const reelTargets = nineDartsReelTargets();
+	const reelWindow = nineDartsReelWindow(aim);
 
 	return (
 		<View>
+			{reelWindow ? (
+				<SectorTargetReel
+					targets={reelTargets}
+					windowStart={reelWindow.windowStart}
+					activeOffset={reelWindow.activeOffset}
+				/>
+			) : null}
 			<Text style={styles.instruction}>
 				{aimInstruction(aim).map((part, index) => (
 					<Text key={index} style={part.strong ? styles.instructionStrong : null}>
@@ -66,13 +78,13 @@ export default function NineDartsBoard({
 			{stage === 0 ? (
 				<View style={[styles.row, styles.bullRow]}>
 					<OutcomeButton
-						label="Inner"
+						label="Czerwony środek"
 						ring="inner"
 						disabled={disabled}
 						onPress={() => throwRing('inner')}
 					/>
 					<OutcomeButton
-						label="Outer"
+						label="Zielony środek"
 						ring="outer"
 						disabled={disabled}
 						onPress={() => throwRing('outer')}
@@ -82,54 +94,24 @@ export default function NineDartsBoard({
 					</View>
 				</View>
 			) : null}
-			{stage === 1 || stage === 2 ? (
+			{stage === 1 || stage === 2 || stage === 3 ? (
 				<View>
 					<View style={styles.row}>
 						{RINGS.map(([ring, label]) => (
 							<OutcomeButton
 								key={ring}
 								label={label}
+								accessibilityLabel={aim?.number != null ? `${label} ${aim.number}` : label}
 								ring={ring}
 								disabled={disabled}
-								onPress={() => throwRing(ring)}
+								onPress={() => throwRing(ring, aim?.number)}
 							/>
 						))}
 					</View>
 					<MissButton disabled={disabled} onPress={() => throwRing('miss')} />
 				</View>
 			) : null}
-			{stage === 3 ? (
-				<View>
-					{ROTATION.map((number) => {
-						const active = aim?.number === number;
-						return (
-							<View
-								key={number}
-								accessibilityRole="text"
-								accessibilityLabel={`Sektor ${number}`}
-								accessibilityState={{ selected: active }}
-								style={[styles.rotationRow, active && styles.rotationRowActive]}
-							>
-								<Text style={[styles.rotationNumber, active && styles.rotationNumberActive]}>
-									{number}
-								</Text>
-								{RINGS.map(([ring, label]) => (
-									<OutcomeButton
-										key={ring}
-										label={label}
-										accessibilityLabel={`${label} ${number}`}
-										ring={ring}
-										disabled={disabled}
-										onPress={() => throwRing(ring, number)}
-									/>
-								))}
-							</View>
-						);
-					})}
-					<MissButton disabled={disabled} onPress={() => throwRing('miss')} />
-				</View>
-			) : null}
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={disabled || undoDisabled}
@@ -137,18 +119,7 @@ export default function NineDartsBoard({
 				style={[styles.secondary, (disabled || undoDisabled) && styles.disabled]}
 			>
 				<Text style={styles.secondaryText}>Cofnij</Text>
-			</Pressable>
-			{onAbort ? (
-				<Pressable
-					accessibilityRole="button"
-					accessibilityLabel="Przerwij"
-					disabled={disabled}
-					onPress={onAbort}
-					style={styles.ghost}
-				>
-					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
-			) : null}
+			</TrainingPressable>
 		</View>
 	);
 }
@@ -157,8 +128,8 @@ const styles = StyleSheet.create({
 	instruction: {
 		textAlign: 'center',
 		color: colors.textSecondary,
-		fontSize: 22,
-		lineHeight: 30,
+		fontSize: 18,
+		lineHeight: 26,
 		fontWeight: '600',
 		letterSpacing: -0.2,
 		marginBottom: 10,
@@ -202,6 +173,7 @@ const styles = StyleSheet.create({
 	},
 	innerText: {
 		color: colors.text,
+		fontSize: 13,
 	},
 	outer: {
 		backgroundColor: colors.accentMuted,
@@ -209,6 +181,7 @@ const styles = StyleSheet.create({
 	},
 	outerText: {
 		color: colors.accent,
+		fontSize: 13,
 	},
 	triple: {
 		backgroundColor: colors.accent,
@@ -260,30 +233,6 @@ const styles = StyleSheet.create({
 		fontSize: 18,
 		fontWeight: '800',
 	},
-	rotationRow: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 8,
-		marginBottom: 8,
-		padding: 6,
-		borderRadius: 14,
-		borderWidth: 1,
-		borderColor: 'transparent',
-	},
-	rotationRowActive: {
-		borderColor: colors.accent,
-		backgroundColor: colors.accentMuted,
-	},
-	rotationNumber: {
-		width: 36,
-		color: colors.textMuted,
-		fontSize: 20,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-	rotationNumberActive: {
-		color: colors.accent,
-	},
 	secondary: {
 		minHeight: 48,
 		borderRadius: 10,
@@ -297,20 +246,6 @@ const styles = StyleSheet.create({
 	secondaryText: {
 		color: colors.text,
 		fontSize: 16,
-		fontWeight: '700',
-	},
-	ghost: {
-		minHeight: 44,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.textMuted,
-		alignItems: 'center',
-		justifyContent: 'center',
-		paddingHorizontal: 12,
-	},
-	ghostText: {
-		color: colors.textMuted,
-		fontSize: 15,
 		fontWeight: '700',
 	},
 	disabled: {

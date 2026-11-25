@@ -5,6 +5,7 @@ import {
 } from './trainingApi';
 import { saveCachedDefinition } from './definitionCache';
 import { refreshFavorites } from './favoritesCache';
+import { refreshRecordsIfStale } from './recordsCache';
 
 const CATALOG_KINDS = ['plans', 'exercises', 'challenges', 'events'];
 
@@ -88,7 +89,7 @@ async function prefetchDefinitions(userId, accessToken, items) {
 	await Promise.all(jobs);
 }
 
-/** Prefetch przy wejściu w Trening: listy + definicje + ulubione w tle. */
+/** Prefetch przy wejściu w Trening: listy + definicje + ulubione + rekordy (TTL) w tle. */
 export async function prefetchTrainingCatalogs(userId, accessToken) {
 	if (!accessToken) {
 		return;
@@ -96,5 +97,6 @@ export async function prefetchTrainingCatalogs(userId, accessToken) {
 	await Promise.all([
 		...CATALOG_KINDS.map((kind) => refreshCatalogKind(userId, accessToken, kind)),
 		refreshFavorites(userId, accessToken),
+		refreshRecordsIfStale(userId, accessToken),
 	]);
 }

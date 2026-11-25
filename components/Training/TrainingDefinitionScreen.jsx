@@ -57,6 +57,11 @@ import {
 import { loadTrainingInputMode, saveTrainingInputMode } from '../../helpers/training/trainingInputMode';
 import { trainingInitials } from '../../helpers/training/trainingInitials';
 import { libraryInstructionsFor } from '../../helpers/training/exerciseLibraryInstructions';
+import {
+	formatMyRecordLabel,
+	pickMyRecordScore,
+} from '../../helpers/training/myTrainingRecord';
+import { loadCachedRecords, refreshRecords } from '../../helpers/training/recordsCache';
 import { trainingMeta } from '../../helpers/training/trainingMeta';
 import { SCORING_MODES } from '../../hooks/useGameSettings';
 import { colors } from '../../theme/colors';
@@ -87,6 +92,7 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 	const [rankingLoading, setRankingLoading] = useState(false);
 	const [publishingAttemptId, setPublishingAttemptId] = useState(null);
 	const [favoriteExercises, setFavoriteExercises] = useState([]);
+	const [recordsBundle, setRecordsBundle] = useState({ items: [], definitions: [] });
 
 	const applyDefinition = (definition) => {
 		setItem(definition);
@@ -146,11 +152,33 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		}
 	}, [auth?.accessToken, auth?.userId]);
 
+	const loadRecords = useCallback(async () => {
+		if (!auth?.userId) {
+			setRecordsBundle({ items: [], definitions: [] });
+			return;
+		}
+		const cached = await loadCachedRecords(auth.userId);
+		if (cached) {
+			setRecordsBundle(cached);
+			return;
+		}
+		if (!auth?.accessToken) {
+			setRecordsBundle({ items: [], definitions: [] });
+			return;
+		}
+		// Pierwszy raz na urządzeniu — jeden fetch, potem cache.
+		const fresh = await refreshRecords(auth.userId, auth.accessToken);
+		if (fresh) {
+			setRecordsBundle(fresh);
+		}
+	}, [auth?.accessToken, auth?.userId]);
+
 	useFocusEffect(
 		useCallback(() => {
 			load();
 			loadFavoriteExercises();
-		}, [load, loadFavoriteExercises]),
+			loadRecords();
+		}, [load, loadFavoriteExercises, loadRecords]),
 	);
 
 	useEffect(() => {
@@ -434,6 +462,16 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 		return null;
 	})();
 
+	const myRecordScore = startAction
+		? pickMyRecordScore(recordsBundle, item, {
+			clockVariant,
+			bobsVariant,
+			dartVariant,
+			pressureVariant: variant,
+		})
+		: null;
+	const myRecordLabel = formatMyRecordLabel(myRecordScore, { placeholder: Boolean(startAction) });
+
 	const guideSections = libraryGuide
 		? [
 			{ key: 'goal', title: `Cel ${guideNoun}`, body: libraryGuide.goal },
@@ -697,6 +735,8 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 								}))}
 								value={variant}
 								onChange={setVariant}
+								wrap
+								fullWidthKeys={['20/19/18']}
 								{...variantFavoriteProps}
 							/>
 						</View>
@@ -723,6 +763,7 @@ const TrainingDefinitionScreen = ({ navigation, route }) => {
 				<TrainingStickyStartBar
 					label={startAction.label}
 					onPress={startAction.onPress}
+					recordLabel={myRecordLabel}
 				/>
 			) : null}
 		</View>

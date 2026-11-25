@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
 import { WebView } from 'react-native-webview';
+import IntroLogotypMark from './IntroLogotypMark';
 import { useIntroOverlay } from '../../context/IntroOverlayContext';
 import { getIntroLogotypXml } from '../../helpers/svgAssets';
 import {
@@ -30,8 +31,6 @@ import { scaleSize } from '../../theme/uiScale';
 
 /** Czas animacji SVG (~2.5s) + krótki zapas przed wlotem do headera. */
 const INTRO_DURATION_MS = 2900;
-/** Lekkie podniesienie względem zmierzonego slotu. 2 było za wysoko, 0 lądowało za nisko i przeskakiwało. */
-const FLY_TARGET_Y_NUDGE = 1;
 const FLY_MS = 720;
 const HEADER_WAIT_MS = 1200;
 const BG_FADE_MS = 520;
@@ -82,36 +81,59 @@ function fallbackLogotypRect(insets) {
 	};
 }
 
+function contentRectForIntro(introBox, windowWidth, windowHeight) {
+	const width = introBox.width * INTRO_CONTENT_WIDTH_RATIO;
+	const height = introBox.height * INTRO_CONTENT_HEIGHT_RATIO;
+	const originX = (windowWidth - introBox.width) / 2;
+	const originY = (windowHeight - introBox.height) / 2;
+	return {
+		x: originX + introBox.width * (INTRO_LOGOTYP_CONTENT_X / INTRO_LOGOTYP_SRC_WIDTH),
+		y: originY + introBox.height * (INTRO_LOGOTYP_CONTENT_Y / INTRO_LOGOTYP_SRC_HEIGHT),
+		width,
+		height,
+	};
+}
+
 /**
- * Intro: stroke-reveal 26, wlot w slot logotypu w headerze, potem kurtyna
- * odsłania kreskę i napis. Wlot jest natywny (Reanimated) — przezroczyste
- * WebView na Androidzie jest niestabilne.
+ * Intro: stroke-reveal 26, potem wlot tego samego marku co w headerze
+ * (IntroLogotypMark) z prostokąta treści na ekranie w zmierzony slot.
+ * Cel = współrzędne względem wspólnego hosta, bez nudge’y.
  */
 const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
-	const { headerTarget } = useIntroOverlay();
+	const { headerTarget, requestHeaderLogoMeasure } = useIntroOverlay();
 	const insets = useSafeAreaInsets();
 	const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-	const overlayRef = useRef(null);
 	const introBox = useMemo(() => {
 		const width = introLogotypMaxWidth(windowWidth, scaleSize(300));
 		return introLogotypSizeForWidth(width);
 	}, [windowWidth]);
 
-	const startX = (windowWidth - introBox.width) / 2;
-	const startY = (windowHeight - introBox.height) / 2;
+	const startContent = useMemo(
+		() => contentRectForIntro(introBox, windowWidth, windowHeight),
+		[introBox, windowHeight, windowWidth],
+	);
 
 	const [phase, setPhase] = useState('drawing');
 	const flyStartedRef = useRef(false);
 	const drawNotifiedRef = useRef(false);
 	const flyFinishedRef = useRef(false);
+	const headerTargetRef = useRef(headerTarget);
 
 	const progress = useSharedValue(0);
 	const bgOpacity = useSharedValue(1);
-	const slotX = useSharedValue(startX);
-	const slotY = useSharedValue(startY);
-	const slotW = useSharedValue(introBox.width);
-	const slotH = useSharedValue(introBox.height);
+	const fromX = useSharedValue(startContent.x);
+	const fromY = useSharedValue(startContent.y);
+	const fromW = useSharedValue(startContent.width);
+	const fromH = useSharedValue(startContent.height);
+	const toX = useSharedValue(startContent.x);
+	const toY = useSharedValue(startContent.y);
+	const slotW = useSharedValue(scaleSize(HEADER_LOGOTYP_WIDTH));
+	const slotH = useSharedValue(scaleSize(HEADER_LOGO_HEIGHT));
+
+	useEffect(() => {
+		headerTargetRef.current = headerTarget;
+	}, [headerTarget]);
 
 	const introSvgXml = getIntroLogotypXml();
 	const html = useMemo(
@@ -133,25 +155,12 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 
 	const applyTargetRect = useCallback(
 		(logotypRect) => {
-			const write = (originX = 0, originY = 0) => {
-				// Ujemny origin z measureInWindow (edge-to-edge) zjeżdżał cel w dół.
-				slotX.value = logotypRect.x - Math.max(0, originX);
-				slotY.value = logotypRect.y - Math.max(0, originY) - scaleSize(FLY_TARGET_Y_NUDGE);
-				slotW.value = logotypRect.width;
-				slotH.value = logotypRect.height;
-			};
-			if (overlayRef.current?.measureInWindow) {
-				overlayRef.current.measureInWindow((originX, originY) => {
-					write(
-						Number.isFinite(originX) ? originX : 0,
-						Number.isFinite(originY) ? originY : 0,
-					);
-				});
-				return;
-			}
-			write();
+			toX.value = logotypRect.x;
+			toY.value = logotypRect.y;
+			slotW.value = logotypRect.width;
+			slotH.value = logotypRect.height;
 		},
-		[slotH, slotW, slotX, slotY],
+		[slotH, slotW, toX, toY],
 	);
 
 	useEffect(() => {
@@ -166,11 +175,26 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 				return;
 			}
 			flyStartedRef.current = true;
+			fromX.value = startContent.x;
+			fromY.value = startContent.y;
+			fromW.value = startContent.width;
+			fromH.value = startContent.height;
 			applyTargetRect(logotypRect);
 			progress.value = 0;
 			setPhase('flying');
 		},
-		[applyTargetRect, progress],
+		[
+			applyTargetRect,
+			fromH,
+			fromW,
+			fromX,
+			fromY,
+			progress,
+			startContent.height,
+			startContent.width,
+			startContent.x,
+			startContent.y,
+		],
 	);
 
 	useEffect(() => {
@@ -189,15 +213,41 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 		if (phase !== 'waiting' || flyStartedRef.current) {
 			return undefined;
 		}
-		if (headerTarget) {
-			const timer = setTimeout(() => startFly(headerTarget), 120);
-			return () => clearTimeout(timer);
-		}
+
+		const launch = (rect) => {
+			if (flyStartedRef.current) {
+				return;
+			}
+			startFly(rect);
+		};
+
+		requestHeaderLogoMeasure?.();
+
+		let settleTimer = null;
+		const waitMs = headerTarget || headerTargetRef.current ? 120 : HEADER_WAIT_MS;
 		const timer = setTimeout(() => {
-			startFly(fallbackLogotypRect({ top: insets.top }));
-		}, HEADER_WAIT_MS);
-		return () => clearTimeout(timer);
-	}, [headerTarget, insets.top, phase, startFly]);
+			requestHeaderLogoMeasure?.();
+			// measureInWindow/measureLayout są async — daj im domknąć publish.
+			settleTimer = setTimeout(() => {
+				launch(
+					headerTargetRef.current ||
+						fallbackLogotypRect({ top: insets.top }),
+				);
+			}, 64);
+		}, waitMs);
+		return () => {
+			clearTimeout(timer);
+			if (settleTimer) {
+				clearTimeout(settleTimer);
+			}
+		};
+	}, [
+		headerTarget,
+		insets.top,
+		phase,
+		requestHeaderLogoMeasure,
+		startFly,
+	]);
 
 	useEffect(() => {
 		if (phase !== 'flying') {
@@ -224,38 +274,32 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 		opacity: bgOpacity.value,
 	}));
 
-	const wrapperStyle = useAnimatedStyle(() => {
+	/**
+	 * Mark ma zawsze rozmiar slotu; animujemy top-left prostokąta treści
+	 * → slot + skalę wokół środka (bez transformOrigin / crop SVG).
+	 */
+	const flyStyle = useAnimatedStyle(() => {
 		const p = progress.value;
+		const startScaleX = fromW.value / Math.max(slotW.value, 1);
+		const startScaleY = fromH.value / Math.max(slotH.value, 1);
+		const startScale = Math.max(startScaleX, startScaleY);
+		const scale = startScale + (1 - startScale) * p;
+		const desiredX = fromX.value + (toX.value - fromX.value) * p;
+		const desiredY = fromY.value + (toY.value - fromY.value) * p;
 		return {
-			left: startX + (slotX.value - startX) * p,
-			top: startY + (slotY.value - startY) * p,
-			width: introBox.width + (slotW.value - introBox.width) * p,
-			height: introBox.height + (slotH.value - introBox.height) * p,
-		};
-	});
-
-	const innerStyle = useAnimatedStyle(() => {
-		const p = progress.value;
-		const wrapW = introBox.width + (slotW.value - introBox.width) * p;
-		const wrapH = introBox.height + (slotH.value - introBox.height) * p;
-		const endScale = Math.max(
-			slotW.value / (introBox.width * INTRO_CONTENT_WIDTH_RATIO),
-			slotH.value / (introBox.height * INTRO_CONTENT_HEIGHT_RATIO),
-		);
-		const scale = 1 + (endScale - 1) * p;
-		const contentX = introBox.width * (INTRO_LOGOTYP_CONTENT_X / INTRO_LOGOTYP_SRC_WIDTH);
-		const contentY = introBox.height * (INTRO_LOGOTYP_CONTENT_Y / INTRO_LOGOTYP_SRC_HEIGHT);
-		const centeredX = (introBox.width * (1 - INTRO_CONTENT_WIDTH_RATIO)) / 2;
-		const centeredY = (introBox.height * (1 - INTRO_CONTENT_HEIGHT_RATIO)) / 2;
-		return {
-			left: (wrapW - introBox.width) / 2 + (centeredX - contentX) * scale * p,
-			top: (wrapH - introBox.height) / 2 + (centeredY - contentY) * scale * p,
+			left: desiredX - (slotW.value * (1 - scale)) / 2,
+			top: desiredY - (slotH.value * (1 - scale)) / 2,
+			width: slotW.value,
+			height: slotH.value,
 			transform: [{ scale }],
 		};
 	});
 
+	const markWidth = headerTarget?.width || scaleSize(HEADER_LOGOTYP_WIDTH);
+	const markHeight = headerTarget?.height || scaleSize(HEADER_LOGO_HEIGHT);
+
 	return (
-		<View ref={overlayRef} collapsable={false} style={styles.root} pointerEvents="auto">
+		<View collapsable={false} style={styles.root} pointerEvents="auto">
 			<Animated.View style={[styles.bg, bgStyle]} pointerEvents="none" />
 			{phase !== 'flying' && flyXml ? (
 				<View style={styles.hiddenParse} pointerEvents="none">
@@ -286,33 +330,14 @@ const AppIntro = ({ onDrawComplete, onFlyComplete }) => {
 					domStorageEnabled={false}
 				/>
 			) : null}
-			{phase === 'flying' && flyXml ? (
+			{phase === 'flying' ? (
 				<Animated.View
 					pointerEvents="none"
 					collapsable={false}
 					needsOffscreenAlphaCompositing={true}
-					style={[
-						styles.flyLogo,
-						{
-							width: introBox.width,
-							height: introBox.height,
-						},
-						wrapperStyle,
-					]}
+					style={[styles.flyLogo, flyStyle]}
 				>
-					<Animated.View
-						style={[
-							styles.flyInner,
-							{
-								width: introBox.width,
-								height: introBox.height,
-								transformOrigin: '50% 50%',
-							},
-							innerStyle,
-						]}
-					>
-						<SvgXml xml={flyXml} width={introBox.width} height={introBox.height} />
-					</Animated.View>
+					<IntroLogotypMark width={markWidth} height={markHeight} />
 				</Animated.View>
 			) : null}
 		</View>
@@ -337,9 +362,6 @@ const styles = StyleSheet.create({
 		overflow: 'hidden',
 		borderRadius: 0.1,
 		zIndex: 2,
-	},
-	flyInner: {
-		position: 'absolute',
 	},
 	hiddenParse: {
 		position: 'absolute',

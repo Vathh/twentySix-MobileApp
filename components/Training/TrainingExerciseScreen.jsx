@@ -82,6 +82,7 @@ import {
 } from '../../helpers/training/checkoutBull81Exercise';
 import {
 	SCORING_65_MECHANIC,
+	POINT_LINE as SCORING_65_LINE,
 	canPlayScoring65,
 	expireScoring65,
 	recordScoring65Dart,
@@ -168,11 +169,21 @@ import {
 	visibleRemainingMs,
 } from '../../helpers/training/sectorClockExercise';
 import { formatAverage } from '../../helpers/formatAverage';
-import { playClick, playFinalBell, playTicking, stopTicking } from '../../helpers/gameSounds/playGameSound';
+import {
+	playClick,
+	playFailShort,
+	playFinalBell,
+	playSuccessShort,
+	playTicking,
+	stopTicking,
+} from '../../helpers/gameSounds/playGameSound';
+import { shouldPlayVisitClick } from '../../helpers/training/visitClick';
 import SectorTargetReel from './SectorTargetReel';
+import { targetIndexReelWindow } from '../../helpers/training/targetReelWindow';
 import TrainingPlayChrome from './TrainingPlayChrome';
 import TrainingPlayScore from './TrainingPlayScore';
 import TrainingPlayTimer from './TrainingPlayTimer';
+import TrainingPressable from './TrainingPressable';
 import TrainingSessionResult from './TrainingSessionResult';
 import TrainingHelpModal, { helpSectionsFromGuide } from './TrainingHelpModal';
 import { rememberRecentTraining } from '../../helpers/training/recentTrainingStore';
@@ -183,6 +194,7 @@ import {
 	enqueueTrainingCompletion,
 	flushTrainingOutbox,
 } from '../../helpers/training/trainingSessionStore';
+import { applyCompletionToRecordsCache } from '../../helpers/training/recordsCache';
 import { exerciseDisplayName } from '../../helpers/training/exerciseVariantFavorites';
 import { colors } from '../../theme/colors';
 
@@ -285,6 +297,15 @@ function summaryPresentation(summary) {
 				{ label: 'Wariant', value: summary.stats.variant === '18' ? '18 lotek' : '9 lotek' },
 				{ label: 'Łącznie', value: `${summary.stats.hits} z ${summary.stats.attempts}` },
 				{ label: 'Procent', value: `${summary.stats.percent}%` },
+			],
+		};
+	}
+	if (isShanghaiDoubles(summary)) {
+		return {
+			hero: { label: 'Wynik', value: summary.score },
+			rows: [
+				{ label: 'Trafienia', value: `${summary.stats?.hits ?? 0} z ${summary.stats?.attempts ?? 0}` },
+				{ label: 'Procent', value: `${summary.stats?.percent ?? 0}%` },
 			],
 		};
 	}
@@ -568,10 +589,17 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		}
 	};
 
-	const applySession = (next) => {
+	const applySession = (next, { visitClosed, skipVisitClick = false } = {}) => {
+		const prev = sessionRef.current;
 		sessionRef.current = next;
 		setSession(next);
 		planHost?.onSessionChange?.(next);
+		if (
+			!skipVisitClick
+			&& (visitClosed === true || (visitClosed !== false && shouldPlayVisitClick(prev, next)))
+		) {
+			playClick();
+		}
 		if (next?.status === 'completed') {
 			finish(next);
 		}
@@ -584,8 +612,9 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		if (planMode) {
 			return;
 		}
+		// Podczas play tytuł jest w scalonym chrome (z timerem) — nav bez powtórki.
 		navigation.setOptions({
-			title: headingVariant ? `${headingName}, ${headingVariant}` : headingName,
+			title: playing ? '' : (headingVariant ? `${headingName}, ${headingVariant}` : headingName),
 			headerRight: () => (
 				playing ? (
 					<Pressable
@@ -762,6 +791,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		summaryId.current = record.clientSessionId;
 		setSummary(record);
 		try {
+			await applyCompletionToRecordsCache(userIdRef.current, record);
 			await enqueueTrainingCompletion(userIdRef.current, record);
 			const items = await flushTrainingOutbox(userIdRef.current, accessTokenRef.current);
 			if (summaryId.current !== record.clientSessionId) {
@@ -775,29 +805,39 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 	};
 
 	const requestAbort = planMode ? undefined : () => setPrompt('abort');
+	const openAbort = () => {
+		setMenuOpen(false);
+		requestAbort?.();
+	};
 
 	const submit = (hit, bullRing = 'outer') => {
 		const current = sessionRef.current;
 		if (!current || current.status !== 'playing' || prompt || planPaused) {
 			return;
 		}
+		if (hit) {
+			playSuccessShort();
+		} else {
+			playFailShort();
+		}
+		const noClick = { skipVisitClick: true };
 		if (isBob27Easy(current)) {
-			applySession(recordBob27EasyDart(current, hit));
+			applySession(recordBob27EasyDart(current, hit), noClick);
 			return;
 		}
 		if (isBob27Hard(current)) {
-			applySession(recordBob27HardDart(current, hit));
+			applySession(recordBob27HardDart(current, hit), noClick);
 			return;
 		}
 		if (isSingles(current)) {
-			applySession(recordSinglesOutcome(current, hit));
+			applySession(recordSinglesOutcome(current, hit), noClick);
 			return;
 		}
 		if (isSectorClock(current)) {
-			applySession(recordSectorOutcome(current, hit));
+			applySession(recordSectorOutcome(current, hit), noClick);
 			return;
 		}
-		applySession(recordOutcome(current, hit, bullRing));
+		applySession(recordOutcome(current, hit, bullRing), noClick);
 	};
 
 	const undo = () => {
@@ -898,7 +938,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 		? (isBob27Hard(session) ? currentBob27HardVisit(session) : currentBob27EasyVisit(session))
 		: null;
 	const singles = isSingles(session);
-	const visit = loose || nine || bob27 || bullCounter || isCatch20(session) || isCheckout41(session) || isCheckoutBull81(session) || isScoring65(session) || pressure
+	const visit = loose || nine || bob27 || bullCounter || isCatch20(session) || isCheckout41(session) || isCheckoutBull81(session) || isScoring65(session) || pressure || isShanghaiDoubles(session)
 		? null
 		: isSectorClock(session)
 			? currentSectorVisit(session)
@@ -959,13 +999,12 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 			title={headingName}
 			subtitle={headingVariant || undefined}
 			hideHeader={planMode || Boolean(summary)}
-			onAbort={playing ? requestAbort : undefined}
-			abortDisabled={boardDisabled}
-			timer={showClock ? (
+			timer={(showClock || showLooseClock) ? (
 				<TrainingPlayTimer
 					value={clockLabel}
 					progress={progress}
 					urgent={clockUrgent}
+					inline
 					paused={planPaused}
 					onTogglePause={pauseHandler}
 				/>
@@ -978,14 +1017,6 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 				{showLooseClock ? (
 					<View style={styles.looseClock}>
 						<Text style={styles.instruction}>{LOOSE_THROWS_AIM_TEXT}</Text>
-						<TrainingPlayTimer
-							value={clockLabel}
-							progress={progress}
-							urgent={clockUrgent}
-							compact
-							paused={planPaused}
-							onTogglePause={pauseHandler}
-						/>
 					</View>
 				) : null}
 				{playing && aim ? (
@@ -1007,6 +1038,8 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 				{playing && isShanghaiDoubles(session) ? (
 					<ShanghaiDoublesBoard
 						target={currentShanghaiDoublesTarget(session)}
+						targets={session.targets}
+						dartIndex={session.darts.length}
 						disabled={boardDisabled}
 						undoDisabled={session.darts.length === 0}
 						onDart={(ring) => {
@@ -1015,10 +1048,11 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 								return;
 							}
 							const { session: next, visitClosed } = recordShanghaiDoublesDart(current, ring);
-							applySession(next);
-							if (visitClosed) {
-								playClick();
-							}
+							const binaryOutcome = currentShanghaiDoublesTarget(current)?.stageType === 'doubles';
+							applySession(next, {
+								visitClosed: binaryOutcome ? false : visitClosed,
+								skipVisitClick: binaryOutcome,
+							});
 						}}
 						onUndo={() => {
 							const current = sessionRef.current;
@@ -1040,14 +1074,30 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordCatch20Dart(current, dart));
+							const before = catch20View(current);
+							const next = recordCatch20Dart(current, dart);
+							const after = catch20View(next);
+							if (after.closed > before.closed) {
+								playSuccessShort();
+								applySession(next, { skipVisitClick: true });
+								return;
+							}
+							applySession(next);
 						}}
 						onSum={(points, checkout) => {
 							const current = sessionRef.current;
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordCatch20Sum(current, points, checkout));
+							const before = catch20View(current);
+							const next = recordCatch20Sum(current, points, checkout);
+							const after = catch20View(next);
+							if (after.closed > before.closed) {
+								playSuccessShort();
+								applySession(next, { skipVisitClick: true });
+								return;
+							}
+							applySession(next);
 						}}
 						onUndo={undo}
 					/>
@@ -1070,14 +1120,16 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordCheckout41Check(current));
+							playSuccessShort();
+							applySession(recordCheckout41Check(current), { skipVisitClick: true });
 						}}
 						onFail={() => {
 							const current = sessionRef.current;
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordCheckout41Fail(current));
+							playFailShort();
+							applySession(recordCheckout41Fail(current), { skipVisitClick: true });
 						}}
 						onUndo={undo}
 					/>
@@ -1108,14 +1160,32 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordScoring65Dart(current, dart));
+							const before = scoring65View(current);
+							const next = recordScoring65Dart(current, dart);
+							const after = scoring65View(next);
+							const visitClosed = after.approaches > before.approaches;
+							if (visitClosed) {
+								if (after.running >= SCORING_65_LINE) {
+									playSuccessShort();
+								} else {
+									playFailShort();
+								}
+								applySession(next, { skipVisitClick: true });
+								return;
+							}
+							applySession(next);
 						}}
 						onSum={(points) => {
 							const current = sessionRef.current;
 							if (!current || current.status !== 'playing' || prompt) {
 								return;
 							}
-							applySession(recordScoring65Sum(current, points));
+							if (points >= SCORING_65_LINE) {
+								playSuccessShort();
+							} else {
+								playFailShort();
+							}
+							applySession(recordScoring65Sum(current, points), { skipVisitClick: true });
 						}}
 						onUndo={undo}
 					/>
@@ -1145,37 +1215,39 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 						<TrainingPlayScore value={bullCounterScore(session.darts)} />
 						<Text style={styles.instruction}>{BULL_COUNTER_AIM_TEXT}</Text>
 						<View style={styles.bullOutcomeRow}>
-							<Pressable
+							<TrainingPressable
 								accessibilityRole="button"
-								accessibilityLabel="Inner"
+								accessibilityLabel="Czerwony środek"
 								disabled={boardDisabled}
 								onPress={() => {
 									const current = sessionRef.current;
 									if (!current || current.status !== 'playing' || prompt) {
 										return;
 									}
-									applySession(recordBullCounterDart(current, 'inner'));
+									playSuccessShort();
+									applySession(recordBullCounterDart(current, 'inner'), { skipVisitClick: true });
 								}}
 								style={[styles.bullInner, prompt && styles.disabled]}
 							>
-								<Text style={styles.bullInnerText}>Inner</Text>
-							</Pressable>
-							<Pressable
+								<Text style={styles.bullInnerText}>Czerwony środek</Text>
+							</TrainingPressable>
+							<TrainingPressable
 								accessibilityRole="button"
-								accessibilityLabel="Outer"
+								accessibilityLabel="Zielony środek"
 								disabled={boardDisabled}
 								onPress={() => {
 									const current = sessionRef.current;
 									if (!current || current.status !== 'playing' || prompt) {
 										return;
 									}
-									applySession(recordBullCounterDart(current, 'outer'));
+									playSuccessShort();
+									applySession(recordBullCounterDart(current, 'outer'), { skipVisitClick: true });
 								}}
 								style={[styles.bullOuter, prompt && styles.disabled]}
 							>
-								<Text style={styles.bullOuterText}>Outer</Text>
-							</Pressable>
-							<Pressable
+								<Text style={styles.bullOuterText}>Zielony środek</Text>
+							</TrainingPressable>
+							<TrainingPressable
 								accessibilityRole="button"
 								accessibilityLabel="Pudło"
 								disabled={boardDisabled}
@@ -1184,14 +1256,15 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 									if (!current || current.status !== 'playing' || prompt) {
 										return;
 									}
-									applySession(recordBullCounterDart(current, 'miss'));
+									playFailShort();
+									applySession(recordBullCounterDart(current, 'miss'), { skipVisitClick: true });
 								}}
 								style={[styles.miss, prompt && styles.disabled]}
 							>
 								<Text style={styles.missText}>Pudło</Text>
-							</Pressable>
+							</TrainingPressable>
 						</View>
-						<Pressable
+						<TrainingPressable
 							accessibilityRole="button"
 							accessibilityLabel="Cofnij"
 							disabled={Boolean(prompt) || session.darts.length === 0}
@@ -1199,7 +1272,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							style={[styles.secondary, (prompt || session.darts.length === 0) && styles.disabled]}
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
-						</Pressable>
+						</TrainingPressable>
 					</View>
 				) : null}
 				{playing && bobVisit ? (
@@ -1208,22 +1281,27 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							<TrainingPlayScore value={bob27HardScore(session.darts)} />
 						) : null}
 						<Text style={styles.instruction}>{instruction}</Text>
-						<View style={styles.singleTarget}>
-							<View
-								accessibilityRole="text"
-								accessibilityLabel={bobVisit.accessibilityLabel ?? `Dubl ${bobVisit.number}`}
-								style={[styles.targetCell, styles.targetCellActive, styles.bobTarget]}
-							>
-								<Text style={[
-									styles.targetText,
-									styles.targetTextActive,
-									bobVisit.label.length > 2 && styles.targetTextLongActive,
-								]}>{bobVisit.label}</Text>
-							</View>
-						</View>
+						{(() => {
+							const bobTargets = isBob27Hard(session)
+								? [
+									...Array.from({ length: 20 }, (_, i) => `D${i + 1}`),
+									'Czerwony środek',
+								]
+								: Array.from({ length: 20 }, (_, i) => `D${i + 1}`);
+							const targetIndex = Math.floor(session.darts.length / 3);
+							const bobWindow = targetIndexReelWindow(targetIndex, bobTargets.length);
+							return bobWindow ? (
+								<SectorTargetReel
+									key={session.clientSessionId}
+									targets={bobTargets}
+									windowStart={bobWindow.windowStart}
+									activeOffset={bobWindow.activeOffset}
+								/>
+							) : null;
+						})()}
 						<Text style={styles.dartLabel} accessibilityRole="text">{dartLabel}</Text>
 						<View style={styles.outcomeRow}>
-							<Pressable
+							<TrainingPressable
 								accessibilityRole="button"
 								accessibilityLabel="Pudło"
 								disabled={boardDisabled}
@@ -1231,8 +1309,8 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 								style={[styles.miss, prompt && styles.disabled]}
 							>
 								<Text style={styles.missText}>Pudło</Text>
-							</Pressable>
-							<Pressable
+							</TrainingPressable>
+							<TrainingPressable
 								accessibilityRole="button"
 								accessibilityLabel="Trafiona"
 								disabled={boardDisabled}
@@ -1240,9 +1318,9 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 								style={[styles.hit, prompt && styles.disabled]}
 							>
 								<Text style={styles.hitText}>Trafiona</Text>
-							</Pressable>
+							</TrainingPressable>
 						</View>
-						<Pressable
+						<TrainingPressable
 							accessibilityRole="button"
 							accessibilityLabel="Cofnij"
 							disabled={Boolean(prompt) || session.darts.length === 0}
@@ -1250,7 +1328,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							style={[styles.secondary, (prompt || session.darts.length === 0) && styles.disabled]}
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
-						</Pressable>
+						</TrainingPressable>
 					</View>
 				) : null}
 				{playing && visit ? (
@@ -1261,29 +1339,30 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							targets={singles ? visit.targets : session.targets}
 							windowStart={visit.windowStart}
 							activeOffset={visit.activeOffset}
+							doubles={isDoublesClock(session)}
 						/>
 						<Text style={styles.dartLabel} accessibilityRole="text">{dartLabel}</Text>
 						{isDoublesClock(session) && currentTarget(session)?.kind === 'bull' ? (
 							<View style={styles.bullOutcomeRow}>
-								<Pressable
+								<TrainingPressable
 									accessibilityRole="button"
-									accessibilityLabel="Inner"
+									accessibilityLabel="Czerwony środek"
 									disabled={boardDisabled}
 									onPress={() => submit(true, 'inner')}
 									style={[styles.bullInner, prompt && styles.disabled]}
 								>
-									<Text style={styles.bullInnerText}>Inner</Text>
-								</Pressable>
-								<Pressable
+									<Text style={styles.bullInnerText}>Czerwony środek</Text>
+								</TrainingPressable>
+								<TrainingPressable
 									accessibilityRole="button"
-									accessibilityLabel="Outer"
+									accessibilityLabel="Zielony środek"
 									disabled={boardDisabled}
 									onPress={() => submit(true, 'outer')}
 									style={[styles.bullOuter, prompt && styles.disabled]}
 								>
-									<Text style={styles.bullOuterText}>Outer</Text>
-								</Pressable>
-								<Pressable
+									<Text style={styles.bullOuterText}>Zielony środek</Text>
+								</TrainingPressable>
+								<TrainingPressable
 									accessibilityRole="button"
 									accessibilityLabel="Pudło"
 									disabled={boardDisabled}
@@ -1291,11 +1370,11 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 									style={[styles.miss, prompt && styles.disabled]}
 								>
 									<Text style={styles.missText}>Pudło</Text>
-								</Pressable>
+								</TrainingPressable>
 							</View>
 						) : (
 							<View style={styles.outcomeRow}>
-								<Pressable
+								<TrainingPressable
 									accessibilityRole="button"
 									accessibilityLabel="Pudło"
 									disabled={boardDisabled}
@@ -1303,8 +1382,8 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 									style={[styles.miss, prompt && styles.disabled]}
 								>
 									<Text style={styles.missText}>Pudło</Text>
-								</Pressable>
-								<Pressable
+								</TrainingPressable>
+								<TrainingPressable
 									accessibilityRole="button"
 									accessibilityLabel="Trafiona"
 									disabled={boardDisabled}
@@ -1312,10 +1391,10 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 									style={[styles.hit, prompt && styles.disabled]}
 								>
 									<Text style={styles.hitText}>Trafiona</Text>
-								</Pressable>
+								</TrainingPressable>
 							</View>
 						)}
-						<Pressable
+						<TrainingPressable
 							accessibilityRole="button"
 							accessibilityLabel="Cofnij"
 							disabled={Boolean(prompt) || session.darts.length === 0}
@@ -1323,7 +1402,7 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 							style={[styles.secondary, (prompt || session.darts.length === 0) && styles.disabled]}
 						>
 							<Text style={styles.secondaryText}>Cofnij</Text>
-						</Pressable>
+						</TrainingPressable>
 					</View>
 				) : null}
 				{summary && resultView ? (
@@ -1354,6 +1433,15 @@ const TrainingExerciseScreen = ({ navigation, route, planHost = null }) => {
 						<Pressable accessibilityRole="button" onPress={openHelp} style={styles.menuItem}>
 							<Text style={styles.menuItemText}>Pomoc</Text>
 						</Pressable>
+						{playing && requestAbort ? (
+							<Pressable
+								accessibilityRole="button"
+								onPress={openAbort}
+								style={styles.menuItem}
+							>
+								<Text style={[styles.menuItemText, styles.menuItemDanger]}>Przerwij ćwiczenie</Text>
+							</Pressable>
+						) : null}
 					</View>
 				</Pressable>
 			</Modal>
@@ -1405,6 +1493,9 @@ const styles = StyleSheet.create({
 		color: colors.text,
 		fontSize: 16,
 		fontWeight: '600',
+	},
+	menuItemDanger: {
+		color: colors.danger,
 	},
 	looseClock: {
 		alignItems: 'center',
@@ -1488,8 +1579,9 @@ const styles = StyleSheet.create({
 	},
 	bullInnerText: {
 		color: colors.text,
-		fontSize: 18,
+		fontSize: 13,
 		fontWeight: '800',
+		textAlign: 'center',
 	},
 	bullOuter: {
 		flex: 1,
@@ -1504,8 +1596,9 @@ const styles = StyleSheet.create({
 	},
 	bullOuterText: {
 		color: colors.accent,
-		fontSize: 18,
+		fontSize: 13,
 		fontWeight: '800',
+		textAlign: 'center',
 	},
 	hit: {
 		flex: 1,

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
 import { scoringPressureInstruction } from '../../helpers/training/scoringUnderPressureExercise';
 import { colors } from '../../theme/colors';
 
@@ -13,7 +14,7 @@ const ROTATION = [20, 19, 18];
 
 function OutcomeButton({ label, accessibilityLabel, disabled, ring, onPress }) {
 	return (
-		<Pressable
+		<TrainingPressable
 			accessibilityRole="button"
 			accessibilityLabel={accessibilityLabel || label}
 			disabled={disabled}
@@ -21,13 +22,13 @@ function OutcomeButton({ label, accessibilityLabel, disabled, ring, onPress }) {
 			style={[styles.outcome, styles[ring], disabled && styles.disabled]}
 		>
 			<Text style={[styles.outcomeText, styles[`${ring}Text`]]}>{label}</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 }
 
 function MissButton({ disabled, onPress }) {
 	return (
-		<Pressable
+		<TrainingPressable
 			accessibilityRole="button"
 			accessibilityLabel="Pudło"
 			disabled={disabled}
@@ -35,7 +36,7 @@ function MissButton({ disabled, onPress }) {
 			style={[styles.miss, disabled && styles.disabled]}
 		>
 			<Text style={styles.missText}>Pudło</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 }
 
@@ -110,7 +111,7 @@ export default function ScoringPressureBoard({
 					<MissButton disabled={disabled} onPress={() => throwRing('miss')} />
 				</View>
 			)}
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={disabled || undoDisabled}
@@ -118,9 +119,9 @@ export default function ScoringPressureBoard({
 				style={[styles.secondary, (disabled || undoDisabled) && styles.disabled]}
 			>
 				<Text style={styles.secondaryText}>Cofnij</Text>
-			</Pressable>
+			</TrainingPressable>
 			{onAbort ? (
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Przerwij"
 					disabled={disabled}
@@ -128,7 +129,7 @@ export default function ScoringPressureBoard({
 					style={styles.ghost}
 				>
 					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
+				</TrainingPressable>
 			) : null}
 		</View>
 	);

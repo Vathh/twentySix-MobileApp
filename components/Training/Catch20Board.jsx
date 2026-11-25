@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
 import { canFinishWithCheck } from '../../helpers/gameScoring/checkoutCheck';
 import {
 	INPUT_PER_DART,
@@ -7,6 +8,7 @@ import {
 	interpretCatch20Sum,
 } from '../../helpers/training/catch20Exercise';
 import { colors } from '../../theme/colors';
+import TickingScore from '../Game/TickingScore';
 
 const NUMBER_ROWS = [
 	[20, 19, 18, 17, 16],
@@ -27,13 +29,11 @@ export default function Catch20Board({
 }) {
 	const [modifier, setModifier] = useState(null);
 	const [typed, setTyped] = useState('');
-	const [pending, setPending] = useState(null);
 	const perDart = inputMode === INPUT_PER_DART;
-	const blocked = disabled || pending != null;
 
 	const throwDart = (baseValue) => {
 		const dart = dartFromPad(baseValue, modifier);
-		if (!dart || blocked) {
+		if (!dart || disabled) {
 			return;
 		}
 		setModifier(null);
@@ -45,31 +45,20 @@ export default function Catch20Board({
 		if (kind == null || disabled) {
 			return;
 		}
-		if (kind === 'confirm') {
-			setPending(points);
-			return;
-		}
 		setTyped('');
-		onSum(points, false);
-	};
-
-	const confirmClose = () => {
-		const points = pending;
-		setPending(null);
-		setTyped('');
-		onSum(points, true);
+		onSum(points, kind === 'checkout');
 	};
 
 	return (
 		<View>
 			<Text style={styles.checkout} accessibilityRole="text">{`Checkout ${view.checkout}`}</Text>
-			<Text
+			<TickingScore
+				value={view.remaining}
+				animateUp
 				style={styles.remaining}
 				accessibilityRole="text"
 				accessibilityLabel={`Licznik ${view.remaining}`}
-			>
-				{view.remaining}
-			</Text>
+			/>
 			{perDart ? (
 				<Text
 					style={styles.thrown}
@@ -82,43 +71,20 @@ export default function Catch20Board({
 			{perDart ? (
 				<Text style={styles.dart} accessibilityRole="text">{`Lotka nr ${view.dartsInVisit + 1}`}</Text>
 			) : null}
-			{pending != null ? (
-				<View style={styles.confirm}>
-					<Text style={styles.confirmText}>Suma schodzi do zera. Zamknąć checkout?</Text>
-					<View style={styles.confirmRow}>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Anuluj"
-							onPress={() => setPending(null)}
-							style={styles.secondary}
-						>
-							<Text style={styles.secondaryText}>Anuluj</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Zamknij"
-							onPress={confirmClose}
-							style={styles.primary}
-						>
-							<Text style={styles.primaryText}>Zamknij</Text>
-						</Pressable>
-					</View>
-				</View>
-			) : null}
 			{perDart ? (
 				<DartPad
 					modifier={modifier}
-					disabled={blocked}
+					disabled={disabled}
 					onModifier={setModifier}
 					onDart={throwDart}
 					onUndo={onUndo}
-					undoDisabled={undoDisabled || blocked}
+					undoDisabled={undoDisabled || disabled}
 				/>
 			) : (
 				<SumPad
 					typed={typed}
-					disabled={blocked}
-					checkEnabled={!blocked && canFinishWithCheck(view.remaining)}
+					disabled={disabled}
+					checkEnabled={!disabled && canFinishWithCheck(view.remaining)}
 					onType={setTyped}
 					onOk={() => {
 						if (typed === '') {
@@ -126,7 +92,9 @@ export default function Catch20Board({
 						}
 						submitSum(Number(typed));
 					}}
-					onCheck={() => submitSum(view.remaining)}
+					onCheck={() => {
+						submitSum(view.remaining);
+					}}
 					onLeave={() => {
 						if (typed === '') {
 							return;
@@ -134,11 +102,11 @@ export default function Catch20Board({
 						submitSum(view.remaining - Number(typed));
 					}}
 					onUndo={onUndo}
-					undoDisabled={undoDisabled || blocked}
+					undoDisabled={undoDisabled || disabled}
 				/>
 			)}
 			{onAbort ? (
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Przerwij"
 					disabled={disabled}
@@ -146,7 +114,7 @@ export default function Catch20Board({
 					style={[styles.ghost, disabled && styles.disabled]}
 				>
 					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
+				</TrainingPressable>
 			) : null}
 		</View>
 	);
@@ -156,7 +124,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 	const mod = (value, label) => {
 		const selected = modifier === value;
 		return (
-			<Pressable
+			<TrainingPressable
 				key={value}
 				accessibilityRole="button"
 				accessibilityLabel={label}
@@ -166,7 +134,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 				style={[styles.mod, selected && styles.modOn, disabled && styles.disabled]}
 			>
 				<Text style={[styles.modText, selected && styles.modTextOn]}>{label}</Text>
-			</Pressable>
+			</TrainingPressable>
 		);
 	};
 
@@ -175,7 +143,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 			<View style={styles.row}>
 				{mod('double', 'D')}
 				{mod('triple', 'T')}
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="0"
 					disabled={disabled}
@@ -183,8 +151,8 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, disabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>0</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="25"
 					disabled={disabled || modifier === 'triple'}
@@ -192,8 +160,8 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, (disabled || modifier === 'triple') && styles.disabled]}
 				>
 					<Text style={styles.keyText}>25</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Cofnij"
 					disabled={undoDisabled}
@@ -201,12 +169,12 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, undoDisabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>Cofnij</Text>
-				</Pressable>
+				</TrainingPressable>
 			</View>
 			{NUMBER_ROWS.map((row) => (
 				<View key={row[0]} style={styles.row}>
 					{row.map((number) => (
-						<Pressable
+						<TrainingPressable
 							key={number}
 							accessibilityRole="button"
 							accessibilityLabel={String(number)}
@@ -215,7 +183,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 							style={[styles.key, disabled && styles.disabled]}
 						>
 							<Text style={styles.keyText}>{number}</Text>
-						</Pressable>
+						</TrainingPressable>
 					))}
 				</View>
 			))}
@@ -246,7 +214,7 @@ function SumPad({
 	};
 
 	const key = (label, onPress, enabled = !disabled) => (
-		<Pressable
+		<TrainingPressable
 			key={label}
 			accessibilityRole="button"
 			accessibilityLabel={label}
@@ -255,7 +223,7 @@ function SumPad({
 			style={[styles.key, !enabled && styles.disabled]}
 		>
 			<Text style={styles.keyText}>{label}</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 
 	return (
@@ -281,7 +249,7 @@ function SumPad({
 				{key('Zostało', onLeave)}
 				{key('Check', onCheck, checkEnabled)}
 			</View>
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={undoDisabled}
@@ -289,7 +257,7 @@ function SumPad({
 				style={[styles.undo, undoDisabled && styles.disabled]}
 			>
 				<Text style={styles.secondaryText}>Cofnij</Text>
-			</Pressable>
+			</TrainingPressable>
 		</View>
 	);
 }
@@ -347,24 +315,6 @@ const styles = StyleSheet.create({
 		fontSize: 22,
 		fontWeight: '700',
 	},
-	confirm: {
-		marginBottom: 12,
-		padding: 12,
-		borderRadius: 12,
-		backgroundColor: colors.bgElevated,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-	},
-	confirmText: {
-		color: colors.text,
-		fontSize: 15,
-		lineHeight: 22,
-		marginBottom: 12,
-	},
-	confirmRow: {
-		flexDirection: 'row',
-		gap: 8,
-	},
 	row: {
 		flexDirection: 'row',
 		gap: 8,
@@ -407,28 +357,6 @@ const styles = StyleSheet.create({
 	},
 	modTextOn: {
 		color: colors.onAccent,
-	},
-	primary: {
-		flex: 1,
-		minHeight: 48,
-		borderRadius: 10,
-		backgroundColor: colors.accent,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	primaryText: {
-		color: colors.onAccent,
-		fontSize: 16,
-		fontWeight: '700',
-	},
-	secondary: {
-		flex: 1,
-		minHeight: 48,
-		borderRadius: 10,
-		borderWidth: 1,
-		borderColor: colors.borderStrong,
-		alignItems: 'center',
-		justifyContent: 'center',
 	},
 	undo: {
 		minHeight: 48,

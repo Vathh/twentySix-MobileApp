@@ -78,10 +78,9 @@ export function runCatch20ExerciseTests() {
 	assert(catch20View(scored).checkout === 42 && catch20View(scored).closed === 0, 'bust drugiej wizyty po zejściu też przepada');
 
 	let closed = startCatch20Session(definition(), 'id', 1_000, 'sum');
-	assert(interpretCatch20Sum(41, 41) === 'confirm', 'suma równa licznikowi czeka na zamknięcie');
-	assert(recordCatch20Sum(closed, 41, false) === closed, 'bez potwierdzenia suma równa licznikowi nie wchodzi');
-	closed = recordCatch20Sum(closed, 41, true);
-	assert(catch20View(closed).closed === 1 && catch20View(closed).checkout === 42, 'potwierdzona suma zamyka checkout');
+	assert(interpretCatch20Sum(41, 41) === 'checkout', 'suma równa licznikowi zamyka checkout');
+	closed = recordCatch20Sum(closed, 41, false);
+	assert(catch20View(closed).closed === 1 && catch20View(closed).checkout === 42, 'suma równa licznikowi zamyka checkout');
 	assert(catch20Stats(closed).aims.length === 0, 'suma nie zbiera prób na dubla');
 
 	let six = startCatch20Session(definition(), 'id', 1_000, 'per_dart');

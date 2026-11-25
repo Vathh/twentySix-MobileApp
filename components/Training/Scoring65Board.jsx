@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
 import { dartFromPad } from '../../helpers/training/catch20Exercise';
 import { INPUT_PER_DART, MAX_SUM } from '../../helpers/training/scoring65Exercise';
 import { colors } from '../../theme/colors';
@@ -72,10 +73,10 @@ export default function Scoring65Board({
 				style={styles.points}
 			>
 				<Text style={styles.pointsCaption}>Punkty</Text>
-				<Text style={styles.pointsValue}>{view.points}</Text>
+				<TickingScore value={view.points} animateUp style={styles.pointsValue} />
 			</View>
 			<Text style={styles.instruction} accessibilityRole="text">
-				Zdobądź jak najwięcej punktów w trzech lotkach
+				Zdobądź jak najwięcej punktów w trzech lotkach. Wynik 65+ daje punkt do ćwiczenia.
 			</Text>
 			{perDart ? (
 				<View>
@@ -109,7 +110,7 @@ export default function Scoring65Board({
 				/>
 			)}
 			{onAbort ? (
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Przerwij"
 					disabled={disabled}
@@ -117,7 +118,7 @@ export default function Scoring65Board({
 					style={[styles.ghost, disabled && styles.disabled]}
 				>
 					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
+				</TrainingPressable>
 			) : null}
 		</View>
 	);
@@ -127,7 +128,7 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 	const mod = (value, label) => {
 		const selected = modifier === value;
 		return (
-			<Pressable
+			<TrainingPressable
 				key={value}
 				accessibilityRole="button"
 				accessibilityLabel={label}
@@ -137,7 +138,7 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 				style={[styles.mod, selected && styles.modOn, disabled && styles.disabled]}
 			>
 				<Text style={[styles.modText, selected && styles.modTextOn]}>{label}</Text>
-			</Pressable>
+			</TrainingPressable>
 		);
 	};
 
@@ -146,7 +147,7 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 			<View style={styles.row}>
 				{mod('double', 'D')}
 				{mod('triple', 'T')}
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="0"
 					disabled={disabled}
@@ -154,8 +155,8 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 					style={[styles.key, disabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>0</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="25"
 					disabled={disabled || modifier === 'triple'}
@@ -163,8 +164,8 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 					style={[styles.key, (disabled || modifier === 'triple') && styles.disabled]}
 				>
 					<Text style={styles.keyText}>25</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Cofnij"
 					disabled={undoDisabled}
@@ -172,12 +173,12 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 					style={[styles.key, undoDisabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>Cofnij</Text>
-				</Pressable>
+				</TrainingPressable>
 			</View>
 			{NUMBER_ROWS.map((row) => (
 				<View key={row[0]} style={styles.row}>
 					{row.map((number) => (
-						<Pressable
+						<TrainingPressable
 							key={number}
 							accessibilityRole="button"
 							accessibilityLabel={String(number)}
@@ -186,7 +187,7 @@ function DartPad({ modifier, disabled, undoDisabled, onModifier, onDart, onUndo 
 							style={[styles.key, disabled && styles.disabled]}
 						>
 							<Text style={styles.keyText}>{number}</Text>
-						</Pressable>
+						</TrainingPressable>
 					))}
 				</View>
 			))}
@@ -207,7 +208,7 @@ function SumPad({ typed, disabled, onType, onOk, onUndo, undoDisabled }) {
 	};
 
 	const key = (label, onPress, enabled = !disabled, accent = false) => (
-		<Pressable
+		<TrainingPressable
 			key={label}
 			accessibilityRole="button"
 			accessibilityLabel={label}
@@ -216,7 +217,7 @@ function SumPad({ typed, disabled, onType, onOk, onUndo, undoDisabled }) {
 			style={[styles.key, accent && styles.okKey, !enabled && styles.disabled]}
 		>
 			<Text style={styles.keyText}>{label}</Text>
-		</Pressable>
+		</TrainingPressable>
 	);
 
 	return (
@@ -238,7 +239,7 @@ function SumPad({ typed, disabled, onType, onOk, onUndo, undoDisabled }) {
 				{key('0', () => push('0'))}
 				{key('OK', onOk, !disabled, true)}
 			</View>
-			<Pressable
+			<TrainingPressable
 				accessibilityRole="button"
 				accessibilityLabel="Cofnij"
 				disabled={undoDisabled}
@@ -246,7 +247,7 @@ function SumPad({ typed, disabled, onType, onOk, onUndo, undoDisabled }) {
 				style={[styles.undo, undoDisabled && styles.disabled]}
 			>
 				<Text style={styles.secondaryText}>Cofnij</Text>
-			</Pressable>
+			</TrainingPressable>
 		</View>
 	);
 }

@@ -2,7 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
-import { fetchTrainingRecords } from '../../helpers/training/trainingApi';
+import { exerciseDisplayName } from '../../helpers/training/exerciseVariantFavorites';
+import { loadCachedRecords, refreshRecords } from '../../helpers/training/recordsCache';
 import { formatHistoryDate } from '../../helpers/training/trainingHistoryMerge';
 import { colors } from '../../theme/colors';
 
@@ -13,22 +14,30 @@ const TrainingRecordsScreen = () => {
 	const [error, setError] = useState(null);
 
 	const load = useCallback(async () => {
-		if (!auth?.accessToken) {
+		if (!auth?.accessToken || !auth?.userId) {
 			setError('Zaloguj się, żeby zobaczyć rekordy.');
 			setLoading(false);
 			return;
 		}
-		setLoading(true);
 		setError(null);
-		const result = await fetchTrainingRecords(auth.accessToken);
+		const cached = await loadCachedRecords(auth.userId);
+		if (cached) {
+			setItems(cached.items);
+			setLoading(false);
+		} else {
+			setLoading(true);
+		}
+		const fresh = await refreshRecords(auth.userId, auth.accessToken);
 		setLoading(false);
-		if (!result.ok) {
-			setItems([]);
-			setError(result.data?.message || 'Nie udało się pobrać rekordów.');
+		if (!fresh) {
+			if (!cached) {
+				setItems([]);
+				setError('Nie udało się pobrać rekordów.');
+			}
 			return;
 		}
-		setItems(Array.isArray(result.data?.items) ? result.data.items : []);
-	}, [auth?.accessToken]);
+		setItems(fresh.items);
+	}, [auth?.accessToken, auth?.userId]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -51,9 +60,11 @@ const TrainingRecordsScreen = () => {
 				<Text style={styles.empty}>Brak rekordów. Ukończ ćwiczenie z wynikiem, żeby tu weszło.</Text>
 			) : null}
 			{items.map((row) => (
-				<View key={row.exerciseKey} style={styles.row}>
+				<View key={`${row.exerciseKey}:${row.variant || ''}`} style={styles.row}>
 					<View style={styles.main}>
-						<Text style={styles.name}>{row.name}</Text>
+						<Text style={styles.name}>
+							{exerciseDisplayName(row.exerciseKey, row.variant, row.name)}
+						</Text>
 						<Text style={styles.meta}>{formatHistoryDate(row.achievedAt)}</Text>
 					</View>
 					<Text style={styles.score}>{row.score}</Text>
@@ -121,8 +132,9 @@ const styles = StyleSheet.create({
 	},
 	score: {
 		color: colors.accent,
-		fontSize: 20,
-		fontWeight: '700',
+		fontSize: 22,
+		fontWeight: '800',
+		fontVariant: ['tabular-nums'],
 	},
 });
 

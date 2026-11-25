@@ -148,7 +148,7 @@ export function shanghaiDoublesAimText(target) {
 		return `Celuj w sektor ${target.targetLabel}`;
 	}
 	if (target.isBull) {
-		return 'Celuj w Inner Bull';
+		return 'Celuj w czerwony środek';
 	}
 	return `Celuj w ${target.targetLabel}`;
 }
@@ -216,6 +216,66 @@ export function undoShanghaiDoublesDart(session) {
 	};
 }
 
+function percentOf(hits, attempts) {
+	if (!attempts) {
+		return 0;
+	}
+	return Math.round((hits * 100) / attempts);
+}
+
+function dartIsHit(stageType, dart) {
+	if (!dart) {
+		return false;
+	}
+	if (stageType === 'doubles') {
+		if (dart.target === 'Bull') {
+			return dart.ring === 'inner';
+		}
+		return dart.ring === 'double';
+	}
+	return dart.ring === 'single' || dart.ring === 'double' || dart.ring === 'triple';
+}
+
+/**
+ * Skuteczność łącznie i per cel (sektor / D# / Bull).
+ */
+export function shanghaiDoublesStats(session) {
+	const stageType = session?.stageType || shanghaiDoublesSpec(session?.exerciseKey)?.type || 'shanghai';
+	const darts = Array.isArray(session?.darts) ? session.darts : [];
+	const aims = [];
+	const byAim = new Map();
+	let hits = 0;
+	for (const dart of darts) {
+		const key = dart?.target === 'Bull' ? 'Czerwony środek' : String(dart?.target ?? '?');
+		const hit = dartIsHit(stageType, dart);
+		if (hit) {
+			hits += 1;
+		}
+		let row = byAim.get(key);
+		if (!row) {
+			row = { aim: key, attempts: 0, hits: 0 };
+			byAim.set(key, row);
+			aims.push(row);
+		}
+		row.attempts += 1;
+		if (hit) {
+			row.hits += 1;
+		}
+	}
+	return {
+		exerciseKey: session?.exerciseKey,
+		stageType,
+		thrown: darts.length,
+		hits,
+		attempts: darts.length,
+		percent: percentOf(hits, darts.length),
+		aims: aims.map((row) => ({
+			...row,
+			percent: percentOf(row.hits, row.attempts),
+		})),
+	};
+}
+
 export function shanghaiDoublesCompletion(session, completedAt = new Date().toISOString()) {
 	const score = scoreShanghaiDoubles(session.exerciseKey, session.darts);
 	return {
@@ -225,11 +285,7 @@ export function shanghaiDoublesCompletion(session, completedAt = new Date().toIS
 		name: session.name,
 		completedAt,
 		score,
-		stats: {
-			exerciseKey: session.exerciseKey,
-			thrown: session.darts.length,
-			stageType: session.stageType,
-		},
+		stats: shanghaiDoublesStats(session),
 		sync: 'pending',
 	};
 }

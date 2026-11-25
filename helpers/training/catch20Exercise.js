@@ -80,8 +80,8 @@ export function dartFromPad(baseValue, modifier) {
 }
 
 /**
- * Suma wizyty. Równa licznikowi czeka na potwierdzenie zamknięcia.
- * @returns {'confirm' | 'bust' | 'score' | null}
+ * Suma wizyty. Równa licznikowi = checkout (bez osobnego potwierdzenia).
+ * @returns {'checkout' | 'bust' | 'score' | null}
  */
 export function interpretCatch20Sum(remaining, points) {
 	if (!Number.isInteger(points) || points < 0 || points > 180) {
@@ -91,7 +91,7 @@ export function interpretCatch20Sum(remaining, points) {
 		return null;
 	}
 	if (points === remaining) {
-		return 'confirm';
+		return canFinishWithCheck(remaining) ? 'checkout' : 'bust';
 	}
 	if (points > remaining || remaining - points === 1) {
 		return 'bust';
@@ -188,7 +188,11 @@ export function catch20View(session) {
 				continue;
 			}
 			const kind = interpretCatch20Sum(state.remaining, action.points);
-			if (kind === 'bust' || kind === 'confirm') {
+			if (kind === 'checkout') {
+				advanceCheckout(state, true);
+				continue;
+			}
+			if (kind === 'bust') {
 				bustVisit(state);
 				continue;
 			}
@@ -228,10 +232,7 @@ export function recordCatch20Sum(session, points, checkout = false) {
 	if (kind == null) {
 		return session;
 	}
-	if (kind === 'confirm') {
-		if (!checkout || !canFinishWithCheck(remaining)) {
-			return session;
-		}
+	if (kind === 'checkout' || (checkout && points === remaining && canFinishWithCheck(remaining))) {
 		return commit(session, { kind: 'sum', points, checkout: true });
 	}
 	if (checkout) {

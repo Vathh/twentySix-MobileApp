@@ -1,5 +1,5 @@
-/** Najwyżej trzy różne pozycje. Klucz łączy rodzaj, id i wariant. */
-export const RECENT_TRAINING_LIMIT = 3;
+/** Najwyżej sześć różnych pozycji. Klucz łączy rodzaj, id i wariant. */
+export const RECENT_TRAINING_LIMIT = 6;
 
 export function recentTrainingKey(entry) {
 	const variant = entry?.variant != null && entry.variant !== '' ? String(entry.variant) : '';

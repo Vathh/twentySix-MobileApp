@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TrainingPressable from './TrainingPressable';
 import {
 	INPUT_PER_DART,
 	dartFromPad,
 } from '../../helpers/training/checkout41Exercise';
 import { colors } from '../../theme/colors';
+import TickingScore from '../Game/TickingScore';
 import Checkout41Reel from './Checkout41Reel';
 
 const NUMBER_ROWS = [
@@ -42,13 +44,13 @@ export default function Checkout41Board({
 			<Checkout41Reel checkout={view.checkout} />
 			{perDart ? (
 				<>
-					<Text
+					<TickingScore
+						value={view.remaining}
+						animateUp
 						style={styles.remaining}
 						accessibilityRole="text"
 						accessibilityLabel={`Licznik ${view.remaining}`}
-					>
-						{view.remaining}
-					</Text>
+					/>
 					<Text
 						style={styles.thrown}
 						accessibilityElementsHidden={view.openLabels.length === 0}
@@ -71,7 +73,7 @@ export default function Checkout41Board({
 						Zamknij wskazany checkout w trzech lotkach
 					</Text>
 					<View style={styles.outcomeRow}>
-						<Pressable
+						<TrainingPressable
 							accessibilityRole="button"
 							accessibilityLabel="Fail"
 							disabled={disabled}
@@ -79,8 +81,8 @@ export default function Checkout41Board({
 							style={[styles.outcome, styles.fail, disabled && styles.disabled]}
 						>
 							<Text style={styles.outcomeText}>Fail</Text>
-						</Pressable>
-						<Pressable
+						</TrainingPressable>
+						<TrainingPressable
 							accessibilityRole="button"
 							accessibilityLabel="Check"
 							disabled={disabled}
@@ -88,9 +90,9 @@ export default function Checkout41Board({
 							style={[styles.outcome, styles.check, disabled && styles.disabled]}
 						>
 							<Text style={styles.checkText}>Check</Text>
-						</Pressable>
+						</TrainingPressable>
 					</View>
-					<Pressable
+					<TrainingPressable
 						accessibilityRole="button"
 						accessibilityLabel="Cofnij"
 						disabled={undoDisabled || disabled}
@@ -98,11 +100,11 @@ export default function Checkout41Board({
 						style={[styles.undoSum, (undoDisabled || disabled) && styles.disabled]}
 					>
 						<Text style={styles.outcomeText}>Cofnij</Text>
-					</Pressable>
+					</TrainingPressable>
 				</>
 			)}
 			{onAbort ? (
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Przerwij"
 					disabled={disabled}
@@ -110,7 +112,7 @@ export default function Checkout41Board({
 					style={[styles.ghost, disabled && styles.disabled]}
 				>
 					<Text style={styles.ghostText}>Przerwij</Text>
-				</Pressable>
+				</TrainingPressable>
 			) : null}
 		</View>
 	);
@@ -120,7 +122,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 	const mod = (value, label) => {
 		const selected = modifier === value;
 		return (
-			<Pressable
+			<TrainingPressable
 				key={value}
 				accessibilityRole="button"
 				accessibilityLabel={label}
@@ -130,7 +132,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 				style={[styles.mod, selected && styles.modOn, disabled && styles.disabled]}
 			>
 				<Text style={[styles.modText, selected && styles.modTextOn]}>{label}</Text>
-			</Pressable>
+			</TrainingPressable>
 		);
 	};
 
@@ -139,7 +141,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 			<View style={styles.row}>
 				{mod('double', 'D')}
 				{mod('triple', 'T')}
-				<Pressable
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="0"
 					disabled={disabled}
@@ -147,8 +149,8 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, disabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>0</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="25"
 					disabled={disabled || modifier === 'triple'}
@@ -156,8 +158,8 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, (disabled || modifier === 'triple') && styles.disabled]}
 				>
 					<Text style={styles.keyText}>25</Text>
-				</Pressable>
-				<Pressable
+				</TrainingPressable>
+				<TrainingPressable
 					accessibilityRole="button"
 					accessibilityLabel="Cofnij"
 					disabled={undoDisabled}
@@ -165,12 +167,12 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 					style={[styles.key, undoDisabled && styles.disabled]}
 				>
 					<Text style={styles.keyText}>Cofnij</Text>
-				</Pressable>
+				</TrainingPressable>
 			</View>
 			{NUMBER_ROWS.map((row) => (
 				<View key={row[0]} style={styles.row}>
 					{row.map((number) => (
-						<Pressable
+						<TrainingPressable
 							key={number}
 							accessibilityRole="button"
 							accessibilityLabel={String(number)}
@@ -179,7 +181,7 @@ function DartPad({ modifier, disabled, onModifier, onDart, onUndo, undoDisabled 
 							style={[styles.key, disabled && styles.disabled]}
 						>
 							<Text style={styles.keyText}>{number}</Text>
-						</Pressable>
+						</TrainingPressable>
 					))}
 				</View>
 			))}

@@ -20,6 +20,7 @@ import {
 	enqueueTrainingCompletion,
 	flushTrainingOutbox,
 } from '../../helpers/training/trainingSessionStore';
+import { applyCompletionToRecordsCache } from '../../helpers/training/recordsCache';
 import {
 	fetchChallengeRanking,
 	publishChallengeSession,
@@ -143,6 +144,7 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 		}
 		summaryId.current = record.clientSessionId;
 		try {
+			await applyCompletionToRecordsCache(userIdRef.current, record);
 			await enqueueTrainingCompletion(userIdRef.current, record);
 			const items = await flushTrainingOutbox(userIdRef.current, accessTokenRef.current);
 			if (summaryId.current !== record.clientSessionId) {

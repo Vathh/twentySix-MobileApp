@@ -39,8 +39,20 @@ export function clockTargets(dartCount) {
 	return targets;
 }
 
-export function targetLabel(target) {
-	return target?.kind === 'bull' ? 'Bull' : String(target?.number ?? '');
+export function targetLabel(target, { doubles = false } = {}) {
+	if (typeof target === 'string' || typeof target === 'number') {
+		return String(target);
+	}
+	if (!target) {
+		return '';
+	}
+	if (target.kind === 'bull') {
+		return 'Bull';
+	}
+	if (target.label != null) {
+		return String(target.label);
+	}
+	return doubles ? `D${target.number}` : String(target?.number ?? '');
 }
 
 /**
@@ -147,13 +159,7 @@ export function recordOutcome(session, hit, bullRing = 'outer') {
 }
 
 function clockAimLabel(target, doubles) {
-	if (!target) {
-		return '';
-	}
-	if (target.kind === 'bull') {
-		return 'Bull';
-	}
-	return doubles ? `D${target.number}` : String(target.number);
+	return targetLabel(target, { doubles });
 }
 
 /**
