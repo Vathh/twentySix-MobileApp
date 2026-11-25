@@ -462,36 +462,36 @@ const Counter = ({
   const scoreDisplayText =
     resultEdited || currentResult > 0 ? String(currentResult) : 'Wprowadź wynik';
   const scoreSection = (
-    <View>
-      <View style={styles.scoreContainer}>
-        <View style={styles.score}>
-          <Text style={styles.scoreText}>{scoreDisplayText}</Text>
-        </View>
-        <View style={styles.undoContainer}>
-          <Pressable
-            style={styles.remainingBtn}
-            onPress={() => handleRemainingBtn?.()}
-            accessibilityRole="button"
-            accessibilityLabel="Zostało"
-          >
-            <Text style={styles.remainingText} numberOfLines={1}>
-              Zostało
-            </Text>
-          </Pressable>
-          <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
-            <Text style={styles.undoText}>Cofnij</Text>
-          </Pressable>
-        </View>
+    <View style={styles.scoreContainer}>
+      <View style={styles.score}>
+        <Text style={styles.scoreText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {scoreDisplayText}
+        </Text>
       </View>
-      <Pressable
-        style={[styles.checkBtn, !checkEnabled && styles.checkBtnDisabled]}
-        onPress={() => handleCheckBtn?.()}
-        disabled={!checkEnabled}
-        accessibilityRole="button"
-        accessibilityLabel="Check"
-      >
-        <Text style={styles.checkBtnText}>Check</Text>
-      </Pressable>
+      <View style={styles.actionButtonsRow}>
+        <Pressable
+          style={[styles.checkBtn, !checkEnabled && styles.checkBtnDisabled]}
+          onPress={() => handleCheckBtn?.()}
+          disabled={!checkEnabled}
+          accessibilityRole="button"
+          accessibilityLabel="Check"
+        >
+          <Text style={styles.checkBtnText} numberOfLines={1}>Check</Text>
+        </Pressable>
+        <Pressable
+          style={styles.remainingBtn}
+          onPress={() => handleRemainingBtn?.()}
+          accessibilityRole="button"
+          accessibilityLabel="Zostało"
+        >
+          <Text style={styles.remainingText} numberOfLines={1}>
+            Zostało
+          </Text>
+        </Pressable>
+        <Pressable style={styles.undoBtn} onPress={handleUndoBtn}>
+          <Text style={styles.undoText} numberOfLines={1}>Cofnij</Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -1029,26 +1029,30 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   score: {
-    flex: 1.75,
+    flex: 1.45,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 4,
+    minWidth: 0,
   },
   scoreText: {
-    fontSize: 24,
+    fontSize: 20,
     paddingTop: 10,
     paddingBottom: 10,
-    color: colors.textMuted
+    color: colors.textMuted,
+    textAlign: 'center',
   },
-  undoContainer: {
-    flex: 1.45,
+  actionButtonsRow: {
+    flex: 1.75,
     flexDirection: 'row',
     alignItems: 'stretch',
-    justifyContent: 'flex-end',
+    gap: 6,
+    paddingRight: 2,
   },
   remainingBtn: {
-    flex: 1.28,
-    paddingHorizontal: 10,
-    marginRight: 6,
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 4,
     backgroundColor: colors.scrimMild,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1057,12 +1061,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   remainingText: {
-    fontSize: 18,
+    fontSize: 15,
     color: colors.textMuted
   },
   undoBtn: {
     flex: 1,
-    paddingHorizontal: 10,
+    minWidth: 0,
+    paddingHorizontal: 4,
     backgroundColor: colors.scrimStrong,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1071,27 +1076,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   undoText: {
-    fontSize: 18,
+    fontSize: 15,
     color: colors.textMuted
   },
   checkBtn: {
-    marginTop: 8,
-    marginHorizontal: 4,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkBtnDisabled: {
+    flexGrow: 0,
+    flexShrink: 0,
+    paddingHorizontal: 8,
     backgroundColor: colors.scrimMild,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.borderStrong,
+    borderRadius: 8,
+  },
+  checkBtnDisabled: {
+    opacity: 0.45,
   },
   checkBtnText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
+    fontSize: 15,
+    color: colors.textMuted,
   },
   waitingOverlay: {
     position: 'absolute',
