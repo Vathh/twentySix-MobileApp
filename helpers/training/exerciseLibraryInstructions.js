@@ -246,7 +246,7 @@ const SHANGHAI_10_15 = {
 	scoring: [
 		'Single 15, Double 30, Triple 45.',
 		'Za komplet S+D+T w jednym podejściu dodatkowo +100.',
-		'Wynik to suma punktów. Maksimum na to ćwiczenie: 1080.',
+		'Wynik to suma punktów. Maksimum na to ćwiczenie: 1140.',
 	],
 	limit: '18 lotek (6 sektorów × 3).',
 };
@@ -276,7 +276,7 @@ const SHANGHAI_16_20 = {
 	scoring: [
 		'Single 15, Double 30, Triple 45.',
 		'Za komplet S+D+T w jednym podejściu dodatkowo +100.',
-		'Wynik to suma punktów. Maksimum na to ćwiczenie: 900.',
+		'Wynik to suma punktów. Maksimum na to ćwiczenie: 950.',
 	],
 	limit: '15 lotek (5 sektorów × 3).',
 };
