@@ -257,6 +257,7 @@ const TrainingEventScreen = ({ navigation, route }) => {
 
 	const item = planItemAt(hang.plan, hang.index);
 	const definition = item ? slotToExerciseDefinition(hang.plan, item) : null;
+	const exerciseKey = `${hang.clientSessionId || 'event'}-${hang.index}-${item?.exerciseKey || 'x'}`;
 	const helpSections = helpSectionsFromGuide(libraryInstructionsFor(definition, {
 		dartVariant: item?.dartCount,
 		pressureVariant: item?.variant,
@@ -289,26 +290,28 @@ const TrainingEventScreen = ({ navigation, route }) => {
 					<Ionicons name="close" size={scaleSize(20)} color={colors.textMuted} />
 				</Pressable>
 			</View>
-			<TrainingExerciseScreen
-				navigation={navigation}
-				planHost={{
-					definition,
-					inputMode: hang.inputMode,
-					initialSession: hang.exerciseSession,
-					paused: offline,
-					allowManualPause: false,
-					onSessionChange: (session) => {
-						const current = hangRef.current;
-						if (!current || current.phase !== 'running') {
-							return;
-						}
-						persist({ ...current, exerciseSession: session });
-					},
-					onComplete: (record) => {
-						finishExercise(record);
-					},
-				}}
-			/>
+			<View style={styles.exerciseHost} key={exerciseKey}>
+				<TrainingExerciseScreen
+					navigation={navigation}
+					planHost={{
+						definition,
+						inputMode: hang.inputMode,
+						initialSession: hang.exerciseSession,
+						paused: offline,
+						allowManualPause: false,
+						onSessionChange: (session) => {
+							const current = hangRef.current;
+							if (!current || current.phase !== 'running') {
+								return;
+							}
+							persist({ ...current, exerciseSession: session });
+						},
+						onComplete: (record) => {
+							finishExercise(record);
+						},
+					}}
+				/>
+			</View>
 			<Modal
 				visible={menuOpen}
 				transparent
@@ -350,6 +353,7 @@ const TrainingEventScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
 	root: { flex: 1, backgroundColor: colors.bg },
+	exerciseHost: { flex: 1 },
 	menuButton: {
 		paddingHorizontal: 10,
 		paddingVertical: 4,

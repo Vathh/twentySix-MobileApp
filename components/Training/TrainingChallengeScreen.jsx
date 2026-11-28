@@ -275,6 +275,7 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 
 	const item = planItemAt(hang.plan, hang.index);
 	const exerciseDefinition = item ? slotToExerciseDefinition(hang.plan, item) : null;
+	const exerciseKey = `${hang.clientSessionId || 'challenge'}-${hang.index}-${item?.exerciseKey || 'x'}`;
 	const helpSections = helpSectionsFromGuide(libraryInstructionsFor(exerciseDefinition, {
 		dartVariant: item?.dartCount,
 		pressureVariant: slotVariant(item),
@@ -295,33 +296,35 @@ const TrainingChallengeScreen = ({ navigation, route }) => {
 				<Text style={styles.progress}>{challengeProgressLabel(hang.index, hang.total)}</Text>
 				<Text style={styles.title} numberOfLines={1}>{exerciseDefinition.name}</Text>
 			</View>
-			<TrainingExerciseScreen
-				navigation={navigation}
-				route={{
-					params: {
+			<View style={styles.exerciseHost} key={exerciseKey}>
+				<TrainingExerciseScreen
+					navigation={navigation}
+					route={{
+						params: {
+							definition: exerciseDefinition,
+							variant: slotVariant(item),
+							inputMode: hang.inputMode,
+						},
+					}}
+					planHost={{
 						definition: exerciseDefinition,
-						variant: slotVariant(item),
 						inputMode: hang.inputMode,
-					},
-				}}
-				planHost={{
-					definition: exerciseDefinition,
-					inputMode: hang.inputMode,
-					initialSession: hang.exerciseSession,
-					paused: false,
-					allowManualPause: false,
-					onSessionChange: (session) => {
-						const current = hangRef.current;
-						if (!current || current.phase !== 'running') {
-							return;
-						}
-						persist({ ...current, exerciseSession: session });
-					},
-					onComplete: (record) => {
-						finishExercise(record);
-					},
-				}}
-			/>
+						initialSession: hang.exerciseSession,
+						paused: false,
+						allowManualPause: false,
+						onSessionChange: (session) => {
+							const current = hangRef.current;
+							if (!current || current.phase !== 'running') {
+								return;
+							}
+							persist({ ...current, exerciseSession: session });
+						},
+						onComplete: (record) => {
+							finishExercise(record);
+						},
+					}}
+				/>
+			</View>
 			<Modal
 				visible={menuOpen}
 				transparent
@@ -365,6 +368,9 @@ const styles = StyleSheet.create({
 	root: {
 		flex: 1,
 		backgroundColor: colors.bg,
+	},
+	exerciseHost: {
+		flex: 1,
 	},
 	hint: {
 		marginTop: 24,
